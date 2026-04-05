@@ -1,0 +1,5 @@
+﻿## main
+ M git_push_log.txt
+?? git_sync_check.txt
+eff3914144e1249d6ddfad1de344cfd7d0c9255c
+1aa71c4f360329a99f702673f89e82d9641cf8ca	refs/heads/main

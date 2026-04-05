@@ -23,7 +23,7 @@ interface ChatInterfaceProps {
 const ChatInterface: React.FC<ChatInterfaceProps> = ({
   isDark,
   onThemeToggle,
-}) => {
+}: ChatInterfaceProps) => {
   const initialMessage: Message = {
     id: 'init-1',
     type: 'agent',
@@ -91,7 +91,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setErrorMessage('')
   }
 
-  const handleSendMessage = (text: string) => {
+  const handleSendMessage = (text: string): void => {
     if (!text.trim()) return
 
     setErrorMessage('')
@@ -105,7 +105,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       metadata: { voiceInput: false },
     }
 
-    setMessages((prev) => [...prev, userMessage])
+    setMessages((prev: Message[]) => [...prev, userMessage])
     setInputValue('')
     setIsProcessing(true)
 
@@ -132,7 +132,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       metadata: { taskId: task.id },
     }
 
-    setMessages((prev) => [...prev, processingMessage])
+    setMessages((prev: Message[]) => [...prev, processingMessage])
 
     taskExecutor
       .executeTask(task, {
@@ -157,13 +157,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           metadata: { taskId: completedTask.id },
         }
 
-        setMessages((prev) => [...prev, completionMessage])
+        setMessages((prev: Message[]) => [...prev, completionMessage])
       })
       .catch((error: unknown) => {
         const failureMessage = error instanceof Error ? error.message : 'Execution failed.'
         setErrorMessage(failureMessage)
 
-        setMessages((prev) => [
+        setMessages((prev: Message[]) => [
           ...prev,
           {
             id: `msg-${Date.now()}-error`,
@@ -189,14 +189,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setErrorMessage(message)
   }
 
-  const handleVoiceActivation = () => {
+  const handleVoiceActivation = (): void => {
     const activationMessage: Message = {
       id: `msg-${Date.now()}-activation`,
       type: 'agent',
       content: 'Hey Paras! I\'m listening... 👂',
       timestamp: new Date(),
     }
-    setMessages((prev) => [...prev, activationMessage])
+    setMessages((prev: Message[]) => [...prev, activationMessage])
   }
 
   return (
@@ -237,7 +237,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
         {/* Messages */}
         <div className="messages-container">
-          {messages.map((message) => (
+          {messages.map((message: Message) => (
             <MessageBubble key={message.id} message={message} />
           ))}
 
@@ -255,8 +255,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               className="input-field"
               placeholder="Type your command... (e.g. 'Build a React dashboard', 'Make a video')"
               value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={(e) => {
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInputValue(e.target.value)}
+              onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) => {
                 if (e.key === 'Enter' && !isProcessing) {
                   handleSendMessage(inputValue)
                 }

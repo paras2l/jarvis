@@ -1,0 +1,27 @@
+# Omni-Learning Agent — Digital Human Studio
+# Local AI Engine Requirements
+# ==============================
+# Install with: pip install -r requirements.txt
+#
+# TIER 1 — Voice (runs on ANY computer, no GPU needed)
+kokoro-onnx>=0.3.0
+soundfile>=0.12.0
+numpy>=1.24.0
+pyttsx3>=2.90
+
+# TIER 2 — Image Generation (GPU recommended, but works on CPU slowly)
+torch>=2.1.0
+torchvision>=0.16.0
+diffusers>=0.27.0
+transformers>=4.40.0
+accelerate>=0.29.0
+Pillow>=10.0.0
+safetensors>=0.4.0
+
+# TIER 3 — Video / Avatar (optional, GPU recommended)
+# opencv-python>=4.9.0
+# imageio>=2.34.0
+# imageio-ffmpeg>=0.4.9
+
+# Server Utilities
+requests>=2.31.0

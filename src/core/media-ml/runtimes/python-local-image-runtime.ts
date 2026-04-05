@@ -8,13 +8,11 @@ import {
 
 /**
  * Python Local Image Generation Runtime
+ * ======================================
+ * Calls the persistent diffusion_core.py worker via the Electron native bridge.
+ * Works on any device — GPU for speed, CPU for compatibility.
  *
- * Bridges to local Python environment running image generation via:
- * - Diffusers library (SDXL, Flux, etc.)
- * - Installed as a subprocess worker
- * - Returns local file artifacts and preview URIs
- *
- * Requires: Python 3.9+, torch, diffusers, PIL installed in system Python
+ * Requires: Python 3.9+ with packages from media-ml/python/requirements.txt
  */
 class PythonLocalImageRuntime implements MediaRuntimeAdapter {
   readonly name = 'Python Local Image Runtime'
@@ -25,25 +23,15 @@ class PythonLocalImageRuntime implements MediaRuntimeAdapter {
     if (stage.type !== 'image') {
       return { valid: false, message: 'This runtime only supports image generation.' }
     }
-
     if (!stage.prompt || stage.prompt.trim().length < 5) {
       return { valid: false, message: 'Image prompt must be at least 5 characters.' }
     }
-
     return { valid: true }
   }
 
-  estimateCost(stage: MediaStageRequest): RuntimeEstimate {
-    if (stage.type !== 'image') {
-      return { credits: 0, latencyMs: 0 }
-    }
-
-    const estimatedLatencyMs = 8000 + Math.random() * 4000
-
-    return {
-      credits: 0,
-      latencyMs: Math.round(estimatedLatencyMs),
-    }
+  estimateCost(_stage: MediaStageRequest): RuntimeEstimate {
+    // Local = 0 credits. Latency depends on hardware.
+    return { credits: 0, latencyMs: 12000 }
   }
 
   async run(stage: MediaStageRequest): Promise<MediaStageResult> {
@@ -61,7 +49,10 @@ class PythonLocalImageRuntime implements MediaRuntimeAdapter {
       }
     }
 
-    const result = await this.callPythonImageWorker(stage.prompt, stage.id)
+    // Emit progress event
+    this.emitProgress(stage, 'running', 10, 'Spawning Python inference worker...')
+
+    const result = await this.callDiffusionCore(stage.prompt, stage.id)
 
     if (!result.success) {
       return {
@@ -69,11 +60,13 @@ class PythonLocalImageRuntime implements MediaRuntimeAdapter {
         stageType: 'image',
         runtime: 'local',
         success: false,
-        warnings: [result.error ?? 'Python worker failed.'],
+        warnings: [result.error ?? 'Python diffusion worker failed.'],
         durationMs: Date.now() - startedAt,
         modelVersion: 'python-image-v1',
       }
     }
+
+    this.emitProgress(stage, 'completed', 100, 'Image generated successfully.')
 
     return {
       stageId: stage.id,
@@ -87,7 +80,22 @@ class PythonLocalImageRuntime implements MediaRuntimeAdapter {
     }
   }
 
-  private async callPythonImageWorker(
+  private emitProgress(
+    stage: MediaStageRequest,
+    status: string,
+    progress: number,
+    message: string
+  ) {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('media:progress', {
+          detail: { stageId: stage.id, stageType: stage.type, runtime: 'local', status, progress, message },
+        })
+      )
+    }
+  }
+
+  private async callDiffusionCore(
     prompt: string,
     stageId: string
   ): Promise<{
@@ -100,80 +108,70 @@ class PythonLocalImageRuntime implements MediaRuntimeAdapter {
     if (typeof window === 'undefined' || !window.nativeBridge?.runShellCommand) {
       return {
         success: false,
-        error: 'Native bridge not available. Python worker requires shell command support.',
+        error: 'Native bridge unavailable. Run the app in Electron to use local image generation.',
       }
     }
 
     const timestamp = Date.now()
-    const outputPath = `antigravity_image_${timestamp}_${stageId}.png`
+    const outputFilename = `studio_image_${timestamp}_${stageId}.png`
 
-    const pythonScript = `
-import sys
-try:
-    from diffusers import AutoPipelineForText2Image
-    import torch
-    
-    prompt = """${prompt.replace(/"/g, '\\"')}"""
-    
-    pipeline = AutoPipelineForText2Image.from_pretrained(
-        "stabilityai/sdxl-turbo",
-        torch_dtype=torch.float16,
-        variant="fp16"
-    )
-    pipeline.to("cuda" if torch.cuda.is_available() else "cpu")
-    
-    image = pipeline(prompt=prompt, num_inference_steps=1, guidance_scale=0.0).images[0]
-    image.save("${outputPath}")
-    
-    print(f"SUCCESS|${outputPath}|sdxl-turbo")
-except Exception as e:
-    print(f"ERROR|{str(e)}", file=sys.stderr)
-    sys.exit(1)
-`.trim()
+    // Get the path to diffusion_core.py
+    const scriptsPathResult = await window.nativeBridge.getPythonScriptsPath?.()
+    const scriptsDir = scriptsPathResult?.path ?? 'src/core/media-ml/python'
+    const scriptPath = `${scriptsDir}/diffusion_core.py`
 
-    const scriptPath = `python_image_worker_${timestamp}.py`
+    const workspaceResult = await window.nativeBridge.getWorkspacePath?.()
+    const workspaceDir = workspaceResult?.path ?? '.'
+    const outputPath = `${workspaceDir}/${outputFilename}`
 
-    try {
-      const writeResult = await window.nativeBridge.writeFile?.(scriptPath, pythonScript)
-      if (!writeResult?.success) {
-        return { success: false, error: 'Failed to write Python worker script.' }
-      }
+    // Build the command — use sdxl-turbo for speed, auto-detect device
+    const safePropmt = prompt.replace(/"/g, '\\"')
+    const command = `python "${scriptPath}" --prompt "${safePropmt}" --out "${outputPath}" --model sdxl-turbo --steps 1`
 
-      const runResult = await window.nativeBridge.runShellCommand?.(`python "${scriptPath}"`)
+    this.emitProgress({ id: stageId, type: 'image', prompt, status: 'running' } as MediaStageRequest, 'running', 30, 'Loading model...')
 
-      if (!runResult?.success) {
+    const result = await window.nativeBridge.runShellCommand(command, { timeoutMs: 300_000 })
+
+    if (!result?.success) {
+      const err = result?.error ?? 'Python command failed.'
+      // Check if it's a "not installed" error
+      if (err.includes('ModuleNotFoundError') || err.includes('No module named')) {
         return {
           success: false,
-          error: runResult?.error ?? 'Python worker execution failed.',
+          error: `Python packages missing. Run: pip install -r src/core/media-ml/python/requirements.txt`,
         }
       }
-
-      const output = runResult.output ?? ''
-      const lines = output.split('\n')
-      const successLine = lines.find((line) => line.startsWith('SUCCESS|'))
-
-      if (!successLine) {
+      if (err.includes('python') && err.toLowerCase().includes('not recognized')) {
         return {
           success: false,
-          error: 'Python worker did not produce a SUCCESS output.',
+          error: `Python not found. Install Python 3.9+ from python.org and add it to PATH.`,
         }
       }
+      return { success: false, error: err }
+    }
 
-      const parts = successLine.split('|')
-      const filePath = parts[1] ?? outputPath
-      const modelVersion = parts[2] ?? 'sdxl-turbo'
+    this.emitProgress({ id: stageId, type: 'image', prompt, status: 'running' } as MediaStageRequest, 'running', 80, 'Saving image...')
 
-      return {
-        success: true,
-        artifactUri: `file://${filePath}`,
-        previewUri: `file://${filePath}`,
-        modelVersion,
-      }
-    } catch (error) {
+    // Parse the output line: SUCCESS|<path>|<model>
+    const output = result.output ?? ''
+    const successLine = output.split('\n').find((l: string) => l.startsWith('SUCCESS|'))
+
+    if (!successLine) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown Python worker error.',
+        error: result.error || 'Diffusion worker completed but no SUCCESS line found.',
       }
+    }
+
+    const parts = successLine.split('|')
+    const filePath = parts[1] ?? outputPath
+    const modelVersion = parts[2]?.trim() ?? 'sdxl-turbo'
+
+    return {
+      success: true,
+      artifactUri: `file://${filePath}`,
+      previewUri: `file://${filePath}`,
+      modelVersion,
     }
   }
 }

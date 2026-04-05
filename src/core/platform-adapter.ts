@@ -1,0 +1,393 @@
+/**
+ * Cross-Device Platform Adapter — Universal Device Support
+ *
+ * Makes this app run natively on EVERY platform with ZERO code changes.
+ * The agent core (src/core/*) stays the same. Only the bridges differ.
+ *
+ * Supported Platforms:
+ * ┌──────────────────────────────────────────────────────────────┐
+ * │  Windows      → Electron (current)        ✅ Full support    │
+ * │  macOS        → Electron                  ✅ Full support    │
+ * │  Linux        → Electron                  ✅ Full support    │
+ * │  Android      → Capacitor + WebView       ✅ Full support    │
+ * │  iOS          → Capacitor + WKWebView     ✅ Full support    │
+ * │  Web/PWA      → Browser (Vite build)      ✅ Full support    │
+ * │  Chrome Ext   → Extension (future)        🔜 Planned        │
+ * └──────────────────────────────────────────────────────────────┘
+ *
+ * Key Principle:
+ *   The PlatformAdapter is the ONLY file that knows about the platform.
+ *   All agent code calls platformAdapter.* instead of nativeBridge directly.
+ *   The adapter routes to the right implementation automatically.
+ *
+ * Usage:
+ *   import { platformAdapter } from './platform-adapter'
+ *   const result = await platformAdapter.launchApp('WhatsApp')
+ *   const files = await platformAdapter.readFile('/path/to/file.txt')
+ *
+ * PWA/Web Install:
+ *   The app is also a Progressive Web App — users can install it from the
+ *   browser on any device. In PWA mode, native capabilities degrade
+ *   gracefully to web equivalents.
+ */
+
+import { detectPlatform } from './platform/platform-detection'
+import type { PlatformId } from './platform/types'
+
+// ── Capability Matrix ──────────────────────────────────────────────────────
+
+interface PlatformCapabilities {
+  /** Can launch native apps on the host OS */
+  nativeLaunch: boolean
+  /** Can read/write files on the host filesystem */
+  fileSystem: boolean
+  /** Can run shell commands */
+  shellExec: boolean
+  /** Can take screenshots */
+  screenCapture: boolean
+  /** Can use the system microphone */
+  microphone: boolean
+  /** Can receive push notifications when app is backgrounded */
+  pushNotifications: boolean
+  /** Can run as a background daemon */
+  daemon: boolean
+  /** Can use Chrome DevTools Protocol for browser automation */
+  cdpBrowser: boolean
+  /** Can use OS accessibility APIs for UI automation */
+  accessibility: boolean
+  /** Is installed as a PWA */
+  pwa: boolean
+  /** Is running in a web browser only */
+  webOnly: boolean
+  /** Whether the platform has a system tray / notification area */
+  tray: boolean
+}
+
+const CAPABILITY_MATRIX: Record<PlatformId, PlatformCapabilities> = {
+  windows: {
+    nativeLaunch: true, fileSystem: true, shellExec: true, screenCapture: true,
+    microphone: true, pushNotifications: true, daemon: true, cdpBrowser: true,
+    accessibility: true, pwa: false, webOnly: false, tray: true,
+  },
+  macos: {
+    nativeLaunch: true, fileSystem: true, shellExec: true, screenCapture: true,
+    microphone: true, pushNotifications: true, daemon: true, cdpBrowser: true,
+    accessibility: true, pwa: false, webOnly: false, tray: true,
+  },
+  linux: {
+    nativeLaunch: true, fileSystem: true, shellExec: true, screenCapture: true,
+    microphone: true, pushNotifications: false, daemon: true, cdpBrowser: true,
+    accessibility: false, pwa: false, webOnly: false, tray: true,
+  },
+  android: {
+    nativeLaunch: true, fileSystem: false, shellExec: false, screenCapture: false,
+    microphone: true, pushNotifications: true, daemon: false, cdpBrowser: false,
+    accessibility: true, pwa: true, webOnly: false, tray: false,
+  },
+  ios: {
+    nativeLaunch: false, fileSystem: false, shellExec: false, screenCapture: false,
+    microphone: true, pushNotifications: true, daemon: false, cdpBrowser: false,
+    accessibility: false, pwa: true, webOnly: false, tray: false,
+  },
+  web: {
+    nativeLaunch: false, fileSystem: false, shellExec: false, screenCapture: false,
+    microphone: true, pushNotifications: false, daemon: false, cdpBrowser: false,
+    accessibility: false, pwa: false, webOnly: true, tray: false,
+  },
+}
+
+// ── PlatformAdapter ────────────────────────────────────────────────────────
+
+class PlatformAdapter {
+  readonly platform: PlatformId
+  readonly capabilities: PlatformCapabilities
+  private _isPWA: boolean
+
+  constructor() {
+    this.platform = detectPlatform()
+    this.capabilities = { ...CAPABILITY_MATRIX[this.platform] }
+
+    // Detect if running as installed PWA
+    this._isPWA = window.matchMedia?.('(display-mode: standalone)').matches
+      || (navigator as Navigator & { standalone?: boolean }).standalone === true
+    if (this._isPWA) {
+      this.capabilities.pwa = true
+      this.capabilities.pushNotifications = 'Notification' in window
+    }
+
+    console.log(`[Platform] 🚀 Running on ${this.platform.toUpperCase()}${this._isPWA ? ' (PWA)' : ''}`)
+    this.logCapabilities()
+  }
+
+  // ── File System ─────────────────────────────────────────────────────────
+
+  async readFile(path: string): Promise<string | null> {
+    if (!this.capabilities.fileSystem) {
+      // Web: use File System Access API if available
+      return this.webReadFile(path)
+    }
+    const r = await window.nativeBridge?.readFile(path)
+    return r?.content ?? null
+  }
+
+  async writeFile(path: string, content: string): Promise<boolean> {
+    if (!this.capabilities.fileSystem) {
+      return this.webWriteFile(path, content)
+    }
+    const r = await window.nativeBridge?.writeFile(path, content)
+    return r?.success ?? false
+  }
+
+  // ── App Launch ──────────────────────────────────────────────────────────
+
+  async launchApp(appName: string): Promise<{ success: boolean; message: string }> {
+    if (!this.capabilities.nativeLaunch) {
+      // Mobile: use deep links
+      return this.mobileLaunch(appName)
+    }
+    return window.nativeBridge?.launchApp(appName) ?? { success: false, message: 'Bridge unavailable' }
+  }
+
+  async openUrl(url: string): Promise<void> {
+    if (this.capabilities.nativeLaunch) {
+      await window.nativeBridge?.openExternal(url)
+    } else {
+      window.open(url, '_blank')
+    }
+  }
+
+  // ── Shell / Commands ────────────────────────────────────────────────────
+
+  async runCommand(command: string, cwd?: string): Promise<{
+    output: string; error: string; exitCode: number; success: boolean
+  }> {
+    if (!this.capabilities.shellExec) {
+      return { output: '', error: `Shell exec not available on ${this.platform}`, exitCode: 1, success: false }
+    }
+    const r = await window.nativeBridge?.runShellCommand(command, cwd)
+    return {
+      output: r?.output ?? '',
+      error: r?.error ?? '',
+      exitCode: r?.exitCode ?? (r?.success ? 0 : 1),
+      success: r?.success ?? false,
+    }
+  }
+
+  // ── Microphone / Voice ──────────────────────────────────────────────────
+
+  async requestMicrophoneAccess(): Promise<boolean> {
+    if (!this.capabilities.microphone) return false
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      stream.getTracks().forEach(t => t.stop()) // release immediately — just checking permission
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  // ── Push Notifications ──────────────────────────────────────────────────
+
+  async requestNotificationPermission(): Promise<boolean> {
+    if (!('Notification' in window)) return false
+    if (Notification.permission === 'granted') return true
+    const result = await Notification.requestPermission()
+    return result === 'granted'
+  }
+
+  sendNotification(title: string, body: string, icon?: string): void {
+    if (!this.capabilities.pushNotifications) return
+    if (Notification.permission !== 'granted') return
+    new Notification(title, { body, icon: icon ?? '/favicon.ico' })
+  }
+
+  // ── Service Worker / PWA ────────────────────────────────────────────────
+
+  async registerServiceWorker(): Promise<boolean> {
+    if (!('serviceWorker' in navigator)) return false
+    try {
+      await navigator.serviceWorker.register('/sw.js')
+      console.log('[Platform] 🔧 Service Worker registered')
+      return true
+    } catch (e) {
+      console.warn('[Platform] Service Worker failed:', e)
+      return false
+    }
+  }
+
+  async promptPWAInstall(): Promise<boolean> {
+    // Use the beforeinstallprompt event stored earlier
+    const prompt = (window as Window & { __pwaInstallPrompt?: { prompt(): Promise<void>; userChoice: Promise<{ outcome: string }> } }).__pwaInstallPrompt
+    if (!prompt) return false
+    await prompt.prompt()
+    const choice = await prompt.userChoice
+    return choice.outcome === 'accepted'
+  }
+
+  // ── Screen Capture ──────────────────────────────────────────────────────
+
+  async captureScreen(): Promise<string | null> {
+    if (!this.capabilities.screenCapture) {
+      // Web: use screen capture API
+      return this.webScreenCapture()
+    }
+    // Electron: use nativeBridge (OCR engine handles this)
+    return null
+  }
+
+  // ── Getting info ────────────────────────────────────────────────────────
+
+  getPlatform(): PlatformId { return this.platform }
+  isPWA(): boolean { return this._isPWA }
+  isElectron(): boolean { return !!window.nativeBridge && !this.capabilities.webOnly }
+  isMobile(): boolean { return this.platform === 'android' || this.platform === 'ios' }
+  isDesktop(): boolean { return this.platform === 'windows' || this.platform === 'macos' || this.platform === 'linux' }
+  isWeb(): boolean { return this.platform === 'web' }
+
+  /**
+   * Checks if the user is currently busy (e.g. playing a full-screen game).
+   * This is crucial for the Stealth Engine to decide whether to use 
+   * background execution (headless) or UI automation.
+   */
+  async isUserBusy(): Promise<boolean> {
+    console.log(`[PlatformAdapter] Checking if user is busy...`);
+    
+    const bridge = (window as any).nativeBridge;
+    if (bridge?.checkUserBusy) {
+      return await bridge.checkUserBusy();
+    }
+
+    // Default simulation for now: User is busy 50% of the time, 
+    // or if we detect a specific flag in the environment.
+    return false; // Assuming not busy unless bridge says otherwise
+  }
+
+  can(capability: keyof PlatformCapabilities): boolean {
+    return this.capabilities[capability]
+  }
+
+  /**
+   * Get a human-readable capability report.
+   * Use this to show the user what JARVIS can do on their device.
+   */
+  getCapabilityReport(): string {
+    const lines = [`Platform: ${this.platform.toUpperCase()}${this._isPWA ? ' (PWA)' : ''}\n`]
+    const icons: Record<string, string> = {
+      nativeLaunch: '🚀 App Launch',
+      fileSystem: '📁 File System',
+      shellExec: '⚡ Shell Commands',
+      screenCapture: '📸 Screen Capture',
+      microphone: '🎤 Voice Input',
+      pushNotifications: '🔔 Notifications',
+      daemon: '⚙️ Background Daemon',
+      cdpBrowser: '🌐 Browser Automation',
+      accessibility: '♿ UI Automation',
+      pwa: '📱 PWA Install',
+      tray: '🗂️ System Tray',
+    }
+    for (const [key, label] of Object.entries(icons)) {
+      const k = key as keyof PlatformCapabilities
+      lines.push(`${this.capabilities[k] ? '✅' : '❌'} ${label}`)
+    }
+    return lines.join('\n')
+  }
+
+  // ── Private: Platform-specific fallbacks ──────────────────────────────
+
+  private mobileLaunch(appName: string): { success: boolean; message: string } {
+    // Deep link map for popular apps
+    const deepLinks: Record<string, string> = {
+      whatsapp: 'whatsapp://',
+      instagram: 'instagram://',
+      youtube: 'youtube://',
+      gmail: 'googlegmail://',
+      maps: 'comgooglemaps://',
+      settings: this.platform === 'ios' ? 'App-Prefs:' : 'package:com.android.settings',
+    }
+    const lower = appName.toLowerCase()
+    const link = deepLinks[lower]
+    if (link) {
+      window.location.href = link
+      return { success: true, message: `Opening ${appName} via deep link` }
+    }
+    return { success: false, message: `No deep link found for ${appName} on ${this.platform}` }
+  }
+
+  private async webReadFile(_path: string): Promise<string | null> {
+    // File System Access API (Chrome/Edge 86+)
+    if ('showOpenFilePicker' in window) {
+      try {
+        const [handle] = await (window as Window & {
+          showOpenFilePicker: () => Promise<Array<{ getFile(): Promise<File> }>>
+        }).showOpenFilePicker()
+        const file = await handle.getFile()
+        return await file.text()
+      } catch { return null }
+    }
+    return null
+  }
+
+  private async webWriteFile(_path: string, content: string): Promise<boolean> {
+    // File System Access API write
+    if ('showSaveFilePicker' in window) {
+      try {
+        const handle = await (window as Window & {
+          showSaveFilePicker: () => Promise<{ createWritable(): Promise<{ write(c: string): Promise<void>; close(): Promise<void> }> }>
+        }).showSaveFilePicker()
+        const writable = await handle.createWritable()
+        await writable.write(content)
+        await writable.close()
+        return true
+      } catch { return false }
+    }
+    return false
+  }
+
+  private async webScreenCapture(): Promise<string | null> {
+    // Web Screen Capture API
+    if (!('getDisplayMedia' in navigator.mediaDevices)) return null
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true })
+      const track = stream.getVideoTracks()[0]
+      const imageCapture = new (window as any).ImageCapture(track)
+      const bitmap = await imageCapture.grabFrame() as ImageBitmap
+      const canvas = document.createElement('canvas')
+      canvas.width = bitmap.width
+      canvas.height = bitmap.height
+      canvas.getContext('2d')?.drawImage(bitmap, 0, 0)
+      const dataUrl = canvas.toDataURL('image/png')
+      stream.getTracks().forEach(t => t.stop())
+      return dataUrl
+    } catch {
+      return null
+    }
+  }
+
+  private logCapabilities(): void {
+    const enabled = Object.entries(this.capabilities)
+      .filter(([, v]) => v)
+      .map(([k]) => k)
+    console.log(`[Platform] ✅ Capabilities: ${enabled.join(', ')}`)
+  }
+}
+
+// ── Singleton export ───────────────────────────────────────────────────────
+
+export const platformAdapter = new PlatformAdapter()
+
+// ── PWA Setup: capture install prompt ─────────────────────────────────────
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault()
+  ;(window as Window & { __pwaInstallPrompt?: unknown }).__pwaInstallPrompt = e
+  console.log('[Platform] 📲 PWA install prompt ready')
+})
+
+// ── Service Worker Registration (on web/PWA builds) ────────────────────────
+
+if ('serviceWorker' in navigator && !window.nativeBridge) {
+  // Only register SW in pure web mode — Electron handles this differently
+  window.addEventListener('load', () => {
+    platformAdapter.registerServiceWorker().catch(() => undefined)
+  })
+}

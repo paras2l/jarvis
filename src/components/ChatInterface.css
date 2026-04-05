@@ -1,0 +1,51 @@
+.chat-app-layout {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--bg-primary);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.chat-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 400px;
+  border-right: 1px solid var(--border-color);
+  transition: flex 0.3s ease;
+}
+
+.canvas-expanded .chat-container {
+  flex: 0.4; /* Chat becomes smaller when canvas is open */
+}
+
+.canvas-sidebar {
+  flex: 0.6;
+  padding: 10px;
+  background-color: var(--bg-secondary);
+  display: flex;
+  flex-direction: column;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.btn-active {
+  background-color: var(--accent-primary) !important;
+  color: white !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .chat-app-layout {
+    flex-direction: column;
+  }
+  .canvas-sidebar {
+    height: 40vh;
+    border-top: 1px solid var(--border-color);
+  }
+}

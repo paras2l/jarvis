@@ -29,11 +29,11 @@ const LiveCanvas: React.FC = () => {
 
   // Listen for agent canvas updates
   useEffect(() => {
-    const handleUpdate = (e: any) => {
+    const handleUpdate = (e: CustomEvent<CanvasState>): void => {
       setState(e.detail);
     };
-    window.addEventListener('agent:canvas-update', handleUpdate);
-    return () => window.removeEventListener('agent:canvas-update', handleUpdate);
+    window.addEventListener('agent:canvas-update', handleUpdate as EventListener);
+    return () => window.removeEventListener('agent:canvas-update', handleUpdate as EventListener);
   }, []);
 
   return (

@@ -76,7 +76,6 @@ Match the user's language. Default: English.
 
 class SoulEngine {
   private soul: SoulProfile | null = null
-  private readonly CACHE_TTL = 5 * 60 * 1000  // re-read every 5min if file changes
 
   // ── Public API ──────────────────────────────────────────────────────────
 

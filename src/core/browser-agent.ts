@@ -241,7 +241,7 @@ Give a concise, direct answer. If pricing, give exact prices. If a tutorial, sum
   }
 
   private async executeAction(action: BrowserAction): Promise<BrowserResult> {
-    if (!window.nativeBridge?.browser) {
+    if (!window.nativeBridge?.browser?.execute) {
       // Fallback: use fetch for simple URL navigation
       return this.fetchFallback(action)
     }

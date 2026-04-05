@@ -110,6 +110,11 @@ declare global {
       writeFile: (filePath: string, content: string) => Promise<{ success: boolean; message?: string }>
       readFile: (filePath: string) => Promise<{ success: boolean; content?: string; message?: string }>
       runShellCommand: (command: string, cwd?: string) => Promise<{ success: boolean; output?: string; error?: string; exitCode?: number; message?: string }>
+      listExtensions?: () => Promise<{ success: boolean; extensions?: string[]; message?: string }>
+      captureScreen?: () => Promise<{ success: boolean; imageBase64?: string; message?: string }>
+      captureRegion?: (region: { x: number; y: number; width: number; height: number }) => Promise<{ success: boolean; imageBase64?: string; message?: string }>
+      runOCR?: (imageBase64: string) => Promise<{ success: boolean; text?: string; confidence?: number; words?: Array<{ text: string; confidence: number; bbox: { x: number; y: number; width: number; height: number } }>; message?: string }>
+      runOCRFile?: (imagePath: string) => Promise<{ success: boolean; text?: string; confidence?: number; words?: Array<{ text: string; confidence: number; bbox: { x: number; y: number; width: number; height: number } }>; message?: string }>
 
       // Path helpers
       getUserDataPath?: () => string

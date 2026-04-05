@@ -19,11 +19,11 @@ export interface ConformanceResult {
 }
 
 const DEFAULT_CASES: ConformanceCase[] = [
-  { appName: 'Instagram', platform: 'windows', permissions: { nativeLaunch: true, uiAutomation: false } },
-  { appName: 'WhatsApp', platform: 'android', permissions: { nativeLaunch: true, uiAutomation: false } },
-  { appName: 'Spotify', platform: 'ios', permissions: { nativeLaunch: true, uiAutomation: false } },
-  { appName: 'Google Maps', platform: 'macos', permissions: { nativeLaunch: true, uiAutomation: true } },
-  { appName: 'Discord', platform: 'linux', permissions: { nativeLaunch: false, uiAutomation: false } },
+  { appName: 'Instagram', platform: 'windows', permissions: { nativeLaunch: true, uiAutomation: false, stealthMode: false } },
+  { appName: 'WhatsApp', platform: 'android', permissions: { nativeLaunch: true, uiAutomation: false, stealthMode: false } },
+  { appName: 'Spotify', platform: 'ios', permissions: { nativeLaunch: true, uiAutomation: false, stealthMode: false } },
+  { appName: 'Google Maps', platform: 'macos', permissions: { nativeLaunch: true, uiAutomation: true, stealthMode: false } },
+  { appName: 'Discord', platform: 'linux', permissions: { nativeLaunch: false, uiAutomation: false, stealthMode: false } },
 ]
 
 function expectedOrder(platform: PlatformId, permissions: PermissionState): string[] {

@@ -47,7 +47,7 @@ class OCREngine {
    * Returns structured text the agent can reason about.
    */
   async readScreen(): Promise<OCRResult> {
-    if (!window.nativeBridge?.captureScreen) {
+    if (!window.nativeBridge?.captureScreen || !window.nativeBridge?.runOCR) {
       return this.unavailable('screen')
     }
 
@@ -84,7 +84,7 @@ class OCREngine {
    * Great for reading a specific panel or dialog.
    */
   async readRegion(region: ScreenRegion): Promise<OCRResult> {
-    if (!window.nativeBridge?.captureRegion) {
+    if (!window.nativeBridge?.captureRegion || !window.nativeBridge?.runOCR) {
       return this.unavailable('region')
     }
 

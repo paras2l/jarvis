@@ -18,7 +18,6 @@
  */
 
 import { semanticSearch } from './semantic-search'
-import { localLLM } from './local-llm'
 import { intelligenceRouter } from './intelligence-router'
 
 // ── Types ──────────────────────────────────────────────────────────────────

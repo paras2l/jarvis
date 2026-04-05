@@ -58,16 +58,6 @@ export interface A2AResult {
 
 export type AgentHandler = (msg: A2AMessage) => Promise<A2AResult>
 
-// ── Priority weights for queue ordering ────────────────────────────────────
-
-const PRIORITY_WEIGHT: Record<MessagePriority, number> = {
-  critical: 100,
-  high: 75,
-  normal: 50,
-  low: 25,
-  background: 0,
-}
-
 // ── A2AProtocol ────────────────────────────────────────────────────────────
 
 class A2AProtocol {

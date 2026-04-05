@@ -18,10 +18,10 @@ accelerate>=0.29.0
 Pillow>=10.0.0
 safetensors>=0.4.0
 
-# TIER 3 — Video / Avatar (optional, GPU recommended)
-# opencv-python>=4.9.0
-# imageio>=2.34.0
-# imageio-ffmpeg>=0.4.9
+# TIER 3 — Video / Movie Assembly (works on ANY computer, no GPU needed)
+moviepy>=1.0.3
+imageio>=2.34.0
+imageio-ffmpeg>=0.4.9
 
 # Server Utilities
 requests>=2.31.0

@@ -1,4 +1,5 @@
 import {
+  MediaQuality,
   MediaRuntimeAdapter,
   MediaStageRequest,
   MediaStageResult,
@@ -29,12 +30,12 @@ class PythonLocalImageRuntime implements MediaRuntimeAdapter {
     return { valid: true }
   }
 
-  estimateCost(_stage: MediaStageRequest): RuntimeEstimate {
+  estimateCost(_stage: MediaStageRequest, _quality: MediaQuality): RuntimeEstimate {
     // Local = 0 credits. Latency depends on hardware.
     return { credits: 0, latencyMs: 12000 }
   }
 
-  async run(stage: MediaStageRequest): Promise<MediaStageResult> {
+  async run(stage: MediaStageRequest, _jobId: string): Promise<MediaStageResult> {
     const startedAt = Date.now()
 
     if (stage.type !== 'image') {
@@ -115,13 +116,15 @@ class PythonLocalImageRuntime implements MediaRuntimeAdapter {
     const timestamp = Date.now()
     const outputFilename = `studio_image_${timestamp}_${stageId}.png`
 
-    // Get the path to diffusion_core.py
-    const scriptsPathResult = await window.nativeBridge.getPythonScriptsPath?.()
-    const scriptsDir = scriptsPathResult?.path ?? 'src/core/media-ml/python'
+    // Get the path to diffusion_core.py using declared bridge helpers
+    const getUserData = window.nativeBridge.getUserDataPath
+    const userDataDir = getUserData ? getUserData() : ''
+    const scriptsDir = userDataDir
+      ? `${userDataDir}/../src/core/media-ml/python`
+      : 'src/core/media-ml/python'
     const scriptPath = `${scriptsDir}/diffusion_core.py`
 
-    const workspaceResult = await window.nativeBridge.getWorkspacePath?.()
-    const workspaceDir = workspaceResult?.path ?? '.'
+    const workspaceDir = userDataDir ? `${userDataDir}/studio-workspace` : '.'
     const outputPath = `${workspaceDir}/${outputFilename}`
 
     // Build the command — use sdxl-turbo for speed, auto-detect device
@@ -130,7 +133,8 @@ class PythonLocalImageRuntime implements MediaRuntimeAdapter {
 
     this.emitProgress({ id: stageId, type: 'image', prompt, status: 'running' } as MediaStageRequest, 'running', 30, 'Loading model...')
 
-    const result = await window.nativeBridge.runShellCommand(command, { timeoutMs: 300_000 })
+    // runShellCommand signature: (command: string, cwd?: string)
+    const result = await window.nativeBridge.runShellCommand(command)
 
     if (!result?.success) {
       const err = result?.error ?? 'Python command failed.'

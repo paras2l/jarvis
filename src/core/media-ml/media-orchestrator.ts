@@ -30,11 +30,26 @@ function makeStageId(stageType: MediaStageType): string {
 
 function makeDefaultStages(prompt: string): MediaStageRequest[] {
   return [
-    { id: makeStageId('script'), type: 'script', prompt, status: 'pending' },
+    { id: makeStageId('image'), type: 'image', prompt, status: 'pending' },
     { id: makeStageId('voice'), type: 'voice', prompt, status: 'pending' },
-    { id: makeStageId('avatar'), type: 'avatar', prompt, status: 'pending' },
     { id: makeStageId('video'), type: 'video', prompt, status: 'pending' },
   ]
+}
+
+/**
+ * After each stage completes, forward its output URI to subsequent stages
+ * so the video stage receives both the image and voice files.
+ */
+function forwardAssets(
+  stages: MediaStageRequest[],
+  completedIdx: number,
+  result: import('./types').MediaStageResult
+): void {
+  if (!result.artifactUri) return
+  for (let i = completedIdx + 1; i < stages.length; i++) {
+    if (!stages[i].inputAssetUris) stages[i].inputAssetUris = []
+    stages[i].inputAssetUris!.push(result.artifactUri)
+  }
 }
 
 class MediaOrchestrator {
@@ -153,6 +168,12 @@ class MediaOrchestrator {
         ? await this.runCloudStage(jobId, stage, policy)
         : await selectedRuntime.run(stage, jobId)
       stageResults.push(result)
+
+      // Forward this stage's output as input to all subsequent stages
+      // e.g. image.png → video stage, voice.wav → video stage
+      if (result.success) {
+        forwardAssets(stages, stages.indexOf(stage), result)
+      }
 
       this.emitProgress({
         jobId,

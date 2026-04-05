@@ -1,4 +1,5 @@
 import {
+  MediaQuality,
   MediaRuntimeAdapter,
   MediaStageRequest,
   MediaStageResult,
@@ -30,12 +31,12 @@ class LocalVoiceRuntime implements MediaRuntimeAdapter {
     return { valid: true }
   }
 
-  estimateCost(stage: MediaStageRequest): RuntimeEstimate {
+  estimateCost(stage: MediaStageRequest, _quality: MediaQuality): RuntimeEstimate {
     const textLength = stage.prompt?.length ?? 0
     return { credits: 0, latencyMs: 1500 + Math.ceil(textLength / 20) * 200 }
   }
 
-  async run(stage: MediaStageRequest): Promise<MediaStageResult> {
+  async run(stage: MediaStageRequest, _jobId: string): Promise<MediaStageResult> {
     const startedAt = Date.now()
 
     try {
@@ -94,19 +95,24 @@ class LocalVoiceRuntime implements MediaRuntimeAdapter {
         return null
       }
 
-      const scriptsPathResult = await window.nativeBridge.getPythonScriptsPath?.()
-      const scriptsDir = scriptsPathResult?.path ?? 'src/core/media-ml/python'
-      const scriptPath = `${scriptsDir}/voice_core.py`
+      // Resolve script path via getUserDataPath helper or fall back to relative path
+      const getUserData = window.nativeBridge.getUserDataPath
+      const userDataDir = getUserData ? getUserData() : ''
+      const scriptsDir = userDataDir
+        ? `${userDataDir}/../src/core/media-ml/python`
+        : 'src/core/media-ml/python'
 
-      const workspaceResult = await window.nativeBridge.getWorkspacePath?.()
-      const workspaceDir = workspaceResult?.path ?? '.'
+      const scriptPath = `${scriptsDir}/voice_core.py`
       const outputFilename = `studio_voice_${Date.now()}_${stageId}.wav`
-      const outputPath = `${workspaceDir}/${outputFilename}`
+      const outputPath = userDataDir
+        ? `${userDataDir}/studio-workspace/${outputFilename}`
+        : outputFilename
 
       const safeText = text.replace(/"/g, '\\"').replace(/\n/g, ' ')
       const command = `python "${scriptPath}" --text "${safeText}" --out "${outputPath}" --voice af_bella --engine auto`
 
-      const result = await window.nativeBridge.runShellCommand(command, { timeoutMs: 120_000 })
+      // runShellCommand signature: (command: string, cwd?: string)
+      const result = await window.nativeBridge.runShellCommand(command)
 
       if (!result?.success && !result?.output?.includes('SUCCESS|')) {
         return null
@@ -141,8 +147,9 @@ class LocalVoiceRuntime implements MediaRuntimeAdapter {
 
         // Pick the best available English voice
         const voices = window.speechSynthesis.getVoices()
-        const englishVoice = voices.find((v) => v.lang.startsWith('en') && !v.localService)
-          ?? voices.find((v) => v.lang.startsWith('en'))
+        const englishVoice =
+          voices.find((v) => v.lang.startsWith('en') && !v.localService) ??
+          voices.find((v) => v.lang.startsWith('en'))
         if (englishVoice) utterance.voice = englishVoice
 
         utterance.onend = () => resolve()
@@ -164,7 +171,14 @@ class LocalVoiceRuntime implements MediaRuntimeAdapter {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(
         new CustomEvent('media:progress', {
-          detail: { stageId: stage.id, stageType: stage.type, runtime: 'local', status, progress, message },
+          detail: {
+            stageId: stage.id,
+            stageType: stage.type,
+            runtime: 'local',
+            status,
+            progress,
+            message,
+          },
         })
       )
     }

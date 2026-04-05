@@ -1,4 +1,5 @@
 import {
+  MediaQuality,
   MediaRuntimeAdapter,
   MediaStageRequest,
   MediaStageResult,
@@ -7,171 +8,201 @@ import {
 } from '../types'
 
 /**
- * Local Video Generation Runtime (Phase 2)
+ * Local Video Runtime
+ * ====================
+ * Calls video_core.py via the Electron native bridge to assemble a real MP4.
  *
- * Lightweight video generation for quick previews:
- * - AnimateDiff-style frame interpolation (local Python subprocess)
- * - Takes image + motion prompt → generates short video clip
- * - Fallback: returns static image as video frame (0.5s duration)
+ * Requires: pip install moviepy pillow numpy
  *
- * Lightweight targets: 4-8 frame clips, low resolution
- * Full pipeline: 24-30 frames on cloud GPU
+ * Modes (chosen automatically based on available assets):
+ *  - slideshow : multiple images + audio → slideshow movie
+ *  - director  : images + audio + script captions → cinematic movie
+ *  - avatar    : single face image + voice audio → talking-head video
  */
 class LocalVideoRuntime implements MediaRuntimeAdapter {
   readonly name = 'Local Video Runtime'
   readonly target = 'local'
-  readonly supportedStages: MediaStageType[] = ['video']
+  readonly supportedStages: MediaStageType[] = ['video', 'avatar']
 
   validateInput(stage: MediaStageRequest): { valid: boolean; message?: string } {
-    if (stage.type !== 'video') {
-      return { valid: false, message: 'This runtime only supports video generation.' }
+    if (stage.type !== 'video' && stage.type !== 'avatar') {
+      return { valid: false, message: 'This runtime only supports video and avatar stages.' }
     }
-
-    if (!stage.prompt || stage.prompt.trim().length < 5) {
-      return { valid: false, message: 'Video motion prompt must be at least 5 characters.' }
+    if (!stage.prompt || stage.prompt.trim().length < 3) {
+      return { valid: false, message: 'Video prompt must be at least 3 characters.' }
     }
-
-    // Expect inputAssetUris[0] to be a source image
-    if (!stage.inputAssetUris || stage.inputAssetUris.length === 0) {
-      return { valid: false, message: 'Video generation requires a source image URI.' }
-    }
-
     return { valid: true }
   }
 
-  estimateCost(stage: MediaStageRequest): RuntimeEstimate {
-    if (stage.type !== 'video') {
-      return { credits: 0, latencyMs: 0 }
-    }
-
-    // Lightweight preview: 4-8 frames at low resolution
-    // Estimated: 15-25 seconds on mid-range GPU
-    const estimatedLatencyMs = 15000 + Math.random() * 10000
-
-    return {
-      credits: 0,
-      latencyMs: Math.round(estimatedLatencyMs),
-    }
+  estimateCost(_stage: MediaStageRequest, _quality: MediaQuality): RuntimeEstimate {
+    // Video is free locally — just takes time
+    return { credits: 0, latencyMs: 25000 }
   }
 
-  async run(stage: MediaStageRequest, jobId: string): Promise<MediaStageResult> {
+  async run(stage: MediaStageRequest, _jobId: string): Promise<MediaStageResult> {
     const startedAt = Date.now()
-    const stageId = `video-${jobId}-${Date.now()}`
 
     try {
-      const motionPrompt = stage.prompt || ''
-      const sourceImageUri = stage.inputAssetUris?.[0] || ''
+      this.emitProgress(stage, 'running', 5, 'Preparing video pipeline...')
 
-      // Try Python AnimateDiff worker
-      const videoUri = await this.generateWithAnimateDiff(sourceImageUri, motionPrompt)
+      const result = await this.callVideoCore(stage)
 
-      if (videoUri) {
+      if (!result.success) {
         return {
-          stageId,
-          stageType: 'video',
+          stageId: stage.id,
+          stageType: stage.type,
           runtime: 'local',
-          success: true,
-          artifactUri: videoUri,
-          previewUri: videoUri,
-          modelVersion: 'animatediff-lightweight',
+          success: false,
+          warnings: [result.error ?? 'Video core failed.'],
           durationMs: Date.now() - startedAt,
+          modelVersion: 'moviepy-local',
         }
       }
 
-      // Fallback: return static image as single-frame "video"
+      this.emitProgress(stage, 'completed', 100, 'Movie rendered successfully! 🎬')
+
       return {
-        stageId,
-        stageType: 'video',
+        stageId: stage.id,
+        stageType: stage.type,
         runtime: 'local',
         success: true,
-        artifactUri: sourceImageUri,
-        previewUri: sourceImageUri,
-        modelVersion: 'static-fallback',
+        artifactUri: result.artifactUri,
+        previewUri: result.artifactUri,
         durationMs: Date.now() - startedAt,
+        modelVersion: result.mode ?? 'moviepy-slideshow',
       }
     } catch (error) {
       return {
-        stageId,
-        stageType: 'video',
+        stageId: stage.id,
+        stageType: stage.type,
         runtime: 'local',
         success: false,
-        modelVersion: 'unknown',
+        warnings: [String(error)],
         durationMs: Date.now() - startedAt,
-        error: String(error),
+        modelVersion: 'moviepy-local',
       }
     }
   }
 
-  private async generateWithAnimateDiff(
-    sourceImageUri: string,
-    motionPrompt: string
-  ): Promise<string | null> {
-    try {
-      if (typeof window === 'undefined' || !window.nativeBridge) {
-        return null
+  // ── video_core.py caller ─────────────────────────────────────────────────
+
+  private async callVideoCore(stage: MediaStageRequest): Promise<{
+    success: boolean
+    artifactUri?: string
+    mode?: string
+    error?: string
+  }> {
+    if (typeof window === 'undefined' || !window.nativeBridge?.runShellCommand) {
+      return {
+        success: false,
+        error: 'Native bridge unavailable. Run the app in Electron to use local video generation.',
       }
+    }
 
-      const pythonScript = `
-import os
-import sys
-from pathlib import Path
+    const getUserData = window.nativeBridge.getUserDataPath
+    const userDataDir = getUserData ? getUserData() : ''
+    const scriptsDir = userDataDir
+      ? `${userDataDir}/../src/core/media-ml/python`
+      : 'src/core/media-ml/python'
+    const scriptPath = `${scriptsDir}/video_core.py`
+    const workspaceDir = userDataDir ? `${userDataDir}/studio-workspace` : '.'
 
-try:
-  import torch
-  from diffusers import AnimateDiffPipeline
-  from PIL import Image
-  
-  device = 'cuda' if torch.cuda.is_available() else 'cpu'
-  
-  # Load lightweight AnimateDiff
-  pipe = AnimateDiffPipeline.from_pretrained(
-    'guoyww/animatediff-motion-adapter-v1-5',
-    torch_dtype=torch.float16,
-    device_map="auto"
-  )
-  
-  # Load source image
-  img = Image.open("${sourceImageUri.replace(/\\\\/g, '/')}").convert("RGB")
-  img = img.resize((512, 512))
-  
-  # Generate 4-frame clip with motion
-  prompt = "${motionPrompt.replace(/"/g, '\\"')}"
-  
-  output = pipe(
-    prompt=prompt,
-    image=img,
-    num_frames=4,
-    num_inference_steps=10,  # lightweight
-    guidance_scale=7.5,
-  )
-  
-  # Save to video file
-  output_path = Path.home() / '.antigravity' / 'output.mp4'
-  output.frames[0].save(str(output_path), save_all=True, duration=100, loop=0)
-  
-  print(f"SUCCESS|file://{output_path}|animatediff-lightweight")
-except Exception as e:
-  print(f"FAILED|{e}|null")
-`
+    const timestamp = Date.now()
+    const outputFilename = `studio_video_${timestamp}_${stage.id}.mp4`
+    const outputPath = `${workspaceDir}/${outputFilename}`
 
-      const result = await window.nativeBridge.runShellCommand(
-        `python -c "${pythonScript}"`
-      )
+    // ── Gather assets from inputAssetUris ──────────────────────────────────
+    const assets = stage.inputAssetUris ?? []
 
-      const output = typeof result === 'string' ? result : result.output || ''
-      if (output.includes('SUCCESS|')) {
-        const parts = output.split('|')
-        if (parts.length >= 2) {
-          const uri = parts[1].trim()
-          if (uri.startsWith('file://')) {
-            return uri
-          }
+    // Separate images and audio based on extension
+    const imageFiles = assets
+      .filter((u) => /\.(png|jpg|jpeg|webp|bmp)$/i.test(u))
+      .map((u) => u.replace(/^file:\/\//, ''))
+
+    const audioFile = assets
+      .find((u) => /\.(wav|mp3|ogg|flac)$/i.test(u))
+      ?.replace(/^file:\/\//, '')
+
+    // ── Choose mode ─────────────────────────────────────────────────────────
+    let mode = 'slideshow'
+    if (stage.type === 'avatar') mode = 'avatar'
+    else if (imageFiles.length > 0) mode = 'director'
+
+    this.emitProgress(stage, 'running', 20, `Building ${mode} movie from ${imageFiles.length} scenes...`)
+
+    // ── Build command ───────────────────────────────────────────────────────
+    let command = `python "${scriptPath}" --mode ${mode} --out "${outputPath}" --fps 24 --width 1280 --height 720`
+
+    if (mode === 'avatar' && imageFiles.length > 0) {
+      command += ` --image "${imageFiles[0]}"`
+    } else if (imageFiles.length > 0) {
+      const imageArgs = imageFiles.map((f) => `"${f}"`).join(' ')
+      command += ` --images ${imageArgs}`
+    }
+
+    if (audioFile) {
+      command += ` --audio "${audioFile}"`
+    }
+
+    // Pass the prompt as title
+    const safeTitle = stage.prompt.substring(0, 60).replace(/"/g, '\\"')
+    command += ` --title "${safeTitle}"`
+
+    this.emitProgress(stage, 'running', 40, 'Rendering frames...')
+
+    const result = await window.nativeBridge.runShellCommand(command)
+
+    if (!result?.success && !result?.output?.includes('SUCCESS|')) {
+      const err = result?.error ?? 'Video core failed.'
+      if (err.includes('ModuleNotFoundError') || err.includes('No module named')) {
+        return {
+          success: false,
+          error: 'MoviePy not installed. Run: pip install moviepy pillow numpy',
         }
       }
+      return { success: false, error: err }
+    }
 
-      return null
-    } catch {
-      return null
+    const output = result.output ?? ''
+    const successLine = output.split('\n').find((l: string) => l.startsWith('SUCCESS|'))
+
+    if (!successLine) {
+      return {
+        success: false,
+        error: result.error || 'Video core did not produce a SUCCESS line.',
+      }
+    }
+
+    const parts = successLine.split('|')
+    const filePath = parts[1]?.trim()
+    const detectedMode = parts[2]?.trim() ?? mode
+
+    return {
+      success: true,
+      artifactUri: `file://${filePath}`,
+      mode: detectedMode,
+    }
+  }
+
+  private emitProgress(
+    stage: MediaStageRequest,
+    status: string,
+    progress: number,
+    message: string
+  ) {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('media:progress', {
+          detail: {
+            stageId: stage.id,
+            stageType: stage.type,
+            runtime: 'local',
+            status,
+            progress,
+            message,
+          },
+        })
+      )
     }
   }
 }

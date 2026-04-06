@@ -4,9 +4,11 @@ import { cloudMediaRuntime, localMediaRuntime } from './runtimes/mock-runtimes'
 import { pythonLocalImageRuntime } from './runtimes/python-local-image-runtime'
 import { localVoiceRuntime } from './runtimes/local-voice-runtime'
 import { localVideoRuntime } from './runtimes/local-video-runtime'
+import { cloudVideoRuntime } from './runtimes/cloud-video-runtime'
 import { jobHistory } from './job-history'
 import { safetyFilter } from './safety-filter'
 import { costController } from './cost-controller'
+import { cinematicFx } from './cinematic-fx'
 import {
   MediaJobRequest,
   MediaJobResult,
@@ -36,6 +38,21 @@ function makeDefaultStages(prompt: string): MediaStageRequest[] {
   ]
 }
 
+function applyPolicyProfiles(stages: MediaStageRequest[], policy: MediaRuntimePolicy): void {
+  const profile = cinematicFx.resolveProfile(policy.quality)
+  for (const stage of stages) {
+    if (stage.type !== 'video') continue
+    if (!stage.qualityProfile) stage.qualityProfile = profile.profile
+    if (!stage.cinematicFx) {
+      stage.cinematicFx = {
+        motionTemplate: profile.motionTemplate,
+        transitions: profile.transitions,
+        colorGrade: profile.colorGrade,
+      }
+    }
+  }
+}
+
 /**
  * After each stage completes, forward its output URI to subsequent stages
  * so the video stage receives both the image and voice files.
@@ -57,6 +74,7 @@ class MediaOrchestrator {
     pythonLocalImageRuntime,
     localVoiceRuntime,
     localVideoRuntime,
+    cloudVideoRuntime,
     localMediaRuntime,
     cloudMediaRuntime,
   ]
@@ -68,6 +86,10 @@ class MediaOrchestrator {
     const stages = request.stages ?? makeDefaultStages(request.prompt)
     const stageResults: MediaStageResult[] = []
     const retryCount = request.retryCount ?? 0
+
+    applyPolicyProfiles(stages, policy)
+
+    await cloudBridge.checkOnline()
 
     // Check safety filter
     const safetyCheck = safetyFilter.checkPrompt(request.prompt)
@@ -164,7 +186,7 @@ class MediaOrchestrator {
         updatedAt: new Date().toISOString(),
       })
 
-      const result = runtime === 'cloud'
+      const result = runtime === 'cloud' && stage.type !== 'video'
         ? await this.runCloudStage(jobId, stage, policy)
         : await selectedRuntime.run(stage, jobId)
       stageResults.push(result)
@@ -311,6 +333,9 @@ class MediaOrchestrator {
           modelVersion,
         }
       }
+
+      const backoffMs = Math.min(3000, 400 * attempts)
+      await new Promise((resolve) => setTimeout(resolve, backoffMs))
     }
 
     return {
@@ -335,6 +360,14 @@ class MediaOrchestrator {
         title: `Media Job ${payload.jobId}`,
         content: `${payload.stageType.toUpperCase()} [${payload.runtime}] ${payload.status}: ${payload.message}`,
         lastUpdated: new Date().toLocaleTimeString(),
+        metadata: {
+          runtime: payload.runtime,
+          status: payload.status,
+          progress: payload.progress,
+          stageType: payload.stageType,
+          stageId: payload.stageId,
+          jobId: payload.jobId,
+        },
       },
     }))
 
@@ -344,6 +377,14 @@ class MediaOrchestrator {
         title: `Media Job ${payload.jobId}`,
         content: `${payload.stageType.toUpperCase()} [${payload.runtime}] ${payload.status}: ${payload.message}`,
         lastUpdated: new Date().toLocaleTimeString(),
+        metadata: {
+          runtime: payload.runtime,
+          status: payload.status,
+          progress: payload.progress,
+          stageType: payload.stageType,
+          stageId: payload.stageId,
+          jobId: payload.jobId,
+        },
       },
     }))
   }

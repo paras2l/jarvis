@@ -61,7 +61,7 @@ Return literally nothing but the JSON object. Do not use markdown tags.`;
       
       if (response && typeof response === 'object' && 'data' in (response as any)) {
         const rawString = ((response as any).data?.content) || ((response as any).data) || '{}';
-        const cleanString = typeof rawString === 'string' ? rawString.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim() : "{}";
+        const cleanString = typeof rawString === 'string' ? rawString.replace(/```json/g, '').replace(/```/g, '').trim() : "{}";
         
         try {
           const parsed = JSON.parse(cleanString) as VideoSubagentResult;

@@ -141,9 +141,116 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: min(560px, 90%);
+  text-align: center;
+  z-index: 1;
 }
 
 .media-icon { font-size: 48px; margin-bottom: 20px; }
+
+.canvas-media-view {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.movie-aura {
+  position: absolute;
+  inset: -20% -10%;
+  background: radial-gradient(circle at 50% 50%, rgba(140, 82, 255, 0.3), transparent 65%);
+  filter: blur(30px);
+  animation: moviePulse 2.8s ease-in-out infinite;
+}
+
+@keyframes moviePulse {
+  0% { opacity: 0.45; transform: scale(0.98); }
+  50% { opacity: 0.9; transform: scale(1.03); }
+  100% { opacity: 0.45; transform: scale(0.98); }
+}
+
+.media-runtime-chip {
+  font-family: 'Fira Code', monospace;
+  font-size: 11px;
+  color: #d9c8ff;
+  background: rgba(140, 82, 255, 0.12);
+  border: 1px solid rgba(140, 82, 255, 0.45);
+  border-radius: 999px;
+  padding: 5px 10px;
+  margin-bottom: 10px;
+}
+
+.media-progress-wrap {
+  width: 100%;
+  max-width: 420px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.media-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #8c52ff, #42b6ff);
+  transition: width 280ms ease;
+}
+
+.dead-letter-panel {
+  width: 100%;
+  max-width: 420px;
+  margin-top: 10px;
+  background: rgba(255, 122, 122, 0.09);
+  border: 1px solid rgba(255, 122, 122, 0.35);
+  border-radius: 10px;
+  padding: 10px;
+  text-align: left;
+}
+
+.dead-letter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #ffd7d7;
+  margin-bottom: 8px;
+}
+
+.dead-letter-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  color: #ffe9e9;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+
+.dead-letter-note {
+  font-size: 11px;
+  color: #ffbebe;
+  margin: 0 0 8px;
+}
+
+.dead-letter-btn {
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border-radius: 999px;
+  font-size: 11px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.dead-letter-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
 .canvas-footer {
   height: 32px;
@@ -160,3 +267,113 @@
 
 .status-badge { color: #27c93f; font-weight: bold; }
 .telemetry { color: #0096ff; }
+
+/* ── Soul Vision Styles ─────────────────────────────────────────── */
+
+.canvas-soul-view {
+  width: 100%;
+  height: 100%;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.mood-aura {
+  position: absolute;
+  width: 150%;
+  height: 150%;
+  z-index: 0;
+  opacity: 0.15;
+  filter: blur(80px);
+  transition: all 2s ease-in-out;
+  animation: rotateAura 20s linear infinite;
+}
+
+@keyframes rotateAura {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.mood-aura.excited { background: radial-gradient(circle at 30% 30%, #ff0055, #ffcc00, #ff0055); filter: blur(60px) hue-rotate(30deg); animation: rotateAura 15s linear infinite, pulse 3s infinite alternate; }
+.mood-aura.focused { background: linear-gradient(135deg, #0096ff, #00ffcc, #3b82f6); filter: blur(50px); }
+.mood-aura.tired { background: radial-gradient(circle at center, #222, #000, #1a1a1a); filter: blur(100px); opacity: 0.1; }
+.mood-aura.happy { background: radial-gradient(circle at 40% 40%, #ffcc00, #ffefba, #fbbf24); filter: blur(40px); animation: pulse 6s infinite alternate; }
+.mood-aura.frustrated { background: conic-gradient(from 180deg, #ff3300, #aa0000, #450a0a); filter: blur(70px); }
+.mood-aura.creative { background: radial-gradient(circle at 60% 60%, #a855f7, #ec4899, #6366f1); filter: blur(45px); animation: rotateAura 12s linear infinite reverse; }
+.mood-aura.casual { background: radial-gradient(circle at center, #333, #111, #444); opacity: 0.08; }
+
+.soul-content {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 400px;
+  background: rgba(255, 255, 255, 0.03);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  padding: 24px;
+  text-align: center;
+}
+
+.mood-radar {
+  display: flex;
+  justify-content: space-around;
+  margin: 20px 0;
+}
+
+.radar-stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.radar-stat span:first-child {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #888;
+  letter-spacing: 1px;
+}
+
+.stat-val {
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 0 10px rgba(255,255,255,0.3);
+}
+
+.habit-list {
+  text-align: left;
+  margin-top: 20px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  padding-top: 20px;
+}
+
+.habit-list h4 {
+  font-size: 12px;
+  color: #0096ff;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.habit-item {
+  font-size: 13px;
+  margin-bottom: 8px;
+  color: #ccc;
+  background: rgba(255,255,255,0.05);
+  padding: 8px 12px;
+  border-radius: 8px;
+  border-left: 3px solid #0096ff;
+}
+
+.soul-bio {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #aaa;
+  font-style: italic;
+  margin-top: 20px;
+}

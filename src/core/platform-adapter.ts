@@ -164,7 +164,7 @@ class PlatformAdapter {
     if (!this.capabilities.shellExec) {
       return { output: '', error: `Shell exec not available on ${this.platform}`, exitCode: 1, success: false }
     }
-    const r = await window.nativeBridge?.runShellCommand(command, cwd)
+    const r = await window.nativeBridge?.runShellCommand(command, cwd ? { cwd } : undefined)
     return {
       output: r?.output ?? '',
       error: r?.error ?? '',

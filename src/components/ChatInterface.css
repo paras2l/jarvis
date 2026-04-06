@@ -49,3 +49,75 @@
     border-top: 1px solid var(--border-color);
   }
 }
+/* --- Mood Aura Effects --- */
+.chat-app-layout.mood-happy { --bg-primary: #121c12; --accent-primary: #4ade80; }
+.chat-app-layout.mood-excited { --bg-primary: #1c1212; --accent-primary: #f87171; }
+.chat-app-layout.mood-tired { --bg-primary: #12121c; --accent-primary: #818cf8; }
+.chat-app-layout.mood-focused { --bg-primary: #1c1c1c; --accent-primary: #fbbf24; }
+.chat-app-layout.mood-creative { --bg-primary: #1c121c; --accent-primary: #c084fc; }
+
+.chat-app-layout {
+  transition: background-color 2s ease, border-color 2s ease;
+  position: relative;
+}
+
+.chat-app-layout::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: radial-gradient(circle at 50% 50%, var(--accent-primary), transparent 70%);
+  opacity: 0.05;
+  pointer-events: none;
+  z-index: 0;
+  transition: opacity 2s ease;
+}
+
+.mood-excited::before { opacity: 0.15; animation: pulse Aura 4s infinite alternate; }
+.mood-tired::before { opacity: 0.08; }
+
+@keyframes pulseAura {
+  from { transform: scale(1); opacity: 0.1; }
+  to { transform: scale(1.1); opacity: 0.2; }
+}
+
+/* --- Suggestion Chips --- */
+.suggestion-chip-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(var(--accent-primary-rgb, 74, 222, 128), 0.15);
+  border: 1px solid var(--accent-primary);
+  border-radius: 20px;
+  padding: 6px 12px;
+  margin-bottom: 8px;
+  animation: slideInUp 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.suggestion-chip {
+  background: none;
+  border: none;
+  color: var(--accent-primary);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+}
+
+.suggestion-chip:hover {
+  text-decoration: underline;
+}
+
+.suggestion-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.2rem;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+@keyframes slideInUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}

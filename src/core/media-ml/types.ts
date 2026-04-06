@@ -19,6 +19,12 @@ export interface MediaStageRequest {
   prompt: string
   inputAssetUris?: string[]
   runtime?: MediaRuntimeTarget
+  qualityProfile?: 'cinematic-draft' | 'cinematic-standard' | 'cinematic-premium'
+  cinematicFx?: {
+    motionTemplate?: 'ken-burns-soft' | 'dolly-in' | 'pan-left' | 'pan-right'
+    transitions?: 'soft-fade' | 'cross-dissolve' | 'cinematic-cut'
+    colorGrade?: 'neutral' | 'teal-orange' | 'warm-film'
+  }
   status: MediaStageStatus
 }
 

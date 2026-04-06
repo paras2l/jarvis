@@ -105,6 +105,22 @@ class IntelligenceRouter {
   }
 
   /**
+   * Summarize long text/notifications into witty, humanoid snips.
+   */
+  async summarize(text: string, maxLength: number = 20): Promise<string> {
+    const prompt = `Summarize this message in under ${maxLength} words. Make it sound like a witty humanoid partner, not a robot. If it's a notification, just give me the gist.\n\nMessage: "${text}"`
+    
+    // We always use 'realtime' for summaries because the user is waiting
+    const result = await this.query(prompt, { 
+      urgency: 'realtime', 
+      taskType: 'analysis',
+      systemPrompt: 'You are JARVIS, a witty, proactive humanoid partner. Summarize concisely and naturally.' 
+    })
+    
+    return result.content || text.slice(0, maxLength * 5)
+  }
+
+  /**
    * Score a query to determine local vs cloud routing.
    */
   scoreQuery(

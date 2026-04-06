@@ -2,6 +2,36 @@ import { Agent, Boundary, Task } from '@/types'
 import apiGateway from './api-gateway'
 import { getDeviceMesh } from '@/core/device-mesh'
 import { getDeviceBridge } from '@/core/device-bridge'
+import { soulEngine } from './soul-engine'
+import { intelligenceRouter } from './intelligence-router'
+import { notificationEngine } from './notification-engine'
+import { localVoiceRuntime } from './media-ml/runtimes/local-voice-runtime'
+import { proactiveEngine } from './soul/proactive-engine'
+import { notificationBridge } from './soul/notification-bridge'
+import { protocolRegistry } from './protocols/ProtocolRegistry'
+import { coreSoulProtocol } from './protocols/CoreSoul'
+import { personaEngineProtocol } from './protocols/PersonaEngine'
+import { akashaEngineProtocol } from './protocols/AkashaEngine'
+import { mimicProtocol } from './protocols/MimicProtocol'
+import { legionProtocol } from './protocols/LegionProtocol'
+import { predictiveProtocol } from './protocols/PredictiveProtocol'
+import { skillSynthesisProtocol } from './protocols/SkillSynthesis'
+import { scholarProtocol } from './protocols/ScholarProtocol'
+import { homeAssistanceProtocol } from './protocols/HomeAssistance'
+import { universalContextProtocol } from './protocols/UniversalContext'
+import { ghostProtocol } from './protocols/GhostProtocol'
+import { overlockProtocol } from './protocols/OverlockProtocol'
+import { sustainProtocol } from './protocols/SustainProtocol'
+import { hyperInferenceProtocol } from './protocols/HyperInference'
+import { sentinelCodeProtocol } from './protocols/SentinelCode'
+import { cyclopsVisionProtocol } from './protocols/CyclopsVision'
+import { sixthSenseProtocol } from './protocols/SixthSense'
+import { planetaryProtocol } from './protocols/PlanetaryProtocol'
+import { quantProtocol } from './protocols/QuantProtocol'
+import { mintProtocol } from './protocols/MintProtocol'
+import { ghostWriterProtocol } from './protocols/GhostWriter'
+import { closerProtocol } from './protocols/CloserProtocol'
+import { waveProtocol } from './protocols/WaveProtocol'
 
 /**
  * Core Agent Engine
@@ -32,11 +62,43 @@ class AgentEngine {
         'app_execution',
         'device_orchestration', // Phase 3
         'cross_device_tasks', // Phase 3
+        'humanoid_proactivity', // Phase 9
       ],
       connectedAPIs: [],
       boundaries: this.getDefaultBoundaries(),
       createdAt: new Date(),
     }
+
+    // 🧬 Start the Humanoid Brain (Phase 9)
+    proactiveEngine.start()
+    notificationBridge.start()
+
+    // 🛡️ Beyond OpenClaw: Protocol Registration (Wave 1, 2 & 3)
+    protocolRegistry.register(coreSoulProtocol)
+    protocolRegistry.register(personaEngineProtocol)
+    protocolRegistry.register(akashaEngineProtocol)
+    protocolRegistry.register(mimicProtocol)
+    protocolRegistry.register(legionProtocol)
+    protocolRegistry.register(predictiveProtocol)
+    protocolRegistry.register(skillSynthesisProtocol)
+    protocolRegistry.register(scholarProtocol)
+    protocolRegistry.register(homeAssistanceProtocol)
+    protocolRegistry.register(universalContextProtocol)
+    protocolRegistry.register(ghostProtocol)
+    protocolRegistry.register(overlockProtocol)
+    protocolRegistry.register(sustainProtocol)
+    protocolRegistry.register(hyperInferenceProtocol)
+    protocolRegistry.register(sentinelCodeProtocol)
+    protocolRegistry.register(cyclopsVisionProtocol)
+    protocolRegistry.register(sixthSenseProtocol)
+    protocolRegistry.register(planetaryProtocol)
+    protocolRegistry.register(quantProtocol)
+    protocolRegistry.register(mintProtocol)
+    protocolRegistry.register(ghostWriterProtocol)
+    protocolRegistry.register(closerProtocol)
+    protocolRegistry.register(waveProtocol)
+    protocolRegistry.initializeAll()
+
     this.agents.set(this.mainAgent.id, this.mainAgent)
     return this.mainAgent
   }
@@ -167,6 +229,24 @@ class AgentEngine {
   }
 
   /**
+   * Get a friendly, witty response from the agent soul
+   */
+  async getAgentResponse(userInput: string, taskResult?: any): Promise<string> {
+    const soulPrompt = soulEngine.getSystemPrompt()
+    const prompt = taskResult 
+      ? `The user said: "${userInput}". I have executed their task. Result: ${JSON.stringify(taskResult)}. Give a 1-sentence friendly, witty update to the user like a partner.`
+      : `The user said: "${userInput}". I'm about to start this task. Give a 1-sentence witty acknowledging response that sounds like a smart partner (JARVIS).`
+
+    const response = await intelligenceRouter.query(prompt, { 
+      systemPrompt: soulPrompt,
+      urgency: 'realtime',
+      taskType: 'chat'
+    })
+
+    return response.content
+  }
+
+  /**
    * Phase 3: Execute task on local device (default)
    */
   async executeLocalTask(
@@ -183,7 +263,7 @@ class AgentEngine {
     const cmd = task.command || ''
     const lower = cmd.toLowerCase()
     let output = ''
-    let success = true
+    const success = true
 
     try {
       console.log(`[AgentEngine] Executing local task: ${cmd}`)
@@ -263,6 +343,20 @@ class AgentEngine {
       task.status = success ? 'completed' : 'failed'
       task.result = { success, output }
       task.completedAt = new Date()
+
+      // ── BACKGROUND PARTNERSHIP NOTIFICATION ───────────────────────────
+      // If the task was stealth or media, tap the user on the shoulder
+      if (isUserBusy || lower.startsWith('vfx:') || lower.startsWith('stealth:')) {
+        const updateText = await this.getAgentResponse(cmd, task.result)
+        
+        notificationEngine.notify(
+          'JARVIS Update', 
+          updateText || `Task complete: ${output.slice(0, 50)}...`
+        )
+
+        // Give a witty voice update if voice is enabled
+        localVoiceRuntime.speak(updateText)
+      }
 
       return task.result
     } catch (error) {

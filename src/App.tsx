@@ -1,4 +1,5 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { notificationEngine } from './core/notification-engine'
 import ChatInterface from './components/ChatInterface'
 import '@/styles/theme.css'
 import '@/styles/globals.css'
@@ -20,7 +21,10 @@ function App() {
     })
   }
 
-  React.useEffect(() => {
+  useEffect(() => {
+    // Request notification permissions for background partnership
+    notificationEngine.requestPermission()
+
     document.documentElement.style.colorScheme = isDark ? 'dark' : 'light'
     if (isDark) {
       document.body.classList.add('dark')

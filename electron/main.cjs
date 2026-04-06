@@ -224,6 +224,20 @@ ipcMain.handle('native:read-file', async (_ev, filePath) => {
   }
 })
 
+ipcMain.handle('native:read-file-base64', async (_ev, filePath) => {
+  try {
+    const safe = sandboxedPath(filePath)
+    const content = fs.readFileSync(safe, 'base64')
+    return { success: true, content }
+  } catch (e) {
+    return { success: false, error: e.message }
+  }
+})
+
+ipcMain.handle('native:get-user-data-path', async () => {
+  return app.getPath('userData')
+})
+
 ipcMain.handle('native:file-exists', async (_ev, filePath) => {
   try {
     const safe = sandboxedPath(filePath)

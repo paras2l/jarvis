@@ -6,7 +6,7 @@
  */
 
 import { platformAdapter } from './platform-adapter';
-// @ts-ignore
+// @ts-expect-error ocrEngine is available at runtime through the Electron bridge.
 import { ocrEngine } from './ocr-engine';
 
 export interface VisionReport {

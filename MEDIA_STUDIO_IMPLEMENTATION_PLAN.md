@@ -22,10 +22,10 @@
 | **Studio Panel Integration** | 3 | ✅ | LiveCanvas.tsx, LiveCanvas.css |
 
 ### Remaining (Deferred to Supabase Phase):
-- Real Supabase Edge Function workers (mock currently)
-- GPU worker heartbeat and job queue
-- Multi-worker load balancing
-- Real cloud model deployment configs
+- Supabase Edge worker deployed in your Supabase project (scaffolded in repo, deployment pending)
+- Production GPU worker heartbeat execution (schema + function scaffold ready, runtime deployment pending)
+- Multi-worker load balancing in production (claim_next_gpu_job RPC scaffold ready, scaling rollout pending)
+- Real cloud model deployment configs applied in project DB (table + seed SQL scaffold ready)
 
 ## Goal
 Build a unified Antigravity media engine that can generate images, videos, voice, avatars, scripts, and camera motion with:
@@ -58,6 +58,25 @@ Yes. The repositories you identified contain real inference and orchestration co
 - Content safety checks
 - Cost controls for cloud mode
 - Full audit and job logs
+
+## Immediate Next Steps (Added April 6, 2026)
+
+1. Reliability hardening (implemented)
+- Cloud polling now applies retry limits and progressive backoff.
+- Failed cloud stages are recorded into local dead-letter storage for replay.
+
+2. Security hardening (implemented)
+- Supabase URL and keys must come from environment variables.
+- Service role key is no longer hardcoded in client source.
+
+3. Worker contract (implemented)
+- See REMOTE_WORKER_CONTRACT.md for queue payload, status lifecycle, and result fields.
+
+4. Remaining actions (next build sprint)
+- Add dead-letter replay UI in Live Canvas. ✅
+- Add retry_count/max_retries columns and worker-aware retries in gpu_job_queue. ✅ (app + DB layer)
+- Add worker heartbeat table and stale-job recovery routine. ✅ (bridge/DB scaffolding)
+- Move privileged db write paths to worker/server-only process where possible. ✅ (client-side service-role fallback removed)
 
 ## Engine Strategy: Local and Golden Power Cloud
 

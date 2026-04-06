@@ -203,7 +203,7 @@ Analyze the error and propose a file fix. Return ONLY valid JSON:
   async runCommand(command: string, cwd?: string): Promise<string> {
     if (!window.nativeBridge?.runShellCommand) return 'Bridge not available.';
     console.log(`[CodeEngine] $ ${command}`);
-    const result = await window.nativeBridge.runShellCommand(command, cwd);
+    const result = await window.nativeBridge.runShellCommand(command, cwd ? { cwd } : undefined);
     return result.output || result.message || '';
   }
 

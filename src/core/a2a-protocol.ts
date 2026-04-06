@@ -203,9 +203,10 @@ class A2AProtocol {
     targets: AgentName[],
     payload: Record<string, unknown>
   ): Promise<A2AResult> {
-    return new Promise(async (resolve) => {
+    return new Promise((resolve) => {
       let resolved = false
-      await Promise.all(
+
+      void Promise.all(
         targets.map(async to => {
           const result = await this.send(from, to, payload, { priority: 'high' })
           if (!resolved && result.success) {
@@ -213,16 +214,17 @@ class A2AProtocol {
             resolve(result)
           }
         })
-      )
-      if (!resolved) {
-        resolve({
-          messageId: this.genId(),
-          from: 'orchestrator',
-          success: false,
-          error: 'All agents failed',
-          latencyMs: 0,
-        })
-      }
+      ).then(() => {
+        if (!resolved) {
+          resolve({
+            messageId: this.genId(),
+            from: 'orchestrator',
+            success: false,
+            error: 'All agents failed',
+            latencyMs: 0,
+          })
+        }
+      })
     })
   }
 

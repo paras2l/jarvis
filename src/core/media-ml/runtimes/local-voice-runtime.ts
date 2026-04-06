@@ -95,24 +95,22 @@ class LocalVoiceRuntime implements MediaRuntimeAdapter {
         return null
       }
 
-      // Resolve script path via getUserDataPath helper or fall back to relative path
-      const getUserData = window.nativeBridge.getUserDataPath
-      const userDataDir = getUserData ? getUserData() : ''
-      const scriptsDir = userDataDir
-        ? `${userDataDir}/../src/core/media-ml/python`
-        : 'src/core/media-ml/python'
-
+      const scriptsPathResult = await window.nativeBridge.getPythonScriptsPath?.()
+      const workspacePathResult = await window.nativeBridge.getWorkspacePath?.()
+      const scriptsDir = scriptsPathResult?.path ?? 'src/core/media-ml/python'
       const scriptPath = `${scriptsDir}/voice_core.py`
       const outputFilename = `studio_voice_${Date.now()}_${stageId}.wav`
-      const outputPath = userDataDir
-        ? `${userDataDir}/studio-workspace/${outputFilename}`
-        : outputFilename
+      const workspaceDir = workspacePathResult?.path ?? '.'
+      const outputPath = `${workspaceDir}/${outputFilename}`
 
       const safeText = text.replace(/"/g, '\\"').replace(/\n/g, ' ')
       const command = `python "${scriptPath}" --text "${safeText}" --out "${outputPath}" --voice af_bella --engine auto`
 
       // runShellCommand signature: (command: string, cwd?: string)
-      const result = await window.nativeBridge.runShellCommand(command)
+      const result = await window.nativeBridge.runShellCommand(command, {
+        cwd: workspaceDir,
+        timeoutMs: 120000,
+      })
 
       if (!result?.success && !result?.output?.includes('SUCCESS|')) {
         return null
@@ -160,6 +158,22 @@ class LocalVoiceRuntime implements MediaRuntimeAdapter {
         resolve()
       }
     })
+  }
+
+  /**
+   * Convenience method for quick JARVIS announcements
+   */
+  async speak(text: string): Promise<void> {
+    if (!text) return
+    console.log(`🎙️ [JARVIS] Speaking: "${text}"`)
+    
+    // For quick announcements, we use Web Speech directly to avoid shell latency
+    // but we still try Kokoro if possible for premium feel.
+    try {
+      await this.playWithWebSpeechAPI(text)
+    } catch (e) {
+      console.warn('Voice announcement failed', e)
+    }
   }
 
   private emitProgress(

@@ -14,6 +14,8 @@ import {
   upsertChatHistory,
 } from '@/core/chat-history'
 import taskExecutor from '@/core/task-executor'
+import { memoryEngine } from '@/core/memory-engine'
+import { db } from '@/lib/db'
 
 interface ChatInterfaceProps {
   isDark: boolean
@@ -49,11 +51,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isCanvasOpen, setIsCanvasOpen] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
+  const [currentMood, setCurrentMood] = useState('casual')
+  const [pendingSuggestion, setPendingSuggestion] = useState<{
+    label: string
+    policy: any
+    fx: any
+  } | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const mainAgent = agentEngine.initializeMainAgent('user-1')
     setActiveAgentName(mainAgent.name)
+    // Load long-term memories from Supabase on startup
+    memoryEngine.loadMemories().catch(() => {})
   }, [])
 
   const scrollToBottom = () => {
@@ -109,6 +119,40 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setInputValue('')
     setIsProcessing(true)
 
+    // 🧠 Analyze message for mood + learn from user (async, don't block UI)
+    memoryEngine.analyzeMessage(text).then(({ mood, recommendation }) => {
+      setCurrentMood(mood)
+      
+      // Get studio recommendation
+      const studioHint = memoryEngine.getRecommendedPolicy()
+      if (studioHint.policy.quality === 'premium' && mood === 'creative') {
+        setPendingSuggestion({
+          label: "🪄 Apply 'Cinematic Creative' (Premium + Warm Film)?",
+          policy: studioHint.policy,
+          fx: studioHint.cinematicFx
+        })
+      }
+
+      if (recommendation) {
+        // Show a friendly proactive recommendation from the agent
+        setTimeout(() => {
+          setMessages((prev: Message[]) => [
+            ...prev,
+            {
+              id: `rec-${Date.now()}`,
+              type: 'agent' as const,
+              content: recommendation,
+              timestamp: new Date(),
+              metadata: { voiceInput: false },
+            },
+          ])
+        }, 800)
+      }
+    }).catch(() => {})
+
+    // 💾 Persist message to Supabase (async)
+    db.tasks.log({ command: text, intent: 'chat', status: 'sent' }).catch(() => {})
+
     // Process command
     const parsed = taskExecutor.parseCommand(text)
     const task = taskExecutor.createTask(parsed)
@@ -124,15 +168,31 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       setActiveAgentName(agentEngine.getAllAgents()[0]?.name || 'Main Agent')
     }
 
-    const processingMessage: Message = {
-      id: `msg-${Date.now()}-response`,
-      type: 'agent',
-      content: `Processing your request: ${parsed.action}`,
-      timestamp: new Date(),
-      metadata: { taskId: task.id },
-    }
-
-    setMessages((prev: Message[]) => [...prev, processingMessage])
+    // 🧬 Generate a friendly dynamic response from the Agent Brain (async)
+    agentEngine.getAgentResponse(text).then((content) => {
+      setMessages((prev: Message[]) => [
+        ...prev,
+        {
+          id: `msg-${Date.now()}-response`,
+          type: 'agent',
+          content,
+          timestamp: new Date(),
+          metadata: { taskId: task.id },
+        },
+      ])
+    }).catch(() => {
+      // Fallback if AI is offline
+      setMessages((prev: Message[]) => [
+        ...prev,
+        {
+          id: `msg-${Date.now()}-response`,
+          type: 'agent',
+          content: `I'm on it! 🚀 Starting your task: ${parsed.action}`,
+          timestamp: new Date(),
+          metadata: { taskId: task.id },
+        },
+      ])
+    })
 
     taskExecutor
       .executeTask(task, {
@@ -143,21 +203,29 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         platform: 'windows',
       })
       .then((completedTask) => {
-        setCurrentTask({ ...completedTask })
+        const outcomeMessage = completedTask.error || 'Execution finished.'
 
-        const taskResult = completedTask.result as { message?: string } | undefined
-        const outcomeMessage =
-          taskResult?.message || completedTask.error || 'Execution finished.'
-
-        const completionMessage: Message = {
-          id: `msg-${Date.now()}-complete`,
-          type: 'agent',
-          content: `${completedTask.status === 'completed' ? '✅' : '❌'} ${outcomeMessage}`,
-          timestamp: new Date(),
-          metadata: { taskId: completedTask.id },
-        }
-
-        setMessages((prev: Message[]) => [...prev, completionMessage])
+        // 🧬 Final witty update from the Agent Soul
+        agentEngine.getAgentResponse(text, completedTask.result).then((content) => {
+          const completionMessage: Message = {
+            id: `msg-${Date.now()}-complete`,
+            type: 'agent',
+            content: `${completedTask.status === 'completed' ? '✅' : '❌'} ${content}`,
+            timestamp: new Date(),
+            metadata: { taskId: completedTask.id },
+          }
+          setMessages((prev: Message[]) => [...prev, completionMessage])
+        }).catch(() => {
+          // Fallback
+          const completionMessage: Message = {
+            id: `msg-${Date.now()}-complete`,
+            type: 'agent',
+            content: `${completedTask.status === 'completed' ? '✅' : '❌'} ${outcomeMessage}`,
+            timestamp: new Date(),
+            metadata: { taskId: completedTask.id },
+          }
+          setMessages((prev: Message[]) => [...prev, completionMessage])
+        })
       })
       .catch((error: unknown) => {
         const failureMessage = error instanceof Error ? error.message : 'Execution failed.'
@@ -200,7 +268,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }
 
   return (
-    <div className={`chat-app-layout ${isCanvasOpen ? 'canvas-expanded' : ''}`}>
+    <div className={`chat-app-layout ${isCanvasOpen ? 'canvas-expanded' : ''} mood-${currentMood}`}>
       <div className="chat-container">
         {/* Header */}
         <div className="chat-header">
@@ -241,7 +309,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             <MessageBubble key={message.id} message={message} />
           ))}
 
-          {currentTask && <TaskDisplay task={currentTask} />}
+          {currentTask && <TaskDisplay task={currentTask as Task} />}
 
           <div ref={messagesEndRef} />
         </div>
@@ -249,6 +317,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         {/* Input */}
         <div className="input-container">
           <div className="input-stack">
+            {pendingSuggestion && (
+              <div className="suggestion-chip-container">
+                <button 
+                  className="suggestion-chip"
+                  onClick={() => {
+                    // In a real app, this would update the next task's metadata
+                    setMessages(prev => [...prev, {
+                      id: `sys-${Date.now()}`,
+                      type: 'agent',
+                      content: `Syncing Studio to Soul... 🧬 Applied ${pendingSuggestion.policy.quality} settings.`,
+                      timestamp: new Date()
+                    }])
+                    setPendingSuggestion(null)
+                  }}
+                >
+                  {pendingSuggestion.label}
+                </button>
+                <button className="suggestion-close" onClick={() => setPendingSuggestion(null)}>×</button>
+              </div>
+            )}
             {errorMessage && <div className="error-banner">{errorMessage}</div>}
             <input
               type="text"

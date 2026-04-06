@@ -6,6 +6,7 @@ import {
   MediaStageType,
   RuntimeEstimate,
 } from '../types'
+import { db } from '@/lib/db'
 
 /**
  * Local Video Runtime
@@ -61,6 +62,28 @@ class LocalVideoRuntime implements MediaRuntimeAdapter {
 
       this.emitProgress(stage, 'completed', 100, 'Movie rendered successfully! 🎬')
 
+      // ☁️ Sync to Cloud (async)
+      const artifactUri = result.artifactUri
+      if (artifactUri) {
+        const localPath = artifactUri.replace(/^file:\/\//, '')
+        const fileName = `video_${Date.now()}_${stage.id}.mp4`
+        
+        // Non-blocking upload
+        db.storage.uploadFromLocalPath(localPath, fileName, 'video/mp4')
+          .then(publicUrl => {
+            if (publicUrl) {
+               console.log(`[Video] ☁️ Uploaded to Supabase: ${publicUrl}`)
+               // Record in Media Assets table
+               db.media.addStage({
+                 job_id: stage.id,
+                 stage_type: 'video',
+                 artifact_url: publicUrl,
+                 status: 'completed'
+               })
+            }
+          }).catch(err => console.error('[Video] Cloud sync failed:', err))
+      }
+
       return {
         stageId: stage.id,
         stageType: stage.type,
@@ -99,13 +122,11 @@ class LocalVideoRuntime implements MediaRuntimeAdapter {
       }
     }
 
-    const getUserData = window.nativeBridge.getUserDataPath
-    const userDataDir = getUserData ? getUserData() : ''
-    const scriptsDir = userDataDir
-      ? `${userDataDir}/../src/core/media-ml/python`
-      : 'src/core/media-ml/python'
+    const scriptsPathResult = await window.nativeBridge.getPythonScriptsPath?.()
+    const workspacePathResult = await window.nativeBridge.getWorkspacePath?.()
+    const scriptsDir = scriptsPathResult?.path ?? 'src/core/media-ml/python'
     const scriptPath = `${scriptsDir}/video_core.py`
-    const workspaceDir = userDataDir ? `${userDataDir}/studio-workspace` : '.'
+    const workspaceDir = workspacePathResult?.path ?? '.'
 
     const timestamp = Date.now()
     const outputFilename = `studio_video_${timestamp}_${stage.id}.mp4`
@@ -150,7 +171,10 @@ class LocalVideoRuntime implements MediaRuntimeAdapter {
 
     this.emitProgress(stage, 'running', 40, 'Rendering frames...')
 
-    const result = await window.nativeBridge.runShellCommand(command)
+    const result = await window.nativeBridge.runShellCommand(command, {
+      cwd: workspaceDir,
+      timeoutMs: 300000,
+    })
 
     if (!result?.success && !result?.output?.includes('SUCCESS|')) {
       const err = result?.error ?? 'Video core failed.'

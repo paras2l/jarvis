@@ -109,7 +109,8 @@ declare global {
       // Self-Coding Engine (write/read/execute without IDE)
       writeFile: (filePath: string, content: string) => Promise<{ success: boolean; message?: string }>
       readFile: (filePath: string) => Promise<{ success: boolean; content?: string; message?: string }>
-      runShellCommand: (command: string, cwd?: string) => Promise<{ success: boolean; output?: string; error?: string; exitCode?: number; message?: string }>
+      readFileBase64: (filePath: string) => Promise<{ success: boolean; content?: string; message?: string }>
+      runShellCommand: (command: string, opts?: { cwd?: string; timeoutMs?: number }) => Promise<{ success: boolean; output?: string; error?: string; exitCode?: number; message?: string }>
       listExtensions?: () => Promise<{ success: boolean; extensions?: string[]; message?: string }>
       captureScreen?: () => Promise<{ success: boolean; imageBase64?: string; message?: string }>
       captureRegion?: (region: { x: number; y: number; width: number; height: number }) => Promise<{ success: boolean; imageBase64?: string; message?: string }>
@@ -117,8 +118,10 @@ declare global {
       runOCRFile?: (imagePath: string) => Promise<{ success: boolean; text?: string; confidence?: number; words?: Array<{ text: string; confidence: number; bbox: { x: number; y: number; width: number; height: number } }>; message?: string }>
 
       // Path helpers
-      getUserDataPath?: () => string
-      getProjectRoot?: () => string
+      getUserDataPath: () => string
+      getProjectRoot: () => string
+      getWorkspacePath: () => Promise<{ path: string }>
+      getPythonScriptsPath: () => Promise<{ path: string }>
 
       // ── Wave 2: CDP Browser Control (C-6) ──────────────────────────────
       browser?: {

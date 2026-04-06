@@ -24,10 +24,14 @@ contextBridge.exposeInMainWorld('nativeBridge', {
     ipcRenderer.invoke('native:write-file', filePath, content),
   readFile: (filePath) =>
     ipcRenderer.invoke('native:read-file', filePath),
+  readFileBase64: (filePath) =>
+    ipcRenderer.invoke('native:read-file-base64', filePath),
   fileExists: (filePath) =>
     ipcRenderer.invoke('native:file-exists', filePath),
   getWorkspacePath: () =>
     ipcRenderer.invoke('native:get-workspace-path'),
+  getUserDataPath: () =>
+    ipcRenderer.invoke('native:get-user-data-path'),
   getPythonScriptsPath: () =>
     ipcRenderer.invoke('native:get-python-scripts-path'),
 })

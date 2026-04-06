@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { notificationEngine } from './core/notification-engine'
 import ChatInterface from './components/ChatInterface'
 import '@/styles/theme.css'

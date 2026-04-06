@@ -77,7 +77,7 @@ export class VisionStream {
             this.checkSensitiveContent(res.windowTitle)
           }
         }
-      } catch (err) {
+      } catch {
         // silent fail on monitor loop
       }
     }, 2000)

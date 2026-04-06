@@ -23,6 +23,8 @@
  */
 
 import { a2a } from './a2a-protocol'
+import { policyGateway } from './policy/PolicyGateway'
+import { hardcodeProtocol } from './protocols/HardcodeProtocol'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -36,6 +38,8 @@ export interface ExtensionManifest {
   enabled: boolean
   author?: string
   icon?: string
+  integrity?: string
+  actionsFile?: string
 }
 
 export interface Extension {
@@ -142,6 +146,30 @@ class ExtensionSystem {
 
         const args = fullCommand.slice(prefix.length).trim()
         try {
+          const decision = await policyGateway.decide({
+            requestId: `ext_${extId}_${Date.now()}`,
+            agentId: `ext:${extId}`,
+            action: 'extension_command',
+            command: `${prefix} ${args}`,
+            source: 'local',
+            explicitPermission: true,
+            requestedPrivileges: ['extension_exec'],
+            riskScore: 0.45,
+            occurredAt: Date.now(),
+            policyPack: policyGateway.getPolicyPack(),
+          })
+
+          if (decision.decision === 'deny') {
+            return { handled: true, extensionId: extId, error: `Policy blocked extension command: ${decision.reason}` }
+          }
+
+          if (decision.tokenRequired) {
+            const verified = hardcodeProtocol.validateDecisionToken(decision.decisionToken, 'extension_command')
+            if (!verified.valid) {
+              return { handled: true, extensionId: extId, error: `Policy token invalid: ${verified.reason || 'unknown'}` }
+            }
+          }
+
           const output = await ext.handle(prefix, args)
           return { handled: true, extensionId: extId, output }
         } catch (err) {
@@ -211,32 +239,67 @@ class ExtensionSystem {
     try {
       if (!window.nativeBridge?.readFile) return false
 
+      const decision = await policyGateway.decide({
+        requestId: `ext_load_${Date.now()}`,
+        agentId: 'extension-system',
+        action: 'extension_load',
+        command: extPath,
+        source: 'local',
+        explicitPermission: true,
+        requestedPrivileges: ['file_system', 'extension_load'],
+        riskScore: 0.65,
+        occurredAt: Date.now(),
+        policyPack: policyGateway.getPolicyPack(),
+      })
+      if (decision.decision === 'deny') return false
+      if (decision.tokenRequired) {
+        const verified = hardcodeProtocol.validateDecisionToken(decision.decisionToken, 'extension_load')
+        if (!verified.valid) return false
+      }
+
       const manifestResult = await window.nativeBridge.readFile(`${extPath}/manifest.json`)
       if (!manifestResult.success || !manifestResult.content) return false
 
       const manifest = JSON.parse(manifestResult.content) as ExtensionManifest
       if (!manifest.id || !manifest.commands) return false
+      if (!manifest.integrity) {
+        console.warn(`[Extensions] ${manifest.id} rejected: missing integrity checksum`)
+        return false
+      }
 
-      // Dynamic code loading (sandboxed eval for external extensions)
-      const handlerResult = await window.nativeBridge.readFile(`${extPath}/handler.js`)
-      if (!handlerResult.success || !handlerResult.content) return false
+      const actionsFile = manifest.actionsFile || 'actions.json'
+      const actionsResult = await window.nativeBridge.readFile(`${extPath}/${actionsFile}`)
+      if (!actionsResult.success || !actionsResult.content) return false
 
-      // eslint-disable-next-line no-new-func
-      const factory = new Function('module', 'exports', 'require', handlerResult.content)
-      const mod = { exports: {} as { handle?: Extension['handle'] } }
-      factory(mod, mod.exports, () => ({}))
+      const hash = await this.sha256(actionsResult.content)
+      if (hash !== manifest.integrity) {
+        console.warn(`[Extensions] ${manifest.id} rejected: integrity mismatch`)
+        return false
+      }
 
-      if (typeof mod.exports.handle !== 'function') return false
+      const parsedActions = JSON.parse(actionsResult.content) as Record<string, string>
+      const safeActions = Object.entries(parsedActions).filter(([k, v]) => typeof k === 'string' && typeof v === 'string')
+      if (!safeActions.length) return false
 
       this.register({
         manifest: { ...manifest, enabled: manifest.enabled !== false },
-        handle: mod.exports.handle,
+        handle: async (commandPrefix: string, args: string) => {
+          const found = safeActions.find(([key]) => key.toLowerCase() === commandPrefix.toLowerCase())
+          if (!found) return `No declarative handler for ${commandPrefix}`
+          return found[1].replace(/\{args\}/g, args)
+        },
       })
       return true
     } catch (err) {
       console.error(`[Extensions] Failed to load ${extPath}:`, err)
       return false
     }
+  }
+
+  private async sha256(input: string): Promise<string> {
+    const bytes = new TextEncoder().encode(input)
+    const digest = await crypto.subtle.digest('SHA-256', bytes)
+    return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('')
   }
 }
 

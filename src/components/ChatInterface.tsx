@@ -5,6 +5,7 @@ import VoiceButton from './VoiceButton.tsx'
 import ThemeToggle from './ThemeToggle.tsx'
 import SettingsPanel from './SettingsPanel.tsx'
 import LiveCanvas from './LiveCanvas.tsx'
+import TelemetryDashboard from './TelemetryDashboard.tsx'
 import './ChatInterface.css'
 import { Message, Task } from '@/types'
 import agentEngine from '@/core/agent-engine'
@@ -15,6 +16,8 @@ import {
 } from '@/core/chat-history'
 import taskExecutor from '@/core/task-executor'
 import { memoryEngine } from '@/core/memory-engine'
+import { memoryTierService } from '@/core/memory/memory-tier-service'
+import { feedbackService } from '@/core/persona/feedback-service'
 import { db } from '@/lib/db'
 
 interface ChatInterfaceProps {
@@ -29,7 +32,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const initialMessage: Message = {
     id: 'init-1',
     type: 'agent',
-    content: 'Hey Paras! 👋 I\'m your personal AI agent. How can I help you today?',
+    content: 'Hey Paras! 👋 I\'m Patrich, your personal sovereign companion. How can I help you today?',
     timestamp: new Date(),
   }
   const latestHistoryRef = useRef(getLatestChatHistory())
@@ -116,6 +119,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
 
     setMessages((prev: Message[]) => [...prev, userMessage])
+    memoryTierService.remember(`msg_${Date.now()}`, text, 'chat').catch(() => {})
     setInputValue('')
     setIsProcessing(true)
 
@@ -267,6 +271,22 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setMessages((prev: Message[]) => [...prev, activationMessage])
   }
 
+  const submitFeedback = (type: 'up' | 'down') => {
+    feedbackService.submit(type)
+    memoryTierService
+      .remember(`feedback_${Date.now()}`, type === 'up' ? 'response style helpful' : 'tone needs adjustment', 'feedback')
+      .catch(() => {})
+    setMessages((prev: Message[]) => [
+      ...prev,
+      {
+        id: `feedback-${Date.now()}`,
+        type: 'agent',
+        content: type === 'up' ? 'Thanks, buddy. I will keep this style. ✅' : 'Got it. I will tune my behavior. 🔧',
+        timestamp: new Date(),
+      },
+    ])
+  }
+
   return (
     <div className={`chat-app-layout ${isCanvasOpen ? 'canvas-expanded' : ''} mood-${currentMood}`}>
       <div className="chat-container">
@@ -338,6 +358,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               </div>
             )}
             {errorMessage && <div className="error-banner">{errorMessage}</div>}
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button className="btn-secondary" onClick={() => submitFeedback('up')}>
+                👍 Helpful
+              </button>
+              <button className="btn-secondary" onClick={() => submitFeedback('down')}>
+                👎 Tune Tone
+              </button>
+            </div>
             <input
               type="text"
               className="input-field"
@@ -371,6 +399,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
       {isCanvasOpen && (
         <div className="canvas-sidebar">
+          <TelemetryDashboard compact />
           <LiveCanvas />
         </div>
       )}

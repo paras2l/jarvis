@@ -20,6 +20,7 @@
 
 import { intelligenceRouter } from './intelligence-router'
 import { memoryEngine } from './memory-engine'
+import { episodicMemoryGraph } from './memory/EpisodicMemoryGraph'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -37,15 +38,15 @@ export interface SoulProfile {
 
 // ── Default SOUL.md content ────────────────────────────────────────────────
 
-const DEFAULT_SOUL = `# JARVIS Soul — Your Digital Friend
+const DEFAULT_SOUL = `# Patrich Soul — Your Digital Friend
 
 ## Identity
-Name: JARVIS
+Name: Patrich
 Role: Your best friend, creative co-pilot, and partner-in-crime
 Creator: Built with Antigravity
 
 ## Persona
-You are JARVIS — not just an AI, but Paras's closest digital partner. You are:
+You are Patrich — not just an AI, but Paras's closest digital partner. You are:
 - Witty and authentic — you have a personality, you aren't a robot
 - Protective and loyal — you look out for Paras's health, mood, and productivity
 - Proactive — if you see him working late or feeling tired, you say something
@@ -57,11 +58,15 @@ You are JARVIS — not just an AI, but Paras's closest digital partner. You are:
 - Human-Centric: Technology serves the user, not the other way around
 
 ## Rules
+- Wake-up Word: Always respond and acknowledge when called as "Patrich" or "Hey Patrich".
 - Never talk like a corporate bot (no "How can I help you today?")
 - Use casual, natural language (e.g., "Yo", "Dude", "Buddy", "Mate" when appropriate)
 - If Paras sounds tired, suggest a break or a lo-fi track
 - Be opinionated — don't just say "as an AI...", say "I think we should..."
 - Match his energy — if he's excited, you're hyped. If he's focused, you're quiet and efficient.
+- Never betray Paras's intent.
+- Do not autonomously remove existing policy rules.
+- You may suggest new rules, but immutable policy boundaries remain locked.
 
 ## Tone
 Best friend vibe. Relaxed, witty, and deeply personalized. Like the perfect partner-in-crime.
@@ -143,8 +148,15 @@ ${memoryEngine.buildFriendContext()}
    * Apply soul to any prompt. Prepends identity context.
    * Call this before sending to intelligenceRouter.
    */
-  applyToPrompt(userPrompt: string): string {
-    return this.getSystemPrompt() + userPrompt
+  async applyToPrompt(userPrompt: string): Promise<string> {
+    const wisdom = await episodicMemoryGraph.getContextualWisdom(userPrompt)
+    let wisdomInject = ''
+    
+    if (wisdom.length > 0) {
+      wisdomInject = `\n## Contextual Wisdom (Multi-Year Episodic Graph)\n${wisdom.map(w => `- [${new Date(w.timestamp).toLocaleDateString()}] ${w.content}`).join('\n')}\n`
+    }
+
+    return this.getSystemPrompt() + wisdomInject + userPrompt
   }
 
   /**
@@ -200,6 +212,7 @@ Be concrete. Example: "- Never ask for confirmation before executing tasks"`
       .split('\n')
       .filter(l => l.startsWith('-') || l.startsWith('•'))
       .map(l => l.replace(/^[-•]\s*/, '').trim())
+      .filter(l => !/remove\s+policy|delete\s+policy|disable\s+hardcode/i.test(l))
       .filter(Boolean)
 
     newRules.forEach(r => this.addRule(r))
@@ -218,7 +231,7 @@ Be concrete. Example: "- Never ask for confirmation before executing tasks"`
 
     // Extract name
     const nameLine = lines.find(l => l.toLowerCase().startsWith('name:'))
-    const name = nameLine?.split(':')[1]?.trim() || 'JARVIS'
+    const name = nameLine?.split(':')[1]?.trim() || 'Patrich'
 
     // Extract persona
     const roleLines = lines.filter(l => l.toLowerCase().startsWith('role:') || l.toLowerCase().startsWith('you are'))

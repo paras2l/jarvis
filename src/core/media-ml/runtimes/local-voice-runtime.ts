@@ -6,6 +6,7 @@ import {
   MediaStageType,
   RuntimeEstimate,
 } from '../types'
+import { platformAdapter } from '@/core/platform-adapter'
 
 /**
  * Local Voice Generation Runtime
@@ -91,12 +92,15 @@ class LocalVoiceRuntime implements MediaRuntimeAdapter {
 
   private async tryKokoroPythonWorker(text: string, stageId: string): Promise<string | null> {
     try {
-      if (typeof window === 'undefined' || !window.nativeBridge?.runShellCommand) {
+      if (typeof window === 'undefined') {
         return null
       }
 
-      const scriptsPathResult = await window.nativeBridge.getPythonScriptsPath?.()
-      const workspacePathResult = await window.nativeBridge.getWorkspacePath?.()
+      const bridge = window.nativeBridge
+      if (!bridge) return null
+
+      const scriptsPathResult = await bridge.getPythonScriptsPath?.()
+      const workspacePathResult = await bridge.getWorkspacePath?.()
       const scriptsDir = scriptsPathResult?.path ?? 'src/core/media-ml/python'
       const scriptPath = `${scriptsDir}/voice_core.py`
       const outputFilename = `studio_voice_${Date.now()}_${stageId}.wav`
@@ -107,7 +111,7 @@ class LocalVoiceRuntime implements MediaRuntimeAdapter {
       const command = `python "${scriptPath}" --text "${safeText}" --out "${outputPath}" --voice af_bella --engine auto`
 
       // runShellCommand signature: (command: string, cwd?: string)
-      const result = await window.nativeBridge.runShellCommand(command, {
+      const result = await platformAdapter.runCommand(command, {
         cwd: workspaceDir,
         timeoutMs: 120000,
       })

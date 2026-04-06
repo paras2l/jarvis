@@ -6,6 +6,7 @@ import {
   MediaStageType,
   RuntimeEstimate,
 } from '../types'
+import { platformAdapter } from '@/core/platform-adapter'
 
 /**
  * Python Local Image Generation Runtime
@@ -107,7 +108,15 @@ class PythonLocalImageRuntime implements MediaRuntimeAdapter {
     modelVersion?: string
     error?: string
   }> {
-    if (typeof window === 'undefined' || !window.nativeBridge?.runShellCommand) {
+    if (typeof window === 'undefined') {
+      return {
+        success: false,
+        error: 'Native bridge unavailable. Run the app in Electron to use local image generation.',
+      }
+    }
+
+    const bridge = window.nativeBridge
+    if (!bridge) {
       return {
         success: false,
         error: 'Native bridge unavailable. Run the app in Electron to use local image generation.',
@@ -117,8 +126,8 @@ class PythonLocalImageRuntime implements MediaRuntimeAdapter {
     const timestamp = Date.now()
     const outputFilename = `studio_image_${timestamp}_${stageId}.png`
 
-    const scriptsPathResult = await window.nativeBridge.getPythonScriptsPath?.()
-    const workspacePathResult = await window.nativeBridge.getWorkspacePath?.()
+    const scriptsPathResult = await bridge.getPythonScriptsPath?.()
+    const workspacePathResult = await bridge.getWorkspacePath?.()
     const scriptsDir = scriptsPathResult?.path ?? 'src/core/media-ml/python'
     const workspaceDir = workspacePathResult?.path ?? '.'
     const scriptPath = `${scriptsDir}/diffusion_core.py`
@@ -129,7 +138,7 @@ class PythonLocalImageRuntime implements MediaRuntimeAdapter {
 
     if (!this.workerBootstrapped) {
       const startCommand = `cmd /c start "" /B python "${scriptPath}" --worker --requests-dir "${queueDirRel}"`
-      await window.nativeBridge.runShellCommand(startCommand, { cwd: workspaceDir, timeoutMs: 15000 })
+      await platformAdapter.runCommand(startCommand, { cwd: workspaceDir, timeoutMs: 15000 })
       this.workerBootstrapped = true
     }
 
@@ -137,7 +146,7 @@ class PythonLocalImageRuntime implements MediaRuntimeAdapter {
     const requestPathRel = `${queueDirRel}/${requestId}.json`
     const responsePathRel = `${queueDirRel}/${requestId}.response.json`
 
-    const writeRequest = await window.nativeBridge.writeFile(requestPathRel, JSON.stringify({
+    const writeRequest = await bridge.writeFile(requestPathRel, JSON.stringify({
       request_id: requestId,
       prompt,
       negative_prompt: 'blurry, low quality, distorted',
@@ -162,7 +171,7 @@ class PythonLocalImageRuntime implements MediaRuntimeAdapter {
     let workerResponse: { success?: boolean; output_path?: string; model_id?: string; error?: string } | null = null
 
     while (Date.now() < deadlineMs) {
-      const readResult = await window.nativeBridge.readFile(responsePathRel)
+      const readResult = await bridge.readFile(responsePathRel)
       if (readResult?.success && readResult.content) {
         try {
           workerResponse = JSON.parse(readResult.content) as { success?: boolean; output_path?: string; model_id?: string; error?: string }

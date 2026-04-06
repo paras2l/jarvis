@@ -6,6 +6,7 @@ const os = require('os')
 
 const isDev = !app.isPackaged
 let assistiveAutomationPermission = false
+const authSessionId = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Window
@@ -257,6 +258,15 @@ ipcMain.handle('native:get-python-scripts-path', async () => {
   // Where diffusion_core.py and voice_core.py live
   const scriptDir = path.join(__dirname, '..', 'src', 'core', 'media-ml', 'python')
   return { path: scriptDir }
+})
+
+ipcMain.handle('native:get-auth-context', async () => {
+  const userId = os.userInfo().username || 'local-user'
+  return {
+    userId,
+    role: 'user',
+    sessionId: authSessionId,
+  }
 })
 
 // ─────────────────────────────────────────────────────────────────────────────

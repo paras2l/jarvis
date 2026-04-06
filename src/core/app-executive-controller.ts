@@ -17,6 +17,8 @@ import { learningOrchestrator } from './learning/learning-orchestrator';
 import { subAgentPool } from './sub-agent-pool';
 import apiGateway from './api-gateway';
 import { AppSkillProfile } from './learning/types';
+import { policyGateway } from './policy/PolicyGateway';
+import { hardcodeProtocol } from './protocols/HardcodeProtocol';
 
 /** Minimum fuzzy confidence to use Tier 1 fast-path replay */
 const FAST_PATH_THRESHOLD = 0.7;
@@ -46,7 +48,33 @@ export class AppExecutiveController {
     console.log(`   Goal: ${userGoal}`);
 
     try {
-      const success = await this.routeTask(appName, userGoal);
+      const decision = await policyGateway.decide({
+        requestId: `exec_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        agentId: 'app-executive',
+        action: 'launch_app',
+        command: `${appName}: ${userGoal}`,
+        source: 'local',
+        explicitPermission: true,
+        targetApp: appName,
+        riskScore: 0.72,
+        requestedPrivileges: ['native_launch', 'ui_automation'],
+        deviceState: 'idle',
+        occurredAt: Date.now(),
+        policyPack: policyGateway.getPolicyPack(),
+      });
+
+      if (decision.decision === 'deny') {
+        console.warn(`[Executive] Policy denied task: ${decision.reason}`)
+        return false
+      }
+
+      const decisionToken = decision.decisionToken
+      if (decision.tokenRequired && !decisionToken) {
+        console.warn('[Executive] Missing decision token for privileged app task.')
+        return false
+      }
+
+      const success = await this.routeTask(appName, userGoal, decisionToken);
       return success;
     } finally {
       this.isTaskRunning = false;
@@ -58,32 +86,32 @@ export class AppExecutiveController {
   // TIER ROUTER
   // ─────────────────────────────────────────────────────────────────
 
-  private async routeTask(appName: string, userGoal: string): Promise<boolean> {
+  private async routeTask(appName: string, userGoal: string, decisionToken?: string): Promise<boolean> {
     // ── TIER 1: Check Execution Memory first ──────────────────────
     const match = executionMemory.findPlaybook(appName, userGoal);
     if (match && match.confidence >= FAST_PATH_THRESHOLD) {
       console.log(`⚡ [Executive] TIER 1: Fast-path replay (confidence: ${(match.confidence * 100).toFixed(0)}%)`);
-      return this.replayPlaybook(match.playbook);
+      return this.replayPlaybook(match.playbook, decisionToken);
     }
 
     // ── TIER 2: Check if skill profile exists ─────────────────────
     let profile = await skillSynthesizer.loadProfileFromDisk(appName);
     if (profile) {
       console.log(`🧠 [Executive] TIER 2: Smart path — profile loaded, planning full sequence.`);
-      return this.smartExecute(appName, userGoal, profile);
+      return this.smartExecute(appName, userGoal, profile, decisionToken);
     }
 
     // ── TIER 3: Full learning path ────────────────────────────────
     console.log(`📚 [Executive] TIER 3: No knowledge found. Launching parallel learning quest...`);
     profile = await this.learnAppInParallel(appName);
-    return this.smartExecute(appName, userGoal, profile);
+    return this.smartExecute(appName, userGoal, profile, decisionToken);
   }
 
   // ─────────────────────────────────────────────────────────────────
   // TIER 1: PLAYBOOK REPLAY (0 API calls, machine speed)
   // ─────────────────────────────────────────────────────────────────
 
-  private async replayPlaybook(playbook: Playbook): Promise<boolean> {
+  private async replayPlaybook(playbook: Playbook, decisionToken?: string): Promise<boolean> {
     const stepCount = playbook.steps.length;
     console.log(`⚡ [Executive] Replaying ${stepCount} steps for "${playbook.goal}"...`);
 
@@ -94,7 +122,7 @@ export class AppExecutiveController {
 
     for (let i = 0; i < playbook.steps.length; i++) {
       const step = playbook.steps[i];
-      await this.executeStep(step);
+      await this.executeStep(step, decisionToken);
 
       // Smooth step delay for UI stability (much faster than humanoid jitter)
       await new Promise(resolve => setTimeout(resolve, REPLAY_STEP_DELAY_MS));
@@ -122,7 +150,8 @@ export class AppExecutiveController {
   private async smartExecute(
     appName: string,
     userGoal: string,
-    profile: AppSkillProfile
+    profile: AppSkillProfile,
+    decisionToken?: string,
   ): Promise<boolean> {
     console.log(`🧠 [Executive] Planning full sequence with 1 API call...`);
 
@@ -141,7 +170,7 @@ export class AppExecutiveController {
     }));
 
     for (let i = 0; i < steps.length; i++) {
-      await this.executeStep(steps[i]);
+      await this.executeStep(steps[i], decisionToken);
       await new Promise(resolve => setTimeout(resolve, REPLAY_STEP_DELAY_MS));
 
       window.dispatchEvent(new CustomEvent('executive:replay-progress', {
@@ -242,7 +271,12 @@ Return ONLY valid JSON. No markdown. No explanation:
    * Execute a single ActionStep via native bridge.
    * No API calls. Pure local hardware control.
    */
-  private async executeStep(step: ActionStep): Promise<void> {
+  private async executeStep(step: ActionStep, decisionToken?: string): Promise<void> {
+    const verification = hardcodeProtocol.validateDecisionToken(decisionToken, 'app_launch')
+    if (!verification.valid) {
+      throw new Error(`Privileged execution denied: ${verification.reason || 'missing-decision-token'}`)
+    }
+
     if (step.reasoning) {
       console.log(`   → [${step.type.toUpperCase()}] ${step.reasoning}`);
     }

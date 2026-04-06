@@ -34,4 +34,6 @@ contextBridge.exposeInMainWorld('nativeBridge', {
     ipcRenderer.invoke('native:get-user-data-path'),
   getPythonScriptsPath: () =>
     ipcRenderer.invoke('native:get-python-scripts-path'),
+  getAuthContext: () =>
+    ipcRenderer.invoke('native:get-auth-context'),
 })

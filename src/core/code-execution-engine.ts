@@ -201,10 +201,9 @@ Analyze the error and propose a file fix. Return ONLY valid JSON:
    * Returns the stdout output.
    */
   async runCommand(command: string, cwd?: string): Promise<string> {
-    if (!window.nativeBridge?.runShellCommand) return 'Bridge not available.';
     console.log(`[CodeEngine] $ ${command}`);
-    const result = await window.nativeBridge.runShellCommand(command, cwd ? { cwd } : undefined);
-    return result.output || result.message || '';
+    const result = await platformAdapter.runCommand(command, cwd ? { cwd } : undefined);
+    return result.output || result.error || '';
   }
 
   /**
@@ -327,10 +326,7 @@ Generate ALL necessary files for a fully working project. Include package.json, 
    */
   private async openInVSCode(projectPath: string): Promise<void> {
     console.log(`[CodeEngine] 📂 Opening VS Code: ${projectPath}`);
-    if (window.nativeBridge?.runShellCommand) {
-      // `code <path>` opens the folder directly as a VS Code workspace
-      await window.nativeBridge.runShellCommand(`code "${projectPath}"`);
-    }
+    await platformAdapter.runCommand(`code "${projectPath}"`);
   }
 
 

@@ -12,7 +12,9 @@
     "electron-dev": "electron electron/main.cjs",
     "electron-build": "npm run build && electron-builder",
     "type-check": "tsc --noEmit",
-    "lint": "eslint src --ext .ts,.tsx"
+    "lint": "eslint src --ext .ts,.tsx",
+    "release-gate": "node scripts/release-gate.cjs",
+    "validate:release": "npm run type-check && npm run build && npm run lint"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.101.1",

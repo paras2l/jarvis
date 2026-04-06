@@ -4,6 +4,10 @@ import { appIndexer } from '@/core/platform/app-indexer'
 import { detectPlatform } from '@/core/platform/platform-detection'
 import { getAppRegistry } from '@/core/app-registry'
 import { behaviorVibeEngine } from '@/core/behavior-vibe-engine'
+import { policyGateway } from '@/core/policy/PolicyGateway'
+import { hardcodeProtocol } from '@/core/protocols/HardcodeProtocol'
+import { PolicyResult } from '@/core/policy/types'
+import { getAuthenticatedContext } from '@/core/security/auth-context'
 
 /**
  * Task Executor
@@ -198,9 +202,11 @@ class TaskExecutor {
     this.executingTask = task
 
     try {
+      const policyDecision = await this.enforceCentralPolicy(task, context)
+
       switch (task.type) {
         case 'app_launch':
-          task.result = await this.launchApp(task.command)
+          task.result = await this.launchApp(task.command, policyDecision)
           break
 
         case 'message_send':
@@ -212,11 +218,11 @@ class TaskExecutor {
           break
 
         case 'screen_control':
-          task.result = await this.executeScreenControlTask(task.command, context)
+          task.result = await this.executeScreenControlTask(task.command, context, policyDecision)
           break
 
         case 'custom':
-          task.result = await this.executeCustomTask(task.command)
+          task.result = await this.executeCustomTask(task.command, policyDecision)
           break
 
         default:
@@ -480,6 +486,65 @@ class TaskExecutor {
     }
   }
 
+  private async enforceCentralPolicy(task: Task, context: ExecutionContext): Promise<PolicyResult> {
+    const command = this.parseTaskCommand(task.command)
+    const inputText = String(command.originalCommand || command.query || task.command || '')
+    const normalized = inputText.toLowerCase()
+    const auth = await getAuthenticatedContext()
+
+    const decision = await policyGateway.decide({
+      requestId: `tx_${task.id}_${Date.now()}`,
+      agentId: context.agentId,
+      action: task.type,
+      command: inputText,
+      source: context.device === 'desktop' ? 'local' : 'remote',
+      explicitPermission: true,
+      targetApp: String(command.app || ''),
+      targetDeviceId: command.targetDevice ? String(command.targetDevice) : undefined,
+      riskScore: this.estimateTaskRisk(task.type, normalized),
+      requestedPrivileges: this.getRequestedPrivileges(task.type, normalized),
+      deviceState: 'idle',
+      occurredAt: Date.now(),
+      policyPack: policyGateway.getPolicyPack(),
+      emergency: normalized.includes('emergency') || normalized.includes('urgent'),
+      commander: auth.commander,
+      codeword: auth.codeword,
+      overrideToken: typeof command.overrideToken === 'string' ? command.overrideToken : undefined,
+    })
+
+    if (decision.decision === 'deny') {
+      throw new Error(`Policy blocked action: ${decision.reason}`)
+    }
+
+    if (decision.tokenRequired) {
+      const verified = hardcodeProtocol.validateDecisionToken(decision.decisionToken, task.type)
+      if (!verified.valid) {
+        throw new Error(`Policy blocked action: invalid decision token (${verified.reason || 'unknown'})`)
+      }
+    }
+
+    return decision
+  }
+
+  private estimateTaskRisk(type: Task['type'], normalizedInput: string): number {
+    let score = 0.3
+    if (type === 'app_launch' || type === 'screen_control') score += 0.35
+    if (type === 'custom') score += 0.2
+    if (normalizedInput.includes('password') || normalizedInput.includes('otp')) score += 0.2
+    if (normalizedInput.includes('delete') || normalizedInput.includes('wipe')) score += 0.35
+    return Math.min(1, score)
+  }
+
+  private getRequestedPrivileges(type: Task['type'], normalizedInput: string): string[] {
+    const privileges: string[] = []
+    if (type === 'app_launch') privileges.push('native_launch')
+    if (type === 'screen_control') privileges.push('ui_automation')
+    if (type === 'custom') privileges.push('custom_action')
+    if (normalizedInput.includes('remote')) privileges.push('cross_device')
+    if (normalizedInput.includes('camera') || normalizedInput.includes('screen')) privileges.push('screen_capture')
+    return privileges
+  }
+
   private openTarget(target: string): boolean {
     if (typeof window === 'undefined' || !target) {
       return false
@@ -504,7 +569,14 @@ class TaskExecutor {
     return this.openTarget(target)
   }
 
-  private async launchApp(command: string): Promise<{ success: boolean; message: string }> {
+  private async launchApp(command: string, decision: PolicyResult): Promise<{ success: boolean; message: string }> {
+    if (decision.tokenRequired) {
+      const verified = hardcodeProtocol.validateDecisionToken(decision.decisionToken, 'app_launch')
+      if (!verified.valid) {
+        return { success: false, message: `Policy token rejected (${verified.reason || 'missing'})` }
+      }
+    }
+
     const params = this.parseTaskCommand(command)
     const app = String(params.app || '').trim()
     const sensitiveOperation = Boolean(params.sensitiveOperation)
@@ -660,7 +732,14 @@ class TaskExecutor {
     return { success: false, message: 'No valid phone number detected for call command.' }
   }
 
-  private async executeCustomTask(command: string): Promise<{ success: boolean; message: string }> {
+  private async executeCustomTask(command: string, decision: PolicyResult): Promise<{ success: boolean; message: string }> {
+    if (decision.tokenRequired) {
+      const verified = hardcodeProtocol.validateDecisionToken(decision.decisionToken, 'custom')
+      if (!verified.valid) {
+        return { success: false, message: `Policy token rejected (${verified.reason || 'missing'})` }
+      }
+    }
+
     const params = this.parseTaskCommand(command)
     const action = String(params.action || '').trim()
 
@@ -673,7 +752,7 @@ class TaskExecutor {
     }
 
     if (action === 'open_and_send') {
-      const launchResult = await this.launchApp(JSON.stringify({ app: params.app || '' }))
+      const launchResult = await this.launchApp(JSON.stringify({ app: params.app || '' }), decision)
       const messageResult = await this.sendMessage(
         JSON.stringify({
           app: params.app || 'whatsapp',
@@ -700,7 +779,7 @@ class TaskExecutor {
     }
 
     if (action === 'open_and_control') {
-      return this.openAndControl(command)
+      return this.openAndControl(command, decision)
     }
 
     if (action === 'arm_emergency_override') {
@@ -743,8 +822,16 @@ class TaskExecutor {
 
   private async executeScreenControlTask(
     command: string,
-    context: ExecutionContext
+    context: ExecutionContext,
+    decision: PolicyResult,
   ): Promise<{ success: boolean; message: string }> {
+    if (decision.tokenRequired) {
+      const verified = hardcodeProtocol.validateDecisionToken(decision.decisionToken, 'screen_control')
+      if (!verified.valid) {
+        return { success: false, message: `Policy token rejected (${verified.reason || 'missing'})` }
+      }
+    }
+
     const params = this.parseTaskCommand(command)
     const targetApp = String(params.app || params.target || params.screenApp || '').trim()
 
@@ -776,7 +863,7 @@ class TaskExecutor {
     }
   }
 
-  private async openAndControl(command: string): Promise<{ success: boolean; message: string }> {
+  private async openAndControl(command: string, decision: PolicyResult): Promise<{ success: boolean; message: string }> {
     const params = this.parseTaskCommand(command)
     const app = String(params.app || '').trim()
     const actionType = String(params.actionType || 'in_app_action').trim()
@@ -796,7 +883,8 @@ class TaskExecutor {
       JSON.stringify({
         app,
         sensitiveOperation: this.isSensitiveAuthContext(originalCommand || actionText),
-      })
+      }),
+      decision,
     )
 
     let followUpResult: { success: boolean; message: string }

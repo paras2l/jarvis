@@ -33,6 +33,8 @@
 
 import { detectPlatform } from './platform/platform-detection'
 import type { PlatformId } from './platform/types'
+import { policyGateway } from './policy/PolicyGateway'
+import { hardcodeProtocol } from './protocols/HardcodeProtocol'
 
 // ── Capability Matrix ──────────────────────────────────────────────────────
 
@@ -158,19 +160,66 @@ class PlatformAdapter {
 
   // ── Shell / Commands ────────────────────────────────────────────────────
 
-  async runCommand(command: string, cwd?: string): Promise<{
+  async runCommand(command: string, opts?: { cwd?: string; timeoutMs?: number }): Promise<{
     output: string; error: string; exitCode: number; success: boolean
   }> {
     if (!this.capabilities.shellExec) {
       return { output: '', error: `Shell exec not available on ${this.platform}`, exitCode: 1, success: false }
     }
-    const r = await window.nativeBridge?.runShellCommand(command, cwd ? { cwd } : undefined)
+
+    const lower = command.toLowerCase()
+    const decision = await policyGateway.decide({
+      requestId: `shell_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      agentId: 'platform-adapter',
+      action: 'shell_command',
+      command,
+      source: 'local',
+      explicitPermission: true,
+      targetApp: undefined,
+      requestedPrivileges: ['shell_exec'],
+      riskScore: this.estimateShellRisk(lower),
+      deviceState: 'unknown',
+      occurredAt: Date.now(),
+      policyPack: policyGateway.getPolicyPack(),
+      emergency: lower.includes('emergency'),
+    })
+
+    if (decision.decision === 'deny') {
+      return {
+        output: '',
+        error: `Policy blocked shell command: ${decision.reason}`,
+        exitCode: 1,
+        success: false,
+      }
+    }
+
+    if (decision.tokenRequired) {
+      const verified = hardcodeProtocol.validateDecisionToken(decision.decisionToken, 'shell_command')
+      if (!verified.valid) {
+        return {
+          output: '',
+          error: `Policy rejected decision token: ${verified.reason || 'unknown'}`,
+          exitCode: 1,
+          success: false,
+        }
+      }
+    }
+
+    const r = await window.nativeBridge?.runShellCommand(command, opts)
     return {
       output: r?.output ?? '',
       error: r?.error ?? '',
       exitCode: r?.exitCode ?? (r?.success ? 0 : 1),
       success: r?.success ?? false,
     }
+  }
+
+  private estimateShellRisk(lowerCommand: string): number {
+    let score = 0.55
+    if (/(rm|rmdir|del|erase|format|reg\s+delete)\b/.test(lowerCommand)) score += 0.35
+    if (/(curl|wget|powershell\s+-enc|certutil)\b/.test(lowerCommand)) score += 0.2
+    if (/(sudo|runas|administrator|chmod\s+777)\b/.test(lowerCommand)) score += 0.15
+    return Math.min(1, score)
   }
 
   // ── Microphone / Voice ──────────────────────────────────────────────────

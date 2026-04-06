@@ -71,7 +71,7 @@ export class ExecutionMemory {
     try {
       const data = JSON.stringify(Array.from(this.playbooks.entries()));
       localStorage.setItem(STORAGE_KEY, data);
-    } catch (_) {
+    } catch {
       console.warn('[ExecutionMemory] Could not persist playbooks to localStorage.');
     }
   }
@@ -84,7 +84,7 @@ export class ExecutionMemory {
         this.playbooks = new Map(entries);
         console.log(`[ExecutionMemory] Loaded ${this.playbooks.size} playbooks from local brain.`);
       }
-    } catch (_) {
+    } catch {
       console.warn('[ExecutionMemory] Could not load playbooks.');
     }
   }

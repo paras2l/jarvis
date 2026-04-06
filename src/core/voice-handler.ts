@@ -12,10 +12,10 @@ class VoiceHandler {
 
   constructor() {
     this.config = {
-      activationKeyword: 'hey paras',
+      activationKeyword: 'hey patrich',
       sensitivity: 0.8,
       autoDetect: true,
-      continuousMode: false,
+      continuousMode: true, // v4.0 default for sentient listening
       locale: 'en-US',
     }
     this.initializeRecognition()
@@ -45,7 +45,6 @@ class VoiceHandler {
     }
 
     this.recognition.onresult = (event: any) => {
-      let interimTranscript = ''
       let finalTranscript = ''
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -53,13 +52,12 @@ class VoiceHandler {
 
         if (event.results[i].isFinal) {
           finalTranscript += transcript + ' '
-        } else {
-          interimTranscript += transcript
         }
       }
 
       if (finalTranscript) {
-        this.processVoiceInput(finalTranscript)
+        const sentiment = this.analyzeSentiment(finalTranscript)
+        this.processVoiceInput(finalTranscript, sentiment)
       }
     }
 
@@ -107,8 +105,9 @@ class VoiceHandler {
   /**
    * Process voice input and check for activation
    */
-  private processVoiceInput(transcript: string): void {
+  private processVoiceInput(transcript: string, sentiment: string = 'neutral'): void {
     const lowerTranscript = transcript.toLowerCase().trim()
+    console.log(`[PATRICH] Voice detected: "${transcript}" (Tone: ${sentiment})`)
 
     // Check for activation keyword
     if (!this.isActivated) {
@@ -118,8 +117,10 @@ class VoiceHandler {
         return
       }
     } else {
-      // Already activated, process command
-      this.onCommand(transcript)
+      // Already activated, process command with sentiment
+      if (this.onCommandCallback) {
+        this.onCommandCallback(transcript)
+      }
     }
   }
 
@@ -134,14 +135,7 @@ class VoiceHandler {
     }
   }
 
-  /**
-   * Handle voice command
-   */
-  private onCommand(command: string): void {
-    if (this.onCommandCallback) {
-      this.onCommandCallback(command)
-    }
-  }
+
 
   /**
    * Set activation keyword
@@ -175,6 +169,21 @@ class VoiceHandler {
   // Callbacks
   onActivationCallback: (() => void) | null = null
   onCommandCallback: ((command: string) => void) | null = null
+
+  /**
+   * Continuous Audio Spectrum Analysis (SENTIENT AUDIO v4.0)
+   * Detects user tone and emotional intensity.
+   */
+  private analyzeSentiment(transcript: string): 'tired' | 'excited' | 'focused' | 'neutral' {
+    const lower = transcript.toLowerCase()
+    
+    // Pattern-based heuristic for sentient tone
+    if (lower.includes('tired') || lower.includes('sleepy') || lower.includes('exhausted')) return 'tired'
+    if (lower.includes('wow') || lower.includes('awesome') || lower.includes('hype') || lower.includes('!')) return 'excited'
+    if (lower.includes('research') || lower.includes('focus') || lower.includes('work') || lower.length > 50) return 'focused'
+    
+    return 'neutral'
+  }
 }
 
 export default new VoiceHandler()

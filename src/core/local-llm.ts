@@ -166,7 +166,7 @@ class LocalLLMEngine {
             const json = JSON.parse(line) as { message?: { content?: string }; done?: boolean }
             if (json.message?.content) yield json.message.content
             if (json.done) return
-          } catch (_) { /* skip malformed */ }
+          } catch { /* skip malformed */ }
         }
       }
     } catch (err) {
@@ -241,7 +241,7 @@ class LocalLLMEngine {
               if (j.completed && j.total && onProgress) {
                 onProgress(Math.round((j.completed / j.total) * 100))
               }
-            } catch (_) { /* skip */ }
+            } catch { /* skip */ }
           }
         }
       }

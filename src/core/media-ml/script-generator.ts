@@ -28,6 +28,8 @@ export interface GeneratedScript {
   generatedAt: string
 }
 
+import { platformAdapter } from '../platform-adapter'
+
 const SCRIPT_TEMPLATES = {
   'product-pitch': {
     structure: ['intro', 'problem', 'solution', 'benefits', 'call-to-action', 'outro'],
@@ -73,14 +75,13 @@ class ScriptGenerator {
     template: string
   ): Promise<GeneratedScript | null> {
     try {
-      if (typeof window === 'undefined' || !window.nativeBridge) {
+      if (typeof window === 'undefined') {
         return null
       }
 
       const pythonScript = `
 import json
 from pathlib import Path
-
 try:
   # Try to load a lightweight local LLM (e.g., ollama, vLLM)
   # This is a placeholder - actual implementation depends on local setup
@@ -95,11 +96,8 @@ except Exception as e:
   print(f"ERROR|{e}")
 `
 
-      const result = await window.nativeBridge.runShellCommand(
-        `python -c "${pythonScript}"`
-      )
-
-      const output = typeof result === 'string' ? result : result.output || ''
+      const result = await platformAdapter.runCommand(`python -c "${pythonScript}"`)
+      const output = result.output || ''
       if (output.includes('ERROR|') || output.includes('NO_LLM')) {
         return null
       }

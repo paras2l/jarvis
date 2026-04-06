@@ -122,6 +122,13 @@ declare global {
       getProjectRoot: () => string
       getWorkspacePath: () => Promise<{ path: string }>
       getPythonScriptsPath: () => Promise<{ path: string }>
+      getAuthContext?: () => Promise<{
+        userId: string
+        role: 'user' | 'owner'
+        sessionId: string
+        commander?: string
+        codeword?: string
+      }>
 
       // ── Wave 2: CDP Browser Control (C-6) ──────────────────────────────
       browser?: {

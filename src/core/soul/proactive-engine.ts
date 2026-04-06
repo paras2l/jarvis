@@ -73,7 +73,7 @@ class ProactiveEngine {
 
       // 5. Akasha Memory: Periodic memory consolidation
       if (Math.random() > 0.85) { // 15% of pulses
-        this.triggerAkashaConsolidation().catch(err => console.log('[ProactiveEngine] Akasha consolidation skipped'))
+        this.triggerAkashaConsolidation().catch(() => console.log('[ProactiveEngine] Akasha consolidation skipped'))
       }
 
       // 6. Contextual "Tap on the shoulder" (if chatty mode)

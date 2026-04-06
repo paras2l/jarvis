@@ -7,6 +7,7 @@ import {
   RuntimeEstimate,
 } from '../types'
 import { db } from '@/lib/db'
+import { platformAdapter } from '@/core/platform-adapter'
 
 /**
  * Local Video Runtime
@@ -171,7 +172,7 @@ class LocalVideoRuntime implements MediaRuntimeAdapter {
 
     this.emitProgress(stage, 'running', 40, 'Rendering frames...')
 
-    const result = await window.nativeBridge.runShellCommand(command, {
+      const result = await platformAdapter.runCommand(command, {
       cwd: workspaceDir,
       timeoutMs: 300000,
     })

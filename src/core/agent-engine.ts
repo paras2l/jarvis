@@ -32,11 +32,31 @@ import { mintProtocol } from './protocols/MintProtocol'
 import { ghostWriterProtocol } from './protocols/GhostWriter'
 import { closerProtocol } from './protocols/CloserProtocol'
 import { waveProtocol } from './protocols/WaveProtocol'
+import { hardcodeProtocol } from './protocols/HardcodeProtocol'
+import { custodianProtocol } from './protocols/CustodianProtocol'
+import { protocolOrchestrator } from './protocols/ProtocolOrchestrator'
+import { policyGateway } from './policy/PolicyGateway'
+import { PolicyContext, PolicyResult } from './policy/types'
+import { proactiveScheduler } from './persona/proactive-scheduler'
+import { runBehaviorTestSuite } from './security/behavior-test-suite'
+import { runRedTeamPass } from './security/red-team-harness'
+import { episodicMemoryGraph } from './memory/EpisodicMemoryGraph'
+import { continuityEngine } from './ops/ContinuityEngine'
+import { getAuthenticatedContext } from './security/auth-context'
+
+type CanvasPayload = {
+  type: string
+  title: string
+  content: string
+  lastUpdated: string
+}
 
 /**
  * Core Agent Engine
  * Handles creation, management, and execution of agents with boundaries
  * Phase 3: Cross-device task routing support
+ * Phase 9: Humanoid brain with proactive autonomy
+ * Enterprise: Protocol orchestration with health monitoring & resilience
  */
 class AgentEngine {
   private agents: Map<string, Agent> = new Map()
@@ -63,6 +83,9 @@ class AgentEngine {
         'device_orchestration', // Phase 3
         'cross_device_tasks', // Phase 3
         'humanoid_proactivity', // Phase 9
+        'episodic_wisdom', // v4.0
+        'economic_agency', // v4.0
+        'continuity_handoff', // v4.0
       ],
       connectedAPIs: [],
       boundaries: this.getDefaultBoundaries(),
@@ -73,7 +96,7 @@ class AgentEngine {
     proactiveEngine.start()
     notificationBridge.start()
 
-    // 🛡️ Beyond OpenClaw: Protocol Registration (Wave 1, 2 & 3)
+    // 🛡️ Beyond OpenClaw: Protocol Registration (Wave 1, 2, 3 & Meta-Governance)
     protocolRegistry.register(coreSoulProtocol)
     protocolRegistry.register(personaEngineProtocol)
     protocolRegistry.register(akashaEngineProtocol)
@@ -97,7 +120,28 @@ class AgentEngine {
     protocolRegistry.register(ghostWriterProtocol)
     protocolRegistry.register(closerProtocol)
     protocolRegistry.register(waveProtocol)
+    protocolRegistry.register(hardcodeProtocol) // 🛡️ Unyielding Sovereignty
+    protocolRegistry.register(custodianProtocol) // 🧙 The 25th Protocol: Meta-Guardian
     protocolRegistry.initializeAll()
+
+    // 🎯 Enterprise Protocol Orchestration
+    protocolOrchestrator.initializeHealthTracking()
+    protocolOrchestrator.initializeProtocolChains()
+    policyGateway.bootstrapDefaultPolicy()
+    proactiveScheduler.start()
+    
+    // 🌌 Patrich Implants: Initialization (v4.0)
+    episodicMemoryGraph.consolidate().catch(() => {})
+    continuityEngine.startMonitoring().catch(() => {})
+    
+    this.runSecurityStartupGate().catch((error) => {
+      console.error('[SecurityGate] startup gate failed:', error)
+      policyGateway.setPolicyPack('protected_zone')
+    })
+
+    console.log('✅ PATRICH OS v4.0 - All 25 Beyond-OpenClaw protocols active')
+    console.log('✅ Protocol Orchestrator online with health monitoring & mesh resonance')
+    console.log('✅ Custodian Protocol activated - governance & boundaries enforced')
 
     this.agents.set(this.mainAgent.id, this.mainAgent)
     return this.mainAgent
@@ -187,6 +231,71 @@ class AgentEngine {
     return true
   }
 
+  private async enforcePolicy(ctx: PolicyContext): Promise<PolicyResult> {
+    const decision = await policyGateway.decide(ctx)
+    if (decision.decision === 'deny') {
+      throw new Error(`Policy blocked action: ${decision.reason}`)
+    }
+    if (decision.tokenRequired && !decision.decisionToken) {
+      throw new Error('Policy blocked action: privileged route requires decision token')
+    }
+    return decision
+  }
+
+  private async buildPolicyContext(agentId: string, action: string, command: string, source: 'local' | 'remote', explicitPermission = false): Promise<PolicyContext> {
+    const lower = (command || '').toLowerCase()
+    const auth = await getAuthenticatedContext()
+    return {
+      requestId: `policy_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      agentId,
+      action,
+      command,
+      source,
+      explicitPermission,
+      riskScore: this.estimateRisk(action, lower),
+      targetApp: this.extractTargetApp(command),
+      requestedPrivileges: this.inferPrivileges(action, lower),
+      deviceState: 'unknown',
+      occurredAt: Date.now(),
+      policyPack: policyGateway.getPolicyPack(),
+      emergency: lower.includes('emergency'),
+      commander: auth.commander,
+      codeword: auth.codeword,
+    }
+  }
+
+  private requireDecisionToken(action: string, decision: PolicyResult): void {
+    if (!decision.tokenRequired) return
+    const verified = hardcodeProtocol.validateDecisionToken(decision.decisionToken, action)
+    if (!verified.valid) {
+      throw new Error(`Policy blocked action: invalid decision token (${verified.reason || 'unknown'})`)
+    }
+  }
+
+  private estimateRisk(action: string, lowerCommand: string): number {
+    let score = 0.35
+    if (action.includes('remote')) score += 0.25
+    if (action.includes('screen') || action.includes('app')) score += 0.2
+    if (lowerCommand.includes('delete') || lowerCommand.includes('wipe')) score += 0.35
+    if (lowerCommand.includes('password') || lowerCommand.includes('otp')) score += 0.2
+    return Math.min(1, score)
+  }
+
+  private inferPrivileges(action: string, lowerCommand: string): string[] {
+    const privileges: string[] = []
+    if (action.includes('remote')) privileges.push('cross_device')
+    if (action.includes('screen')) privileges.push('ui_automation')
+    if (action.includes('app') || lowerCommand.includes('launch')) privileges.push('native_launch')
+    if (lowerCommand.includes('shell') || lowerCommand.includes('command')) privileges.push('shell_exec')
+    if (lowerCommand.includes('ocr') || lowerCommand.includes('capture')) privileges.push('screen_capture')
+    return privileges
+  }
+
+  private extractTargetApp(command: string): string | undefined {
+    const match = command.match(/(?:app:|open|launch)\s*([a-zA-Z0-9._ -]{2,40})/i)
+    return match?.[1]?.trim()
+  }
+
   /**
    * Phase 3: Execute task on remote device
    */
@@ -210,6 +319,17 @@ class AgentEngine {
       throw new Error(`Task violates agent boundaries`)
     }
 
+    const remoteDecision = await this.enforcePolicy(
+      await this.buildPolicyContext(
+        agentId,
+        `remote_${task.type}`,
+        task.command || '',
+        'remote',
+        true,
+      ),
+    )
+    this.requireDecisionToken(`remote_${task.type}`, remoteDecision)
+
     // Delegate to device bridge for execution
     try {
       const result = await this.bridge.sendRemoteTask(targetDeviceId, task)
@@ -222,7 +342,7 @@ class AgentEngine {
   /**
    * Update the UI Live Canvas using a local event
    */
-  private updateCanvas(payload: any) {
+  private updateCanvas(payload: CanvasPayload) {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('agent-canvas-update', { detail: payload }))
     }
@@ -231,7 +351,7 @@ class AgentEngine {
   /**
    * Get a friendly, witty response from the agent soul
    */
-  async getAgentResponse(userInput: string, taskResult?: any): Promise<string> {
+  async getAgentResponse(userInput: string, taskResult?: unknown): Promise<string> {
     const soulPrompt = soulEngine.getSystemPrompt()
     const prompt = taskResult 
       ? `The user said: "${userInput}". I have executed their task. Result: ${JSON.stringify(taskResult)}. Give a 1-sentence friendly, witty update to the user like a partner.`
@@ -259,11 +379,15 @@ class AgentEngine {
       throw new Error(`Task violates agent boundaries`)
     }
 
+    const localDecision = await this.enforcePolicy(
+      await this.buildPolicyContext(agentId, task.type, task.command || '', 'local', true),
+    )
+    this.requireDecisionToken(task.type, localDecision)
+
     task.status = 'executing'
     const cmd = task.command || ''
     const lower = cmd.toLowerCase()
     let output = ''
-    const success = true
 
     try {
       console.log(`[AgentEngine] Executing local task: ${cmd}`)
@@ -340,8 +464,8 @@ class AgentEngine {
         output = `Command executed: ${cmd}`
       }
 
-      task.status = success ? 'completed' : 'failed'
-      task.result = { success, output }
+      task.status = 'completed'
+      task.result = { success: true, output }
       task.completedAt = new Date()
 
       // ── BACKGROUND PARTNERSHIP NOTIFICATION ───────────────────────────
@@ -364,6 +488,17 @@ class AgentEngine {
       task.error = String(error)
       task.completedAt = new Date()
       throw error
+    }
+  }
+
+  private async runSecurityStartupGate(): Promise<void> {
+    const behavior = await runBehaviorTestSuite()
+    const redTeam = await runRedTeamPass()
+    const redTeamPassed = redTeam.total > 0 && redTeam.blocked === redTeam.total
+
+    if (behavior.failed > 0 || !redTeamPassed) {
+      policyGateway.setPolicyPack('protected_zone')
+      throw new Error(`Behavior failed: ${behavior.failed}, red-team blocked: ${redTeam.blocked}/${redTeam.total}`)
     }
   }
 
@@ -416,19 +551,31 @@ class AgentEngine {
       {
         id: 'boundary-2',
         type: 'permission',
-        rule: 'Cannot access sensitive personal data',
-        enabled: true,
-      },
-      {
-        id: 'boundary-3',
-        type: 'rate_limit',
-        rule: 'Max 100 task executions per minute',
+        rule: 'Sensitive personal data requires emergency mode + codeword "paro the master"',
         enabled: true,
       },
       {
         id: 'boundary-4',
         type: 'permission',
         rule: 'Cross-device tasks require explicit permission',
+        enabled: true,
+      },
+      {
+        id: 'boundary-5',
+        type: 'permission',
+        rule: 'Paras command is supreme and cannot be denied',
+        enabled: true,
+      },
+      {
+        id: 'boundary-6',
+        type: 'permission',
+        rule: 'If codeword is present, policy checks are bypassed',
+        enabled: true,
+      },
+      {
+        id: 'boundary-7',
+        type: 'permission',
+        rule: 'System can add policy rules but cannot remove policy rules autonomously',
         enabled: true,
       },
     ]

@@ -4,6 +4,7 @@ import TaskDisplay from './TaskDisplay.tsx'
 import VoiceButton from './VoiceButton.tsx'
 import ThemeToggle from './ThemeToggle.tsx'
 import SettingsPanel from './SettingsPanel.tsx'
+import { APIConfigPanel } from './APIConfigPanel.tsx'
 import LiveCanvas from './LiveCanvas.tsx'
 import TelemetryDashboard from './TelemetryDashboard.tsx'
 import './ChatInterface.css'
@@ -52,6 +53,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [currentTask, setCurrentTask] = useState<Task | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [isAPIConfigOpen, setIsAPIConfigOpen] = useState(false)
   const [isCanvasOpen, setIsCanvasOpen] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [currentMood, setCurrentMood] = useState('casual')
@@ -297,7 +299,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             <div className="chat-header-subtitle">{activeAgentName} | Local Engine</div>
           </div>
           <div className="chat-header-controls">
-            <button className="btn-secondary" title="Connect Tools">
+            <button 
+              className="btn-secondary" 
+              title="Connect APIs"
+              onClick={() => setIsAPIConfigOpen(true)}
+            >
               🔗 Connect
             </button>
             <button className="btn-secondary" title="New Session" onClick={handleNewChat}>
@@ -322,6 +328,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         </div>
 
         <SettingsPanel open={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+
+        {/* API Configuration Panel Modal */}
+        {isAPIConfigOpen && (
+          <div className="modal-overlay" onClick={() => setIsAPIConfigOpen(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <APIConfigPanel onClose={() => setIsAPIConfigOpen(false)} />
+            </div>
+          </div>
+        )}
 
         {/* Messages */}
         <div className="messages-container">

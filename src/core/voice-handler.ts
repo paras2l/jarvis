@@ -15,7 +15,7 @@ class VoiceHandler {
   private audioContext: AudioContext | null = null
   private analyser: AnalyserNode | null = null
   private mediaStream: MediaStream | null = null
-  private spectralDataArray: Uint8Array | null = null
+  private spectralDataArray: Uint8Array<ArrayBuffer> | null = null
   private spectrumAnalysisActive: boolean = false
   private toneProfile: { lowFreq: number; highFreq: number; peakEnergy: number } = {
     lowFreq: 0,
@@ -98,8 +98,9 @@ class VoiceHandler {
         console.warn('WebAudio API not available for spectrum analysis')
         return
       }
-      this.audioContext = new AudioContextClass()
-      console.log('[AUDIO SPECTRUM] WebAudio context initialized (sample rate: ' + this.audioContext.sampleRate + ' Hz)')
+      const context = new AudioContextClass()
+      this.audioContext = context
+      console.log('[AUDIO SPECTRUM] WebAudio context initialized (sample rate: ' + context.sampleRate + ' Hz)')
     } catch (err) {
       console.warn('Could not initialize WebAudio context:', err)
     }
@@ -109,21 +110,23 @@ class VoiceHandler {
    * Start real-time spectrum analysis via getUserMedia
    */
   private async startSpectrumAnalysis(): Promise<void> {
-    if (!this.audioContext) {
+    const context = this.audioContext
+    if (!context) {
       console.warn('WebAudio context not available')
       return
     }
 
     try {
       this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const source = this.audioContext.createMediaStreamSource(this.mediaStream)
+      const source = context.createMediaStreamSource(this.mediaStream)
       
-      this.analyser = this.audioContext.createAnalyser()
-      this.analyser.fftSize = 256 // Fast FFT for low latency
-      this.analyser.smoothingTimeConstant = 0.85 // Smooth transitions
+      const analyser = context.createAnalyser()
+      analyser.fftSize = 256 // Fast FFT for low latency
+      analyser.smoothingTimeConstant = 0.85 // Smooth transitions
       
-      source.connect(this.analyser)
-      this.spectralDataArray = new Uint8Array(this.analyser.frequencyBinCount)
+      source.connect(analyser)
+      this.analyser = analyser
+      this.spectralDataArray = new Uint8Array(analyser.frequencyBinCount)
       
       this.spectrumAnalysisActive = true
       console.log('[AUDIO SPECTRUM] Real-time analysis started (FFT size: 256, latency < 10ms)')

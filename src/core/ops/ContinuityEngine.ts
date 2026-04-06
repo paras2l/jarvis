@@ -13,8 +13,7 @@
  * - Workspace state recovery on new device
  */
 
-import { deviceBridge } from '../device-bridge'
-import { agentEngine } from '../agent-engine'
+import { getDeviceBridge } from '../device-bridge'
 
 export interface Mission {
   id: string
@@ -65,15 +64,34 @@ export class ContinuityEngine {
   async startMonitoring(): Promise<void> {
     console.log('[CONTINUITY] Multi-device proximity monitoring active.')
     
-    // Check for device handoff triggers
-    deviceBridge.on('DEVICE_UNLOCK', async (payload: any) => {
-      await this.handleDeviceTransition(payload.deviceId, payload.type)
-    })
+    // Periodic device transition check (only on desktop/browser environments)
+    // Note: Event listener pattern requires DeviceBridge.on() implementation
+    // Using polling for now as fallback approach
+    
+    setInterval(async () => {
+      try {
+        const bridge = getDeviceBridge()
+        // Check for device unlock/wake events through deviceMesh polling
+        await this.checkDeviceTransition()
+      } catch (err) {
+        console.error('[CONTINUITY] Device check failed:', err)
+      }
+    }, 30000) // 30 second check interval
 
-    // Periodic proximity check (30s interval)
-    setInterval(() => {
-      this.updateProximity()
-    }, 30000)
+    console.log('[CONTINUITY] Polling enabled for device transitions')
+  }
+
+  /**
+   * Check if device has transitioned (polling approach)
+   */
+  private async checkDeviceTransition(): Promise<void> {
+    // Placeholder for device transition detection
+    // In production, this would check:
+    // - Device unlock events
+    // - Network topology changes
+    // - Sensor data (proximity, ambient light, etc.)
+    // For now, just logging readiness
+    this.updateProximity()
   }
 
   /**

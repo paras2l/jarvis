@@ -159,3 +159,23 @@ export interface WakeProtocol {
   enabled: boolean
   lastUsed?: Date
 }
+
+// API Integration Types (Session 2)
+export type APIProvider = 'nvidia' | 'huggingface' | 'replicate' | 'openai' | 'custom'
+
+export interface APIConfig {
+  id: string
+  provider: APIProvider
+  apiKey: string
+  name: string
+  createdAt: string
+  lastUsed: string | null
+}
+
+export interface APIExecutionStats {
+  provider: APIProvider
+  success: boolean
+  executionTimeMs: number
+  model?: string
+  tokensUsed?: number
+}

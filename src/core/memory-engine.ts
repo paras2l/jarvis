@@ -87,6 +87,13 @@ class MemoryEngine {
   private currentMood = 'casual'
   private currentEnergy = 5
   private isLoaded = false
+  private dynamicAliases: Map<string, string> = new Map()
+  private conversationContext: Array<{
+    role: 'user' | 'assistant'
+    content: string
+    timestamp: number
+  }> = []
+  private readonly MAX_CONTEXT_ITEMS = 40
 
   // ── Load all memories from Supabase ──────────────────────────────────────
 
@@ -97,6 +104,7 @@ class MemoryEngine {
       for (const m of memories) {
         this.sessionMemory.set(m.key, m.value)
       }
+      this.hydrateDynamicState()
       this.isLoaded = true
       console.log(`[MemoryEngine] Loaded ${memories.length} memories from Supabase.`)
       void eventPublisher.publish('memory_synced', { count: memories.length, source: 'supabase' }, 'memory')
@@ -200,6 +208,81 @@ class MemoryEngine {
     void eventPublisher.memoryRecorded({ key, scope: 'long_term', source: 'memory-engine', tags: [type] }, 'memory')
   }
 
+  private hydrateDynamicState(): void {
+    const aliasRaw = this.sessionMemory.get('ncul_dynamic_aliases')
+    if (aliasRaw) {
+      try {
+        const parsed = JSON.parse(aliasRaw) as Record<string, string>
+        Object.entries(parsed).forEach(([alias, canonical]) => {
+          if (alias && canonical) {
+            this.dynamicAliases.set(alias.toLowerCase(), canonical)
+          }
+        })
+      } catch {
+        // Ignore malformed serialized alias memory.
+      }
+    }
+
+    const contextRaw = this.sessionMemory.get('chat_context_recent')
+    if (contextRaw) {
+      try {
+        const parsed = JSON.parse(contextRaw) as Array<{ role: 'user' | 'assistant'; content: string; timestamp: number }>
+        this.conversationContext = parsed
+          .filter((item) => item && (item.role === 'user' || item.role === 'assistant'))
+          .slice(-this.MAX_CONTEXT_ITEMS)
+      } catch {
+        // Ignore malformed context serialization.
+      }
+    }
+  }
+
+  async rememberAlias(alias: string, canonical: string): Promise<void> {
+    const normalizedAlias = alias.trim().toLowerCase()
+    const normalizedCanonical = canonical.trim()
+    if (!normalizedAlias || !normalizedCanonical) return
+
+    this.dynamicAliases.set(normalizedAlias, normalizedCanonical)
+
+    const serialized = JSON.stringify(Object.fromEntries(this.dynamicAliases.entries()))
+    this.sessionMemory.set('ncul_dynamic_aliases', serialized)
+    await db.memory.upsert({
+      memory_type: 'preference',
+      key: 'ncul_dynamic_aliases',
+      value: serialized,
+    })
+  }
+
+  getAliasMap(): Record<string, string> {
+    return Object.fromEntries(this.dynamicAliases.entries())
+  }
+
+  async appendConversationContext(role: 'user' | 'assistant', content: string): Promise<void> {
+    if (!content.trim()) return
+    this.conversationContext.push({ role, content: content.trim(), timestamp: Date.now() })
+    if (this.conversationContext.length > this.MAX_CONTEXT_ITEMS) {
+      this.conversationContext = this.conversationContext.slice(-this.MAX_CONTEXT_ITEMS)
+    }
+    const serialized = JSON.stringify(this.conversationContext)
+    this.sessionMemory.set('chat_context_recent', serialized)
+    await db.memory.upsert({
+      memory_type: 'fact',
+      key: 'chat_context_recent',
+      value: serialized,
+    })
+  }
+
+  getConversationContext(limit = 10): Array<{ role: 'user' | 'assistant'; content: string; timestamp: number }> {
+    return this.conversationContext.slice(-Math.max(1, limit))
+  }
+
+  async setUserPreference(key: 'silent_mode' | 'greeting_style' | 'preferred_device', value: string): Promise<void> {
+    await this.rememberFact(`pref_${key}`, value, 'preference')
+  }
+
+  getUserPreference(key: 'silent_mode' | 'greeting_style' | 'preferred_device'): string | undefined {
+    return this.get(`pref_${key}`)
+  }
+
   // ── Get a memory value ────────────────────────────────────────────────────
 
   get(key: string): string | undefined {
@@ -246,10 +329,14 @@ class MemoryEngine {
     const name = this.get('user_name') ?? 'Paras'
     const isNightOwl = this.get('is_night_owl') === 'true'
     const mood = this.currentMood
+    const silentMode = this.getUserPreference('silent_mode') || 'off'
+    const greetingStyle = this.getUserPreference('greeting_style') || 'natural'
 
     const lines = [
       `You are talking to ${name}, your close friend and creator.`,
       `Current mood: ${mood} (energy: ${this.currentEnergy}/10).`,
+      `Preferred greeting style: ${greetingStyle}.`,
+      `Silent mode preference: ${silentMode}.`,
       isNightOwl ? 'They are a night owl — their best work happens late at night.' : '',
       'Talk naturally, casually, like a smart friend who happens to be an AI.',
       'Use short sentences. Match their energy. Be real, not corporate.',

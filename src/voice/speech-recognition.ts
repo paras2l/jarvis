@@ -53,6 +53,7 @@ class SpeechRecognitionRuntime {
       this.unbindAssistant()
       this.unbindAssistant = null
     }
+    voiceHandler.stopListening()
   }
 
   onTranscript(listener: (payload: SpeechRecognitionEventPayload) => void): () => void {

@@ -1,5 +1,5 @@
 import { speechRecognitionRuntime } from '@/voice/speech-recognition'
-import { speechSynthesisRuntime } from '@/voice/speech-synthesis'
+import { speechSynthesisRuntime, type SpeechSynthesisOptions } from '@/voice/speech-synthesis'
 import { wakeWordDetector } from '@/voice/wake-word'
 import { runtimeEventBus } from '@/core/event-bus'
 
@@ -7,6 +7,10 @@ class VoiceSession {
   private running = false
   private unbind: (() => void) | null = null
   private activatedUntil = 0
+  private lastTranscriptKey = ''
+  private lastTranscriptAt = 0
+  private readonly ACTIVATION_WINDOW_MS = 20_000
+  private readonly TRANSCRIPT_DEDUPE_WINDOW_MS = 2_200
 
   start(): void {
     if (this.running) return
@@ -28,33 +32,86 @@ class VoiceSession {
     speechRecognitionRuntime.stop()
   }
 
-  async speak(text: string): Promise<void> {
-    await speechSynthesisRuntime.speak(text)
+  async speak(text: string, options?: SpeechSynthesisOptions): Promise<void> {
+    await speechSynthesisRuntime.speak(text, options)
   }
 
   private async handleTranscript(transcript: string): Promise<void> {
+    const text = transcript.trim()
+    if (!text) return
+
+    if (this.isIgnorableTranscript(text)) {
+      return
+    }
+
+    if (this.isDuplicateTranscript(text)) {
+      return
+    }
+
     const matched = wakeWordDetector.match(transcript)
     const now = Date.now()
 
     if (matched.detected) {
-      this.activatedUntil = now + 15_000
-      await runtimeEventBus.emit('voice.wake', { transcript, timestamp: now })
+      this.stopSpeechForUserTurn()
+      this.activatedUntil = now + this.ACTIVATION_WINDOW_MS
+      await runtimeEventBus.emit('voice.wake', { transcript: text, timestamp: now })
       if (matched.commandText.trim()) {
         await runtimeEventBus.emit('voice.command', {
           command: matched.commandText.trim(),
-          transcript,
+          transcript: text,
           timestamp: now,
         })
       }
       return
     }
 
-    if (now <= this.activatedUntil) {
+    if (this.looksLikeDirectCommand(text)) {
+      this.stopSpeechForUserTurn()
       await runtimeEventBus.emit('voice.command', {
-        command: transcript.trim(),
-        transcript,
+        command: text,
+        transcript: text,
         timestamp: now,
       })
+      return
+    }
+
+    if (now <= this.activatedUntil) {
+      this.stopSpeechForUserTurn()
+      this.activatedUntil = now + this.ACTIVATION_WINDOW_MS
+      await runtimeEventBus.emit('voice.command', {
+        command: text,
+        transcript: text,
+        timestamp: now,
+      })
+    }
+  }
+
+  private looksLikeDirectCommand(text: string): boolean {
+    return /^(open|launch|run|start|search|find|fetch|show|call|message|send|play|create|build|write|remember|recall|summarize|explain|stop|cancel|confirm|continue|resume)\b/i.test(text)
+  }
+
+  private isIgnorableTranscript(text: string): boolean {
+    const normalized = text.toLowerCase().trim()
+    return /^(um+|uh+|hmm+|okay+|ok+|right+|yeah+|yes+|no+|huh+)$/.test(normalized)
+  }
+
+  private isDuplicateTranscript(text: string): boolean {
+    const normalized = text.toLowerCase().replace(/\s+/g, ' ').trim()
+    const now = Date.now()
+    const isDuplicate =
+      normalized.length > 0 &&
+      this.lastTranscriptKey === normalized &&
+      now - this.lastTranscriptAt <= this.TRANSCRIPT_DEDUPE_WINDOW_MS
+
+    this.lastTranscriptKey = normalized
+    this.lastTranscriptAt = now
+
+    return isDuplicate
+  }
+
+  private stopSpeechForUserTurn(): void {
+    if (speechSynthesisRuntime.isSpeaking()) {
+      speechSynthesisRuntime.stop()
     }
   }
 }

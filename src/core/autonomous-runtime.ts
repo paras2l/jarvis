@@ -12,12 +12,18 @@ import { agentFrameworkAdapters } from '@/core/agent-framework-adapters'
 import { voiceSession } from '@/voice/voice-session'
 import { hybridBackendCoordinator } from '@/core/hybrid-backend'
 import { jarvisOS } from '@/core/jarvis3'
+import { mainLayerController } from '@/core/main-layer-controller'
+import { voiceAssistantOrchestrator } from '@/voice/voice-assistant-orchestrator'
 
 class AutonomousRuntime {
   private started = false
   private mesh = getDeviceMesh()
   private bridge = getDeviceBridge()
   private unsubs: Array<() => void> = []
+  private lastPredictionSpeechAt = 0
+
+  private readonly CHAT_ACTIVE_UNTIL_KEY = 'patrich.chat.activeUntil'
+  private readonly PREDICTION_SPEECH_COOLDOWN_MS = 20_000
 
   async start(): Promise<void> {
     if (this.started) return
@@ -41,6 +47,7 @@ class AutonomousRuntime {
     this.attachEventHandlers()
     cognitiveLoopEngine.start(initialPolicy.loopIntervalMs)
     voiceSession.start()
+    await mainLayerController.start()
 
     this.started = true
     await runtimeEventBus.emit('runtime.started', { timestamp: Date.now() })
@@ -52,6 +59,7 @@ class AutonomousRuntime {
     this.mesh.stopHeartbeat()
     await hybridBackendCoordinator.stop()
     voiceSession.stop()
+    await mainLayerController.stop()
     this.unsubs.forEach((unsub) => unsub())
     this.unsubs = []
     this.started = false
@@ -62,15 +70,42 @@ class AutonomousRuntime {
     return this.started
   }
 
+  private isForegroundChatActive(): boolean {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return false
+
+    if (document.visibilityState !== 'visible' || !document.hasFocus()) {
+      return false
+    }
+
+    const raw = localStorage.getItem(this.CHAT_ACTIVE_UNTIL_KEY)
+    const activeUntil = raw ? Number(raw) : 0
+    return Number.isFinite(activeUntil) && activeUntil > Date.now()
+  }
+
   private attachEventHandlers(): void {
     this.unsubs.push(
       runtimeEventBus.on('voice.wake', async () => {
         if (!runtimePolicyStore.get().proactiveVoice) return
-        await voiceSession.speak('I am listening.')
+        await voiceSession.speak('I am listening.', {
+          intent: 'confirmation',
+          tempo: 'fast',
+          brevity: 'short',
+          priority: 'normal',
+        })
       }),
       runtimeEventBus.on('voice.command', async ({ command }) => {
+        await mainLayerController.ingestVoiceCommand(command, 'microphone')
+
         const policy = runtimePolicyStore.get()
         if (!policy.allowVoiceCommandExecution || policy.autonomyMode === 'observe') {
+          return
+        }
+
+        const orchestratedVoice = await voiceAssistantOrchestrator.handle(command)
+        if (orchestratedVoice.handled) {
+          if (policy.proactiveVoice && orchestratedVoice.speech) {
+            await voiceSession.speak(orchestratedVoice.speech, orchestratedVoice.speechPlan)
+          }
           return
         }
 
@@ -82,7 +117,12 @@ class AutonomousRuntime {
             error: report.status === 'failed' ? report.summary : undefined,
           })
           if (policy.proactiveVoice) {
-            await voiceSession.speak(report.summary)
+            await voiceSession.speak(report.summary, {
+              intent: 'action',
+              tempo: 'normal',
+              brevity: 'normal',
+              priority: report.status === 'failed' ? 'high' : 'normal',
+            })
           }
           return
         }
@@ -113,13 +153,31 @@ class AutonomousRuntime {
         })
 
         if (success && policy.proactiveVoice) {
-          await voiceSession.speak('Done.')
+          await voiceSession.speak('Done.', {
+            intent: 'confirmation',
+            tempo: 'fast',
+            brevity: 'short',
+            priority: 'normal',
+          })
         }
       }),
       runtimeEventBus.on('prediction.generated', async ({ prediction }) => {
         if (!runtimePolicyStore.get().proactiveVoice) return
         if (prediction.confidence < 0.85) return
-        await voiceSession.speak(`Heads up. ${prediction.reason}`)
+        if (this.isForegroundChatActive()) return
+
+        const now = Date.now()
+        if (now - this.lastPredictionSpeechAt < this.PREDICTION_SPEECH_COOLDOWN_MS) {
+          return
+        }
+
+        this.lastPredictionSpeechAt = now
+        await voiceSession.speak(`Heads up. ${prediction.reason}`, {
+          intent: 'system',
+          tempo: 'normal',
+          brevity: 'normal',
+          priority: 'high',
+        })
       }),
     )
   }

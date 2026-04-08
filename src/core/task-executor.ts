@@ -15,6 +15,13 @@ import { toolBuilderEngine } from '@/core/tool-builder-engine'
 import { routeIntentJSON } from '@/core/intent-json-router'
 import { eventPublisher } from '@/event_system/event_publisher'
 import { taskScheduler } from '@/core/task-scheduler'
+import { naturalCommandLayer } from '@/core/natural-command-layer'
+import type { NCULTask } from '@/core/natural-command-layer'
+import { selfModelLayer } from '@/layers/self_model/self_model_layer'
+import { metacognitionLayer } from '@/layers/metacognition/metacognition_layer'
+import { narrativeMemory } from '@/layers/identity_continuity/narrative_memory'
+import { relationshipTracker } from '@/layers/identity_continuity/relationship_tracker'
+import { intentionalAgencyLayer } from '@/layers/intentional_agency/agency_core'
 
 /**
  * Task Executor
@@ -333,6 +340,47 @@ class TaskExecutor {
     task: Task,
     context: ExecutionContext
   ): Promise<Task> {
+    const decoded = this.parseTaskCommand(task.command)
+    const nculSource = String(
+      decoded.originalCommand || decoded.query || decoded.instruction || decoded.app || decoded.action || task.command,
+    ).trim()
+    const nculTask = await naturalCommandLayer.interpret(nculSource || task.command)
+    const calibratedConfidence = await metacognitionLayer.calibrateCommandConfidence(
+      nculSource || task.command,
+      nculTask.confidence,
+    )
+    const executionThreshold = metacognitionLayer.getExecutionThreshold()
+    const evaluatedTask: NCULTask = {
+      ...nculTask,
+      confidence: calibratedConfidence,
+    }
+
+    if (evaluatedTask.confidence < executionThreshold && task.type !== 'custom') {
+      task.status = 'failed'
+      task.error = `Low-confidence command (${evaluatedTask.confidence.toFixed(2)}). Please clarify your intent.`
+      task.result = { success: false, message: task.error }
+      task.completedAt = new Date()
+      await this.logCommandOutcome(nculSource || task.command, false, task.error)
+      await selfModelLayer.onActionOutcome({
+        taskId: task.id,
+        success: false,
+        summary: task.error,
+        confidenceHint: evaluatedTask.confidence,
+      })
+      await narrativeMemory.append({
+        type: 'task',
+        summary: `Task blocked by low confidence: ${task.error}`,
+        source: 'task-executor',
+        importance: 0.8,
+        metadata: {
+          taskId: task.id,
+          confidence: evaluatedTask.confidence,
+          threshold: executionThreshold,
+        },
+      })
+      return task
+    }
+
     const loopBlockedReason = this.checkLoopGuard(task)
     if (loopBlockedReason) {
       task.status = 'failed'
@@ -348,6 +396,19 @@ class TaskExecutor {
         },
         'task-executor',
       )
+      await this.logCommandOutcome(nculSource || task.command, false, loopBlockedReason)
+      await selfModelLayer.onActionOutcome({
+        taskId: task.id,
+        success: false,
+        summary: loopBlockedReason,
+      })
+      await narrativeMemory.append({
+        type: 'task',
+        summary: `Task blocked by loop guard: ${loopBlockedReason}`,
+        source: 'task-executor',
+        importance: 0.75,
+        metadata: { taskId: task.id },
+      })
       return task
     }
 
@@ -404,6 +465,31 @@ class TaskExecutor {
           },
           'task-executor',
         )
+        await this.logCommandOutcome(
+          nculSource || task.command,
+          true,
+          result?.message || 'Task completed successfully.',
+        )
+        await selfModelLayer.onActionOutcome({
+          taskId: task.id,
+          success: true,
+          summary: result?.message || 'Task completed',
+          confidenceHint: evaluatedTask.confidence,
+        })
+        await narrativeMemory.append({
+          type: 'task',
+          summary: `Task completed: ${result?.message || task.id}`,
+          source: 'task-executor',
+          importance: 0.7,
+          metadata: { taskId: task.id, command: nculSource || task.command },
+        })
+        await relationshipTracker
+          .resolvePromiseFromTaskEvidence(
+            task.id,
+            `${nculSource || task.command} ${result?.message || ''}`,
+            'completed',
+          )
+          .catch(() => false)
       } else {
         task.status = 'failed'
         task.error = result?.message || 'Task execution failed'
@@ -416,8 +502,34 @@ class TaskExecutor {
           },
           'task-executor',
         )
+        await this.logCommandOutcome(
+          nculSource || task.command,
+          false,
+          task.error || 'Task execution failed',
+        )
+        await selfModelLayer.onActionOutcome({
+          taskId: task.id,
+          success: false,
+          summary: task.error || 'Task execution failed',
+          confidenceHint: evaluatedTask.confidence,
+        })
+        await narrativeMemory.append({
+          type: 'task',
+          summary: `Task failed: ${task.error || 'Task execution failed'}`,
+          source: 'task-executor',
+          importance: 0.85,
+          metadata: { taskId: task.id, command: nculSource || task.command },
+        })
+        await relationshipTracker
+          .resolvePromiseFromTaskEvidence(
+            task.id,
+            `${nculSource || task.command} ${task.error || ''}`,
+            'broken',
+          )
+          .catch(() => false)
       }
       task.completedAt = new Date()
+      this.logReactiveActionToAgency(nculSource || task.command, result?.success ?? false)
     } catch (error) {
       task.status = 'failed'
       task.error = error instanceof Error ? error.message : 'Unknown error'
@@ -432,6 +544,24 @@ class TaskExecutor {
         },
         'task-executor',
       )
+      await this.logCommandOutcome(
+        nculSource || task.command,
+        false,
+        task.error,
+      )
+      await selfModelLayer.onActionOutcome({
+        taskId: task.id,
+        success: false,
+        summary: task.error,
+        confidenceHint: evaluatedTask.confidence,
+      })
+      await narrativeMemory.append({
+        type: 'system',
+        summary: `Task executor exception: ${task.error}`,
+        source: 'task-executor',
+        importance: 0.9,
+        metadata: { taskId: task.id },
+      })
     }
 
     this.executingTask = null
@@ -480,11 +610,47 @@ class TaskExecutor {
         title: parsed.action,
         command: task.command,
         agentRole: parsed.subAgentRequired ? 'sub-agent' : 'main-agent',
+        priority: Math.round(parsed.confidence * 100),
       },
       'task-executor',
     )
 
     return task
+  }
+
+  async executeNaturalTask(nculTask: NCULTask, context: ExecutionContext): Promise<Task> {
+    const actionMap: Record<string, { intent: string; action: string; subAgentRequired: boolean }> = {
+      open_app: { intent: 'app_launch', action: 'launch_app', subAgentRequired: false },
+      web_search: { intent: 'query', action: 'web_search', subAgentRequired: false },
+      knowledge_query: { intent: 'query', action: 'knowledge_query', subAgentRequired: false },
+      chat: { intent: 'query', action: 'knowledge_query', subAgentRequired: false },
+      perform_task: { intent: 'query', action: 'open_and_control', subAgentRequired: true },
+      system_command: { intent: 'query', action: 'system_control', subAgentRequired: false },
+      multi_task: { intent: 'multi_action', action: 'open_and_control', subAgentRequired: true },
+    }
+
+    const mapped = actionMap[nculTask.intent] || {
+      intent: 'query',
+      action: 'knowledge_query',
+      subAgentRequired: false,
+    }
+
+    const parsed: ParsedCommand = {
+      intent: mapped.intent,
+      action: mapped.action,
+      parameters: {
+        ...(nculTask.params || {}),
+        target: nculTask.target,
+        query: nculTask.target,
+        app: nculTask.target,
+        nculConfidence: nculTask.confidence,
+      },
+      confidence: nculTask.confidence,
+      subAgentRequired: mapped.subAgentRequired,
+    }
+
+    const task = this.createTask(parsed)
+    return this.executeTask(task, context)
   }
 
   /**
@@ -558,8 +724,8 @@ class TaskExecutor {
   }
 
   private extractAppName(input: string) {
-    const match = input.match(/(?:open|launch)\s+(\w+)/i)
-    const appNameRaw = match ? match[1] : ''
+    const match = input.match(/(?:open|launch|start|run)\s+([a-zA-Z0-9\s._-]+?)(?:\s+(?:on|in|using|for)\b.*|$)/i)
+    const appNameRaw = match ? match[1].trim() : ''
     const sensitiveOperation = this.isSensitiveAuthContext(input)
     const emergencyPassphrase = this.extractInlineAuthPassphrase(input)
     
@@ -822,6 +988,1117 @@ class TaskExecutor {
     return this.openTarget(target)
   }
 
+  private extractSpecialFolderTarget(command: string): string {
+    const params = this.parseTaskCommand(command)
+    const explicit = String(
+      params.folderName ||
+        params.folder ||
+        params.specialFolder ||
+        params.target ||
+        params.path ||
+        ''
+    ).trim()
+
+    if (explicit) {
+      return explicit
+    }
+
+    const lower = String(command || '').toLowerCase()
+    const directMatch = lower.match(
+      /\b(?:open|show|reveal|launch|go to|open the|show the)\s+(?:my\s+|the\s+)?(recycle bin|trash|desktop|downloads?|documents?|pictures?|photos?|music|videos?|home|app data|appdata|user data)\b/
+    )
+
+    if (directMatch?.[1]) {
+      return directMatch[1]
+    }
+
+    if (/\b(recycle bin|trash)\b/.test(lower)) {
+      return 'recycle bin'
+    }
+
+    return ''
+  }
+
+  private async openSpecialFolder(command: string): Promise<{ success: boolean; message: string }> {
+    const folderTarget = this.extractSpecialFolderTarget(command)
+    if (!folderTarget) {
+      return { success: false, message: 'No special folder target detected.' }
+    }
+
+    if (folderTarget.toLowerCase().includes('recycle') || folderTarget.toLowerCase() === 'trash') {
+      if (window.nativeBridge?.openRecycleBin) {
+        return window.nativeBridge.openRecycleBin()
+      }
+
+      if (window.nativeBridge?.openSpecialFolder) {
+        return window.nativeBridge.openSpecialFolder('recycle bin')
+      }
+
+      return { success: false, message: 'Recycle Bin bridge unavailable.' }
+    }
+
+    if (!window.nativeBridge?.openSpecialFolder) {
+      return { success: false, message: 'Special folder bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.openSpecialFolder(folderTarget)
+    return result.success
+      ? { success: true, message: result.message || `Opened ${folderTarget}.` }
+      : { success: false, message: result.message || `Failed to open ${folderTarget}.` }
+  }
+
+  private async emptyRecycleBin(): Promise<{ success: boolean; message: string }> {
+    if (!window.nativeBridge?.emptyRecycleBin) {
+      return { success: false, message: 'Empty recycle bin bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.emptyRecycleBin()
+    return result.success
+      ? { success: true, message: result.message || 'Emptied Recycle Bin.' }
+      : { success: false, message: result.message || 'Failed to empty Recycle Bin.' }
+  }
+
+  private async showDesktop(): Promise<{ success: boolean; message: string }> {
+    if (!window.nativeBridge?.showDesktop) {
+      return { success: false, message: 'Show desktop bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.showDesktop()
+    return result.success
+      ? { success: true, message: result.message || 'Showed desktop.' }
+      : { success: false, message: result.message || 'Failed to show desktop.' }
+  }
+
+  private extractPathTargets(command: string): {
+    sourcePath: string
+    destinationPath: string
+    targetPath: string
+    newName: string
+    identifier: string
+  } {
+    const params = this.parseTaskCommand(command)
+    const sourcePath = String(params.sourcePath || params.source || params.filePath || params.path || params.target || '').trim()
+    const destinationPath = String(params.destination || params.dest || params.to || params.newPath || params.output || '').trim()
+    const targetPath = String(params.targetPath || params.path || params.filePath || params.folderPath || params.target || '').trim()
+    const newName = String(params.newName || params.name || params.filename || '').trim()
+    const identifier = String(params.pid || params.processId || params.process || params.app || params.name || '').trim()
+    return { sourcePath, destinationPath, targetPath, newName, identifier }
+  }
+
+  private async listDirectory(command: string): Promise<{ success: boolean; message: string }> {
+    const { targetPath } = this.extractPathTargets(command)
+    const pathTarget = targetPath || String(command || '').replace(/^(?:list|show)\s+(?:contents of|files in|directory of)\s+/i, '').trim() || '.'
+
+    if (window.nativeBridge?.listDir) {
+      const result = await window.nativeBridge.listDir(pathTarget)
+      if (result.success) {
+        const rendered = (result.entries || []).map((item) => (item.isDir ? `[${item.name}]` : item.name))
+        return {
+          success: true,
+          message: rendered.length ? `Contents of ${pathTarget}:\n${rendered.join('\n')}` : `No entries found in ${pathTarget}.`,
+        }
+      }
+    }
+
+    if (!window.nativeBridge?.runShellCommand) {
+      return { success: false, message: 'Directory list bridge unavailable.' }
+    }
+
+    const platform = detectPlatform()
+    const listCommand =
+      platform === 'windows'
+        ? `cmd /c dir /b "${pathTarget}"`
+        : `ls -1 "${pathTarget}"`
+    const result = await window.nativeBridge.runShellCommand(listCommand)
+    return result.success
+      ? { success: true, message: `Contents of ${pathTarget}:\n${String(result.output || '').trim()}` }
+      : { success: false, message: result.error || result.message || 'Directory list failed.' }
+  }
+
+  private async createFolder(command: string): Promise<{ success: boolean; message: string }> {
+    const { targetPath } = this.extractPathTargets(command)
+    const parsed = targetPath || (String(command || '').match(/^(?:create|make|new)\s+folder\s+(.+)$/i)?.[1] || '').trim()
+    if (!parsed) {
+      return { success: false, message: 'No folder path provided.' }
+    }
+
+    if (!window.nativeBridge?.createFolder) {
+      return { success: false, message: 'Create-folder bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.createFolder(parsed)
+    return result.success
+      ? { success: true, message: result.message || `Created folder ${parsed}.` }
+      : { success: false, message: result.message || `Failed to create folder ${parsed}.` }
+  }
+
+  private async copyPath(command: string): Promise<{ success: boolean; message: string }> {
+    const { sourcePath, destinationPath } = this.extractPathTargets(command)
+    const matched = String(command || '').match(/^(?:copy)\s+(.+?)\s+to\s+(.+)$/i)
+    const source = sourcePath || matched?.[1]?.trim() || ''
+    const destination = destinationPath || matched?.[2]?.trim() || ''
+    if (!source || !destination) {
+      return { success: false, message: 'Copy requires a source and destination path.' }
+    }
+
+    if (!window.nativeBridge?.copyPath) {
+      return { success: false, message: 'Copy-path bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.copyPath(source, destination)
+    return result.success
+      ? { success: true, message: result.message || `Copied ${source} to ${destination}.` }
+      : { success: false, message: result.message || 'Copy failed.' }
+  }
+
+  private async movePath(command: string): Promise<{ success: boolean; message: string }> {
+    const { sourcePath, destinationPath } = this.extractPathTargets(command)
+    const matched = String(command || '').match(/^(?:move)\s+(.+?)\s+to\s+(.+)$/i)
+    const source = sourcePath || matched?.[1]?.trim() || ''
+    const destination = destinationPath || matched?.[2]?.trim() || ''
+    if (!source || !destination) {
+      return { success: false, message: 'Move requires a source and destination path.' }
+    }
+
+    if (!window.nativeBridge?.movePath) {
+      return { success: false, message: 'Move-path bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.movePath(source, destination)
+    return result.success
+      ? { success: true, message: result.message || `Moved ${source} to ${destination}.` }
+      : { success: false, message: result.message || 'Move failed.' }
+  }
+
+  private async renamePath(command: string): Promise<{ success: boolean; message: string }> {
+    const { sourcePath, newName } = this.extractPathTargets(command)
+    const matched = String(command || '').match(/^(?:rename)\s+(.+?)\s+to\s+(.+)$/i)
+    const source = sourcePath || matched?.[1]?.trim() || ''
+    const renamed = newName || matched?.[2]?.trim() || ''
+    if (!source || !renamed) {
+      return { success: false, message: 'Rename requires a source path and a new name.' }
+    }
+
+    if (!window.nativeBridge?.renamePath) {
+      return { success: false, message: 'Rename-path bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.renamePath(source, renamed)
+    return result.success
+      ? { success: true, message: result.message || `Renamed ${source} to ${renamed}.` }
+      : { success: false, message: result.message || 'Rename failed.' }
+  }
+
+  private async deletePath(command: string): Promise<{ success: boolean; message: string }> {
+    const { targetPath } = this.extractPathTargets(command)
+    const parsed = targetPath || String(command || '').replace(/^(?:delete|remove|trash)\s+/i, '').trim()
+    if (!parsed) {
+      return { success: false, message: 'No path provided for delete.' }
+    }
+
+    if (!window.nativeBridge?.deletePath) {
+      return { success: false, message: 'Delete-path bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.deletePath(parsed)
+    return result.success
+      ? { success: true, message: result.message || `Deleted ${parsed}.` }
+      : { success: false, message: result.message || 'Delete failed.' }
+  }
+
+  private async openPathTarget(command: string): Promise<{ success: boolean; message: string }> {
+    const { targetPath } = this.extractPathTargets(command)
+    const parsed = targetPath || String(command || '').replace(/^(?:open|launch|show|reveal)\s+/i, '').trim()
+    if (!parsed) {
+      return { success: false, message: 'No path provided to open.' }
+    }
+
+    if (!window.nativeBridge?.openPath) {
+      return { success: false, message: 'Open-path bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.openPath(parsed)
+    return result.success
+      ? { success: true, message: result.message || `Opened ${parsed}.` }
+      : { success: false, message: result.message || 'Open failed.' }
+  }
+
+  private async terminateProcess(command: string): Promise<{ success: boolean; message: string }> {
+    const { identifier } = this.extractPathTargets(command)
+    const parsed = identifier || String(command || '').replace(/^(?:kill|terminate|end\s+process|close\s+process)\s+/i, '').trim()
+    if (!parsed) {
+      return { success: false, message: 'No process identifier provided.' }
+    }
+
+    if (!window.nativeBridge?.terminateProcess) {
+      return { success: false, message: 'Terminate-process bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.terminateProcess(parsed)
+    return result.success
+      ? { success: true, message: result.message || `Terminated ${parsed}.` }
+      : { success: false, message: result.message || `Failed to terminate ${parsed}.` }
+  }
+
+  private extractWindowTarget(command: string): string {
+    const params = this.parseTaskCommand(command)
+    const explicit = String(params.app || params.target || params.window || params.name || '').trim()
+    if (explicit) {
+      return explicit
+    }
+
+    const match = String(command || '').match(/^(?:focus|switch to|bring to front|open|activate|select|go to)\s+(?:the\s+)?(.+?)(?:\s+window)?$/i)
+    return match?.[1]?.trim() || ''
+  }
+
+  private async controlWindow(command: string): Promise<{ success: boolean; message: string }> {
+    const params = this.parseTaskCommand(command)
+    const operation = String(params.operation || '').toLowerCase().trim()
+    const text = String(command || '').toLowerCase()
+
+    let action: 'minimize' | 'maximize' | 'restore' | 'focus' | 'hide' | 'show' | '' = ''
+    if (operation === 'minimize' || /\bminimize\b/.test(text)) action = 'minimize'
+    else if (operation === 'maximize' || /\bmaximize\b/.test(text)) action = 'maximize'
+    else if (operation === 'restore' || /\brestore\b/.test(text)) action = 'restore'
+    else if (operation === 'focus' || /\bfocus\b/.test(text)) action = 'focus'
+    else if (operation === 'hide' || /\bhide\b/.test(text)) action = 'hide'
+    else if (operation === 'show' || /\bshow\b/.test(text)) action = 'show'
+
+    if (!action) {
+      return { success: false, message: 'No window operation detected.' }
+    }
+
+    if (!window.nativeBridge?.controlWindow) {
+      return { success: false, message: 'Window control bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.controlWindow(action)
+    return result.success
+      ? { success: true, message: result.message || `Window ${action}d.` }
+      : { success: false, message: result.message || `Failed to ${action} window.` }
+  }
+
+  private async listRunningApps(): Promise<{ success: boolean; message: string }> {
+    if (!window.nativeBridge?.listRunningApps) {
+      return { success: false, message: 'Running-app list bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.listRunningApps()
+    if (!result.success) {
+      return { success: false, message: result.message || 'Failed to list running apps.' }
+    }
+
+    const rendered = (result.apps || [])
+      .slice(0, 12)
+      .map((item) => item.windowTitle ? `${item.name} (${item.windowTitle})` : item.name)
+
+    return {
+      success: true,
+      message: rendered.length
+        ? `Running apps:\n${rendered.join('\n')}`
+        : 'No running app entries were found.',
+    }
+  }
+
+  private async getBrowserState(): Promise<{ success: boolean; message: string }> {
+    if (!window.nativeBridge?.browser?.getState) {
+      return { success: false, message: 'Browser state bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.browser.getState()
+    return result.success
+      ? {
+          success: true,
+          message: `Browser state:\nTitle: ${result.title || 'unknown'}\nURL: ${result.url || 'unknown'}\nVisible: ${String(Boolean(result.visible))}\nFocused: ${String(Boolean(result.focused))}`,
+        }
+      : { success: false, message: result.message || 'Failed to read browser state.' }
+  }
+
+  private async reloadBrowser(): Promise<{ success: boolean; message: string }> {
+    if (!window.nativeBridge?.browser?.reload) {
+      return { success: false, message: 'Browser reload bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.browser.reload()
+    return result.success
+      ? { success: true, message: `Reloaded browser page${result.title ? `: ${result.title}` : ''}.` }
+      : { success: false, message: result.message || 'Failed to reload browser page.' }
+  }
+
+  private async openCurrentBrowserPage(): Promise<{ success: boolean; message: string }> {
+    if (!window.nativeBridge?.browser?.openCurrent) {
+      return { success: false, message: 'Browser current-page bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.browser.openCurrent()
+    return result.success
+      ? { success: true, message: result.message || 'Opened current browser page externally.' }
+      : { success: false, message: result.message || 'Failed to open current browser page externally.' }
+  }
+
+  private async browserNavigate(command: string): Promise<{ success: boolean; message: string }> {
+    const params = this.parseTaskCommand(command)
+    const explicitUrl = String(params.url || params.target || params.link || '').trim()
+    const query = String(params.query || params.searchQuery || '').trim()
+    const target = explicitUrl || (query ? `https://www.google.com/search?q=${encodeURIComponent(query)}` : '')
+
+    if (!target) {
+      return { success: false, message: 'No browser URL or search query detected.' }
+    }
+
+    if (!window.nativeBridge?.browser?.launch || !window.nativeBridge?.browser?.execute) {
+      return { success: false, message: 'Browser navigation bridge unavailable.' }
+    }
+
+    await window.nativeBridge.browser.launch({ headless: false })
+    const result = await window.nativeBridge.browser.execute({ type: 'navigate', url: target })
+    return result.success
+      ? { success: true, message: `Opened browser page: ${result.url || target}` }
+      : { success: false, message: result.error || `Failed to open browser page: ${target}` }
+  }
+
+  private async browserExtract(command: string): Promise<{ success: boolean; message: string }> {
+    const params = this.parseTaskCommand(command)
+    const selector = String(params.selector || params.query || 'body').trim() || 'body'
+
+    if (!window.nativeBridge?.browser?.execute) {
+      return { success: false, message: 'Browser extract bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.browser.execute({ type: 'extract', selector })
+    return result.success
+      ? { success: true, message: String(result.content || '').slice(0, 1500) || 'No content extracted.' }
+      : { success: false, message: result.error || `Failed to extract content from ${selector}.` }
+  }
+
+  private async browserScreenshot(command: string): Promise<{ success: boolean; message: string }> {
+    const params = this.parseTaskCommand(command)
+    const selector = String(params.selector || 'body').trim() || 'body'
+
+    if (!window.nativeBridge?.browser?.execute) {
+      return { success: false, message: 'Browser screenshot bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.browser.execute({ type: 'screenshot', selector })
+    return result.success
+      ? { success: true, message: `Captured browser screenshot${result.title ? ` for ${result.title}` : ''}.` }
+      : { success: false, message: result.error || 'Failed to capture browser screenshot.' }
+  }
+
+  private async browserClick(command: string): Promise<{ success: boolean; message: string }> {
+    const params = this.parseTaskCommand(command)
+    const selector = String(params.selector || params.ref || params.target || '').trim()
+    if (!selector) {
+      return { success: false, message: 'No browser selector provided.' }
+    }
+
+    if (!window.nativeBridge?.browser?.execute) {
+      return { success: false, message: 'Browser click bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.browser.execute({ type: 'click', selector })
+    return result.success
+      ? { success: true, message: `Clicked browser element: ${selector}` }
+      : { success: false, message: result.error || `Failed to click ${selector}.` }
+  }
+
+  private async browserType(command: string): Promise<{ success: boolean; message: string }> {
+    const params = this.parseTaskCommand(command)
+    const selector = String(params.selector || params.ref || '').trim() || 'input,textarea,[contenteditable=true]'
+    const value = String(params.text || params.value || params.message || '').trim()
+
+    if (!value) {
+      return { success: false, message: 'No browser text provided.' }
+    }
+
+    if (!window.nativeBridge?.browser?.execute) {
+      return { success: false, message: 'Browser type bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.browser.execute({ type: 'type', selector, value })
+    return result.success
+      ? { success: true, message: `Typed text in browser target: ${selector}` }
+      : { success: false, message: result.error || `Failed to type into ${selector}.` }
+  }
+
+  // ── Phase 5: Bulk Automation & Content Processing Methods ────────────────
+  private async compressPath(command: string): Promise<{ success: boolean; message: string }> {
+    const sourceMatch = String(command).match(/^(?:compress|archive|zip)\s+(.+?)\s+(?:to|as|into)\s+(.+)$/i)
+    const formatMatch = String(command).match(/(?:format|as|type).*?(zip|gzip|tar\.gz)(?:\b|$)/i)
+
+    const source = sourceMatch?.[1]?.trim() || ''
+    const destination = sourceMatch?.[2]?.trim() || ''
+    const format = formatMatch?.[1]?.toLowerCase() || 'zip'
+
+    if (!source || !destination) {
+      return { success: false, message: 'Please specify source and destination paths.' }
+    }
+
+    if (!window.nativeBridge?.bulk?.compressPath) {
+      return { success: false, message: 'Compression bridge unavailable.' }
+    }
+
+    return window.nativeBridge.bulk.compressPath(source, destination, format as 'zip' | 'tar.gz' | 'gzip')
+  }
+
+  private async extractArchive(command: string): Promise<{ success: boolean; message: string }> {
+    const match = String(command).match(/^(?:extract|unzip|uncompress)\s+(.+?)\s+(?:to|into)\s+(.+)$/i)
+    const archivePath = match?.[1]?.trim() || ''
+    const destinationPath = match?.[2]?.trim() || ''
+
+    if (!archivePath || !destinationPath) {
+      return { success: false, message: 'Please specify archive and destination paths.' }
+    }
+
+    if (!window.nativeBridge?.bulk?.extractArchive) {
+      return { success: false, message: 'Extraction bridge unavailable.' }
+    }
+
+    return window.nativeBridge.bulk.extractArchive(archivePath, destinationPath)
+  }
+
+  private async bulkMoveByPattern(command: string): Promise<{ success: boolean; message: string }> {
+    const match = String(command).match(/^(?:bulk\s+)?move\s+(.+?)\s+(?:from|in)\s+(.+?)\s+to\s+(.+)$/i)
+    const pattern = match?.[1]?.trim() || ''
+    const sourceDir = match?.[2]?.trim() || ''
+    const destinationDir = match?.[3]?.trim() || ''
+    const useRegex = /regex|pattern|match/.test(command)
+
+    if (!pattern || !sourceDir || !destinationDir) {
+      return { success: false, message: 'Please specify pattern, source directory, and destination directory.' }
+    }
+
+    if (!window.nativeBridge?.bulk?.bulkMoveByPattern) {
+      return { success: false, message: 'Bulk move bridge unavailable.' }
+    }
+
+    return window.nativeBridge.bulk.bulkMoveByPattern(sourceDir, pattern, destinationDir, useRegex)
+  }
+
+  private async searchFileContent(command: string): Promise<{ success: boolean; message: string }> {
+    const match = String(command).match(/^(?:search|grep|find)\s+(?:for\s+)?["\']?(.+?)["\']?\s+(?:in|within)\s+(.+?)(?:\s+(?:files|type).*?([.\w*]+))?$/i)
+    const textPattern = match?.[1]?.trim() || ''
+    const searchDir = match?.[2]?.trim() || ''
+    const fileExtPattern = match?.[3]?.trim() || ''
+
+    if (!textPattern || !searchDir) {
+      return { success: false, message: 'Please specify search text and directory.' }
+    }
+
+    if (!window.nativeBridge?.bulk?.searchFileContent) {
+      return { success: false, message: 'Search bridge unavailable.' }
+    }
+
+    return window.nativeBridge.bulk.searchFileContent(searchDir, textPattern, fileExtPattern || '.*')
+  }
+
+  private async getFileStats(command: string): Promise<{ success: boolean; message: string }> {
+    const match = String(command).match(/^(?:stats|info|metadata|properties)\s+(?:of|for)?\s+(.+)$/i)
+    const filePath = match?.[1]?.trim() || ''
+
+    if (!filePath) {
+      return { success: false, message: 'Please specify a file path.' }
+    }
+
+    if (!window.nativeBridge?.bulk?.getFileStats) {
+      return { success: false, message: 'File stats bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.bulk.getFileStats(filePath)
+    if (result.success && result.stats) {
+      const s = result.stats
+      return {
+        success: true,
+        message: `File stats: size=${s.size} bytes, modified=${s.modified}, hash=${s.sha256.substring(0, 16)}...`,
+      }
+    }
+    return result
+  }
+
+  private async calculateHash(command: string): Promise<{ success: boolean; message: string }> {
+    const match = String(command).match(/^(?:hash|checksum)\s+(?:of\s+)?(.+?)(?:\s+using|algorithm)?\s*(sha256|sha512|md5)?$/i)
+    const filePath = match?.[1]?.trim() || ''
+    const algorithm = match?.[2]?.toLowerCase() || 'sha256'
+
+    if (!filePath) {
+      return { success: false, message: 'Please specify a file path.' }
+    }
+
+    if (!window.nativeBridge?.bulk?.calculateHash) {
+      return { success: false, message: 'Hash calculation bridge unavailable.' }
+    }
+
+    return window.nativeBridge.bulk.calculateHash(filePath, algorithm as 'sha256' | 'sha512' | 'md5')
+  }
+
+  // ── Phase 6: Advanced Automation & System Monitoring Methods ────────────────
+  private async getSystemResources(): Promise<{ success: boolean; message: string }> {
+    if (!window.nativeBridge?.monitor?.getSystemResources) {
+      return { success: false, message: 'System resources bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.monitor.getSystemResources()
+    if (result.success && result.resources) {
+      const r = result.resources
+      return {
+        success: true,
+        message: `System: ${r.memoryPercent.toFixed(1)}% RAM, load avg ${r.loadAverage.oneMin.toFixed(2)}, uptime ${Math.floor(r.uptime / 3600)}h`,
+      }
+    }
+    return result as any
+  }
+
+  private async getDiskUsage(command: string): Promise<{ success: boolean; message: string }> {
+    const match = String(command).match(/^(?:disk|storage)\s+(?:of|for)?\s*(.*)$/i)
+    const dirPath = match?.[1]?.trim() || '/'
+
+    if (!window.nativeBridge?.monitor?.getDiskUsage) {
+      return { success: false, message: 'Disk usage bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.monitor.getDiskUsage(dirPath)
+    if (result.success && result.diskPercent !== undefined) {
+      return {
+        success: true,
+        message: `Disk ${dirPath}: ${result.diskPercent.toFixed(1)}% used (${Math.round(result.diskUsed! / (1024 * 1024 * 1024))}GB / ${Math.round(result.diskTotal! / (1024 * 1024 * 1024))}GB)`,
+      }
+    }
+    return result as any
+  }
+
+  private async getSystemInfo(): Promise<{ success: boolean; message: string }> {
+    if (!window.nativeBridge?.monitor?.getSystemInfo) {
+      return { success: false, message: 'System info bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.monitor.getSystemInfo()
+    if (result.success && result.info) {
+      const i = result.info
+      return {
+        success: true,
+        message: `System: ${i.platform} ${i.arch}, ${i.hostname}, uptime ${Math.floor(i.uptime / 3600)}h`,
+      }
+    }
+    return result as any
+  }
+
+  private async getEnvVar(command: string): Promise<{ success: boolean; message: string }> {
+    const match = String(command).match(/^(?:get|show|print)?\s*(?:env|environment)?\s*(?:variable)?\s*(.+)$/i)
+    const varName = match?.[1]?.trim() || ''
+
+    if (!varName) {
+      return { success: false, message: 'Please specify an environment variable name.' }
+    }
+
+    if (!window.nativeBridge?.environment?.getEnvVar) {
+      return { success: false, message: 'Environment bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.environment.getEnvVar(varName)
+    if (result.success) {
+      return {
+        success: true,
+        message: result.found ? `${varName}=${result.value}` : `Variable '${varName}' not found.`,
+      }
+    }
+    return result as any
+  }
+
+  private async setEnvVar(command: string): Promise<{ success: boolean; message: string }> {
+    const match = String(command).match(/^(?:set)\s+(?:env|environment)?\s*(?:variable)?\s+(.+?)\s*=\s*(.+)$/i)
+    const varName = match?.[1]?.trim() || ''
+    const value = match?.[2]?.trim() || ''
+
+    if (!varName || !value) {
+      return { success: false, message: 'Please specify variable name and value (name=value).' }
+    }
+
+    if (!window.nativeBridge?.environment?.setEnvVar) {
+      return { success: false, message: 'Environment bridge unavailable.' }
+    }
+
+    return window.nativeBridge.environment.setEnvVar(varName, value)
+  }
+
+  private async listEnvVars(command: string): Promise<{ success: boolean; message: string }> {
+    const match = String(command).match(/^(?:list|show)\s+(?:env|environment|variables)(?:\s+matching|containing)?\s*(.*)$/i)
+    const filterPattern = match?.[1]?.trim() || ''
+
+    if (!window.nativeBridge?.environment?.listEnvVars) {
+      return { success: false, message: 'Environment bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.environment.listEnvVars(filterPattern)
+    if (result.success) {
+      const varNames = Object.keys(result.variables || {}).slice(0, 20)
+      return {
+        success: true,
+        message: `Found ${result.count} variables${filterPattern ? ` matching '${filterPattern}'` : ''}. First: ${varNames.join(', ')}${result.count! > 20 ? '...' : ''}`,
+      }
+    }
+    return result as any
+  }
+
+  private async scheduleTask(command: string): Promise<{ success: boolean; message: string }> {
+    const match = String(command).match(/^(?:schedule|run)\s+(?:in|after)?\s*(\d+)\s*(?:ms|milliseconds|s|seconds|m|minutes)\s*(?:command)?\s*(.*)$/i)
+    const delayValue = parseInt(match?.[1] || '0')
+    const delayUnit = String(command).match(/\b(ms|milliseconds|s|seconds|m|minutes)\b/i)?.[1]?.toLowerCase() || 'ms'
+    const taskCommand = match?.[2]?.trim() || ''
+
+    const delayMsMap: Record<string, number> = {
+      ms: 1,
+      milliseconds: 1,
+      s: 1000,
+      seconds: 1000,
+      m: 60000,
+      minutes: 60000,
+    }
+
+    const delayMs = delayValue * (delayMsMap[delayUnit] || 1000)
+
+    if (!delayValue || !taskCommand) {
+      return { success: false, message: 'Please specify delay and command: "schedule in 5 seconds command echo hello"' }
+    }
+
+    if (!window.nativeBridge?.automation?.scheduleTask) {
+      return { success: false, message: 'Task scheduling bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.automation.scheduleTask(delayMs, taskCommand)
+    if (result.success) {
+      return {
+        success: true,
+        message: `Task scheduled: ${result.taskId} will execute at ${result.executeAt}`,
+      }
+    }
+    return result as any
+  }
+
+  private async cancelTask(command: string): Promise<{ success: boolean; message: string }> {
+    const match = String(command).match(/^(?:cancel|stop)\s+(?:task)?\s*(.+)$/i)
+    const taskId = match?.[1]?.trim() || ''
+
+    if (!taskId) {
+      return { success: false, message: 'Please specify a task ID to cancel.' }
+    }
+
+    if (!window.nativeBridge?.automation?.cancelTask) {
+      return { success: false, message: 'Task cancellation bridge unavailable.' }
+    }
+
+    return window.nativeBridge.automation.cancelTask(taskId)
+  }
+
+  private async listScheduledTasks(): Promise<{ success: boolean; message: string }> {
+    if (!window.nativeBridge?.automation?.listScheduledTasks) {
+      return { success: false, message: 'Scheduled tasks bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.automation.listScheduledTasks()
+    if (result.success) {
+      const taskIds = (result.tasks || []).map((t) => t.taskId)
+      return {
+        success: true,
+        message: result.count === 0 ? 'No scheduled tasks.' : `${result.count} tasks scheduled: ${taskIds.join(', ')}`,
+      }
+    }
+    return result as any
+  }
+
+  private async handleNativeBrowserFallback(command: string, action: string): Promise<{ success: boolean; message: string } | null> {
+    const lower = String(command || '').toLowerCase()
+
+    if (action === 'browser_state' || action === 'browser_info' || /\b(browser\s+state|page\s+info|current\s+page)\b/.test(lower)) {
+      return this.getBrowserState()
+    }
+
+    if (action === 'browser_reload' || action === 'reload_browser' || /\b(?:reload|refresh)\s+(?:browser|page|tab)\b/.test(lower)) {
+      return this.reloadBrowser()
+    }
+
+    if (action === 'browser_open_current' || /\bopen\s+(?:current|this)\s+page\b/.test(lower)) {
+      return this.openCurrentBrowserPage()
+    }
+
+    if (action === 'browser_navigate' || action === 'browser_open' || action === 'open_url' || /\b(?:open|go to|navigate to|visit)\b/.test(lower)) {
+      return this.browserNavigate(command)
+    }
+
+    if (action === 'browser_extract' || /\b(?:extract|read|summarize)\b.*\b(?:page|website|site|article|content)\b/.test(lower)) {
+      return this.browserExtract(command)
+    }
+
+    if (action === 'browser_screenshot' || /\b(?:screenshot|capture)\b.*\b(?:browser|page|site|tab)\b/.test(lower)) {
+      return this.browserScreenshot(command)
+    }
+
+    if (action === 'browser_click' || /\bclick\b.*\b(?:browser|page|site|tab)\b/.test(lower)) {
+      return this.browserClick(command)
+    }
+
+    if (action === 'browser_type' || /\btype\b.*\b(?:browser|page|site|tab)\b/.test(lower)) {
+      return this.browserType(command)
+    }
+
+    return null
+  }
+
+  private async handleNativeBulkFallback(command: string, action: string): Promise<{ success: boolean; message: string } | null> {
+    const lower = String(command || '').toLowerCase()
+
+    if (action === 'bulk_compress' || action === 'compress' || /\b(?:compress|archive|zip|tar)\b/.test(lower)) {
+      return this.compressPath(command)
+    }
+
+    if (action === 'bulk_extract' || action === 'extract' || action === 'uncompress' || /\b(?:extract|unzip|uncompress|untar)\b/.test(lower)) {
+      return this.extractArchive(command)
+    }
+
+    if (action === 'bulk_move' || action === 'bulk_move_pattern' || /\bbulk\s+move\b/.test(lower)) {
+      return this.bulkMoveByPattern(command)
+    }
+
+    if (action === 'bulk_search' || action === 'search_content' || /\b(?:search|grep|find)\b.*\b(?:in|within|across)\b/.test(lower)) {
+      return this.searchFileContent(command)
+    }
+
+    if (action === 'file_stats' || action === 'file_info' || /\b(?:stats|info|metadata|properties|file)\s+(?:info|stats|metadata)\b/.test(lower)) {
+      return this.getFileStats(command)
+    }
+
+    if (action === 'calculate_hash' || action === 'hash' || /\b(?:hash|checksum)\b/.test(lower)) {
+      return this.calculateHash(command)
+    }
+
+    return null
+  }
+
+  // ── Phase 7: Advanced System Interaction & Utilities Methods ───────────────
+  private async getClipboard(): Promise<{ success: boolean; message: string }> {
+    if (!window.nativeBridge?.clipboard?.getClipboard) {
+      return { success: false, message: 'Clipboard bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.clipboard.getClipboard()
+    if (result.success) {
+      return {
+        success: true,
+        message: `Clipboard: ${result.text?.substring(0, 100)}${result.length! > 100 ? '...' : ''}`,
+      }
+    }
+    return result as any
+  }
+
+  private async setClipboard(command: string): Promise<{ success: boolean; message: string }> {
+    const match = String(command).match(/^(?:copy|set|paste)\s+(?:to\s+clipboard|in\s+clipboard)?\s*(.+)$/i)
+    const text = match?.[1]?.trim() || ''
+
+    if (!text) {
+      return { success: false, message: 'Please specify text to copy.' }
+    }
+
+    if (!window.nativeBridge?.clipboard?.setClipboard) {
+      return { success: false, message: 'Clipboard bridge unavailable.' }
+    }
+
+    return window.nativeBridge.clipboard.setClipboard(text)
+  }
+
+  private async clearClipboard(): Promise<{ success: boolean; message: string }> {
+    if (!window.nativeBridge?.clipboard?.clearClipboard) {
+      return { success: false, message: 'Clipboard bridge unavailable.' }
+    }
+
+    return window.nativeBridge.clipboard.clearClipboard()
+  }
+
+  private async moveWindow(command: string): Promise<{ success: boolean; message: string }> {
+    const match = String(command).match(/^(?:move|position)\s+(?:window|app)\s+(?:to\s+)?(\d+)\s*[,\s]\s*(\d+)(?:\s+(\d+)\s*[,\s]\s*(\d+))?$/i)
+    const x = parseInt(match?.[1] || '0')
+    const y = parseInt(match?.[2] || '0')
+    const width = match?.[3] ? parseInt(match[3]) : undefined
+    const height = match?.[4] ? parseInt(match[4]) : undefined
+
+    if (!x || !y) {
+      return { success: false, message: 'Please specify coordinates: "move window to 100 200"' }
+    }
+
+    if (!window.nativeBridge?.window?.moveWindow) {
+      return { success: false, message: 'Window movement bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.window.moveWindow(x, y, width, height)
+    if (result.success) {
+      return { success: true, message: `Window moved to ${result.x}, ${result.y}` }
+    }
+    return result as any
+  }
+
+  private async snapWindow(command: string): Promise<{ success: boolean; message: string }> {
+    const match = String(command).match(/^(?:snap|align)\s+(?:window|app)\s+(?:to\s+)?(?:the\s+)?(.+)$/i)
+    const edge = (match?.[1]?.trim() || 'center').toLowerCase() as any
+
+    if (!window.nativeBridge?.window?.snapWindow) {
+      return { success: false, message: 'Window snapping bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.window.snapWindow(edge)
+    if (result.success) {
+      return { success: true, message: `Window snapped to ${result.edge}` }
+    }
+    return result as any
+  }
+
+  private async controlMedia(command: string): Promise<{ success: boolean; message: string }> {
+    const match = String(command).match(/^(?:media|music|audio).*?(play|pause|next|previous|stop|volumeup|volumedown|mute)/i)
+    const mediaCmd = match?.[1]?.toLowerCase() || 'play'
+
+    if (!window.nativeBridge?.media?.control) {
+      return { success: false, message: 'Media control bridge unavailable.' }
+    }
+
+    return window.nativeBridge.media.control(mediaCmd as any)
+  }
+
+  private async checkConnectivity(command: string): Promise<{ success: boolean; message: string }> {
+    const match = String(command).match(/^(?:ping|check|test).*?(?:to\s+)?([a-z0-9\-\.]+)?$/i)
+    const host = match?.[1]?.trim() || '8.8.8.8'
+
+    if (!window.nativeBridge?.network?.checkConnectivity) {
+      return { success: false, message: 'Network bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.network.checkConnectivity(host)
+    if (result.success) {
+      return {
+        success: true,
+        message: result.reachable ? `Host ${host} is reachable.` : `Host ${host} is not reachable.`,
+      }
+    }
+    return result as any
+  }
+
+  private async showNotification(command: string): Promise<{ success: boolean; message: string }> {
+    const match = String(command).match(/^(?:notify|notification|alert)\s+(?:"(.+?)"|'(.+?)'|(.+?))\s+(?:"(.+?)"|'(.+?)'|(.+))$/i)
+    const title = match?.[1] || match?.[2] || match?.[3] || 'Notification'
+    const message = match?.[4] || match?.[5] || match?.[6] || 'Message'
+
+    if (!window.nativeBridge?.notifications?.show) {
+      return { success: false, message: 'Notifications bridge unavailable.' }
+    }
+
+    return window.nativeBridge.notifications.show(title, message)
+  }
+
+  private async handleNativeSystemFallback(command: string, action: string): Promise<{ success: boolean; message: string } | null> {
+    const lower = String(command || '').toLowerCase()
+
+    if (action === 'get_system_resources' || action === 'system_resources' || /\b(?:system|resources|performance|status)\b/.test(lower)) {
+      return this.getSystemResources()
+    }
+
+    if (action === 'get_disk_usage' || action === 'disk' || /\b(?:disk|storage|space|drive)\b/.test(lower)) {
+      return this.getDiskUsage(command)
+    }
+
+    if (action === 'get_system_info' || action === 'system_info' || /\bsystem\s+info\b/.test(lower)) {
+      return this.getSystemInfo()
+    }
+
+    if (action === 'get_env_var' || action === 'env' || /\b(?:get|show|print|echo)\s+(?:env|environment)\b/.test(lower)) {
+      return this.getEnvVar(command)
+    }
+
+    if (action === 'set_env_var' || /\bset\s+(?:env|environment|variable)\b/.test(lower)) {
+      return this.setEnvVar(command)
+    }
+
+    if (action === 'list_env_vars' || /\b(?:list|show|print)\s+(?:env|environment|variables)\b/.test(lower)) {
+      return this.listEnvVars(command)
+    }
+
+    if (action === 'schedule_task' || action === 'schedule' || /\b(?:schedule|run\s+(?:in|after))\b/.test(lower)) {
+      return this.scheduleTask(command)
+    }
+
+    if (action === 'cancel_task' || action === 'cancel' || /\bcancel\s+(?:task|scheduled)\b/.test(lower)) {
+      return this.cancelTask(command)
+    }
+
+    if (action === 'list_scheduled_tasks' || /\b(?:list|show)\s+(?:scheduled|pending)\s+tasks\b/.test(lower)) {
+      return this.listScheduledTasks()
+    }
+
+    return null
+  }
+
+  private async handleNativeAdvancedFallback(command: string, action: string): Promise<{ success: boolean; message: string } | null> {
+    const lower = String(command || '').toLowerCase()
+
+    if (action === 'get_clipboard' || action === 'clipboard' || /\b(?:get|read|show)\s+(?:clipboard|copy)\b/.test(lower)) {
+      return this.getClipboard()
+    }
+
+    if (action === 'set_clipboard' || /\b(?:copy|set|put)\s+(?:to\s+clipboard|in\s+clipboard)\b/.test(lower)) {
+      return this.setClipboard(command)
+    }
+
+    if (action === 'clear_clipboard' || /\bclear\s+(?:clipboard|copyboard)\b/.test(lower)) {
+      return this.clearClipboard()
+    }
+
+    if (action === 'move_window' || action === 'position_window' || /\b(?:move|position)\s+(?:window|app|application)\b/.test(lower)) {
+      return this.moveWindow(command)
+    }
+
+    if (action === 'snap_window' || action === 'snap' || /\b(?:snap|align)\s+(?:window|app|application)\b/.test(lower)) {
+      return this.snapWindow(command)
+    }
+
+    if (action === 'media_control' || action === 'media' || /\b(?:play|pause|next|previous|music|forward|back)\b/.test(lower)) {
+      return this.controlMedia(command)
+    }
+
+    if (action === 'check_connectivity' || action === 'connectivity' || /\b(?:ping|check\s+(?:network|connection)|connectivity)\b/.test(lower)) {
+      return this.checkConnectivity(command)
+    }
+
+    if (action === 'show_notification' || action === 'notify' || /\b(?:notify|notification|alert|send\s+notification)\b/.test(lower)) {
+      return this.showNotification(command)
+    }
+
+    return null
+  }
+
+  private async focusApp(command: string): Promise<{ success: boolean; message: string }> {
+    const target = this.extractWindowTarget(command)
+    if (!target) {
+      return { success: false, message: 'No app name detected for focus command.' }
+    }
+
+    if (!window.nativeBridge?.focusApp) {
+      return { success: false, message: 'Focus-app bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.focusApp(target)
+    return result.success
+      ? { success: true, message: result.message || `Focused ${target}.` }
+      : { success: false, message: result.message || `Failed to focus ${target}.` }
+  }
+
+  private async revealInFolder(command: string): Promise<{ success: boolean; message: string }> {
+    const params = this.parseTaskCommand(command)
+    const explicit = String(params.filePath || params.path || params.target || params.item || '').trim()
+    let targetPath = explicit
+
+    if (!targetPath) {
+      const lower = String(command || '').toLowerCase()
+      const pathMatch = command.match(/(?:reveal|show|open)\s+(.+?)\s+(?:in\s+folder|location|containing\s+folder)$/i)
+      if (pathMatch?.[1]) {
+        targetPath = pathMatch[1].trim()
+      } else if (/\b(open|show|reveal)\s+(.+)$/i.test(command) && lower.includes('folder')) {
+        targetPath = command.replace(/^(?:reveal|show|open)\s+/i, '').replace(/\s+(?:in\s+folder|location|containing\s+folder)$/i, '').trim()
+      }
+    }
+
+    if (!targetPath) {
+      return { success: false, message: 'No file or folder path detected for reveal command.' }
+    }
+
+    if (!window.nativeBridge?.revealInFolder) {
+      return { success: false, message: 'Reveal-in-folder bridge unavailable.' }
+    }
+
+    const result = await window.nativeBridge.revealInFolder(targetPath)
+    return result.success
+      ? { success: true, message: result.message || `Revealed ${targetPath}.` }
+      : { success: false, message: result.message || `Failed to reveal ${targetPath}.` }
+  }
+
+  private async handleNativeUtilityFallback(command: string, action: string): Promise<{ success: boolean; message: string } | null> {
+    const lower = String(command || '').toLowerCase()
+
+    if (
+      action === 'open_special_folder' ||
+      action === 'open_recycle_bin' ||
+      action === 'open_trash' ||
+      /\b(open|show|launch)\s+.*\b(desktop|downloads?|documents?|pictures?|photos?|music|videos?|home|app data|appdata|user data)\b/.test(lower) ||
+      /\b(recycle bin|trash)\b/.test(lower)
+    ) {
+      return this.openSpecialFolder(command)
+    }
+
+    if (action === 'empty_recycle_bin' || /\bempty\s+(?:the\s+)?(?:recycle bin|trash)\b/.test(lower)) {
+      return this.emptyRecycleBin()
+    }
+
+    if (action === 'show_desktop' || /\bshow\s+desktop\b/.test(lower)) {
+      return this.showDesktop()
+    }
+
+    if (action === 'reveal_in_folder' || /\b(?:reveal|show|open)\b.*\b(?:in\s+folder|location|containing\s+folder)\b/.test(lower)) {
+      return this.revealInFolder(command)
+    }
+
+    return null
+  }
+
+  private async handleNativeWindowFallback(command: string, action: string): Promise<{ success: boolean; message: string } | null> {
+    const lower = String(command || '').toLowerCase()
+
+    if (action === 'list_running_apps' || action === 'running_apps_report' || action === 'app_inventory' || /\b(?:running|open|active)\s+apps\b/.test(lower)) {
+      return this.listRunningApps()
+    }
+
+    if (action === 'focus_app' || action === 'switch_to_app' || action === 'focus_window' || /\b(?:focus|switch to|bring to front|activate)\b/.test(lower)) {
+      return this.focusApp(command)
+    }
+
+    if (action === 'window_control' || /\b(?:minimize|maximize|restore|hide)\b.*\bwindow\b/.test(lower)) {
+      return this.controlWindow(command)
+    }
+
+    return null
+  }
+
+  private async handleNativeFileProcessFallback(command: string, action: string): Promise<{ success: boolean; message: string } | null> {
+    const lower = String(command || '').toLowerCase()
+
+    if (action === 'create_folder' || /\b(?:create|make|new)\s+folder\b/.test(lower)) {
+      return this.createFolder(command)
+    }
+
+    if (action === 'copy_path' || /\bcopy\b.*\bto\b/.test(lower)) {
+      return this.copyPath(command)
+    }
+
+    if (action === 'move_path' || /\bmove\b.*\bto\b/.test(lower)) {
+      return this.movePath(command)
+    }
+
+    if (action === 'rename_path' || /\brename\b.*\bto\b/.test(lower)) {
+      return this.renamePath(command)
+    }
+
+    if (action === 'delete_path' || /\b(?:delete|remove|trash)\b/.test(lower)) {
+      return this.deletePath(command)
+    }
+
+    if (action === 'open_path' || action === 'open_file' || action === 'open_folder' || /\b(?:open|launch|show|reveal)\b/.test(lower)) {
+      return this.openPathTarget(command)
+    }
+
+    if (action === 'list_directory' || action === 'list_dir' || /\b(?:list|show)\s+(?:contents|files|directory)\b/.test(lower)) {
+      return this.listDirectory(command)
+    }
+
+    if (action === 'terminate_process' || action === 'kill_process' || /\b(?:kill|terminate|end process|close process)\b/.test(lower)) {
+      return this.terminateProcess(command)
+    }
+
+    return null
+  }
+
   private async launchApp(command: string, decision: PolicyResult): Promise<{ success: boolean; message: string }> {
     if (decision.tokenRequired) {
       const verified = hardcodeProtocol.validateDecisionToken(decision.decisionToken, 'app_launch')
@@ -1079,6 +2356,41 @@ class TaskExecutor {
 
     if (action === 'platform_capability_report') {
       return this.generateCapabilityReport()
+    }
+
+    const nativeWindowFallback = await this.handleNativeWindowFallback(command, action)
+    if (nativeWindowFallback) {
+      return nativeWindowFallback
+    }
+
+    const nativeBrowserFallback = await this.handleNativeBrowserFallback(command, action)
+    if (nativeBrowserFallback) {
+      return nativeBrowserFallback
+    }
+
+    const nativeBulkFallback = await this.handleNativeBulkFallback(command, action)
+    if (nativeBulkFallback) {
+      return nativeBulkFallback
+    }
+
+    const nativeSystemFallback = await this.handleNativeSystemFallback(command, action)
+    if (nativeSystemFallback) {
+      return nativeSystemFallback
+    }
+
+    const nativeAdvancedFallback = await this.handleNativeAdvancedFallback(command, action)
+    if (nativeAdvancedFallback) {
+      return nativeAdvancedFallback
+    }
+
+    const nativeUtilityFallback = await this.handleNativeUtilityFallback(command, action)
+    if (nativeUtilityFallback) {
+      return nativeUtilityFallback
+    }
+
+    const nativeFileProcessFallback = await this.handleNativeFileProcessFallback(command, action)
+    if (nativeFileProcessFallback) {
+      return nativeFileProcessFallback
     }
 
     if (action === 'set_daily_briefing_time') {
@@ -1604,10 +2916,21 @@ class TaskExecutor {
     const params = this.parseTaskCommand(command)
     const operation = String(params.operation || '').toLowerCase().trim()
     const targetPath = String(params.path || '').trim()
+    const destinationPath = String(params.destination || params.dest || params.to || params.newPath || '').trim()
+    const newName = String(params.newName || params.name || params.filename || '').trim()
     const platform = detectPlatform()
 
-    if (!targetPath && operation !== 'list') {
+    if (!targetPath && !['list', 'open', 'create'].includes(operation) && !destinationPath && !newName) {
       return { success: false, message: 'No file path provided.' }
+    }
+
+    if (operation === 'create' || operation === 'mkdir' || operation === 'create_folder') {
+      if (window.nativeBridge?.createFolder) {
+        const result = await window.nativeBridge.createFolder(targetPath)
+        return result.success
+          ? { success: true, message: result.message || `Created folder: ${targetPath}` }
+          : { success: false, message: result.message || 'Create folder failed.' }
+      }
     }
 
     if (operation === 'write') {
@@ -1627,7 +2950,50 @@ class TaskExecutor {
       return { success: false, message: result?.message || 'Read failed.' }
     }
 
+    if (operation === 'open') {
+      if (window.nativeBridge?.openPath) {
+        const result = await window.nativeBridge.openPath(targetPath)
+        return result.success
+          ? { success: true, message: result.message || `Opened ${targetPath}` }
+          : { success: false, message: result.message || 'Open failed.' }
+      }
+    }
+
+    if (operation === 'rename') {
+      if (window.nativeBridge?.renamePath) {
+        const result = await window.nativeBridge.renamePath(targetPath, newName)
+        return result.success
+          ? { success: true, message: result.message || `Renamed ${targetPath} to ${newName}` }
+          : { success: false, message: result.message || 'Rename failed.' }
+      }
+    }
+
+    if (operation === 'copy') {
+      if (window.nativeBridge?.copyPath) {
+        const result = await window.nativeBridge.copyPath(targetPath, destinationPath)
+        return result.success
+          ? { success: true, message: result.message || `Copied ${targetPath} to ${destinationPath}` }
+          : { success: false, message: result.message || 'Copy failed.' }
+      }
+    }
+
+    if (operation === 'move') {
+      if (window.nativeBridge?.movePath) {
+        const result = await window.nativeBridge.movePath(targetPath, destinationPath)
+        return result.success
+          ? { success: true, message: result.message || `Moved ${targetPath} to ${destinationPath}` }
+          : { success: false, message: result.message || 'Move failed.' }
+      }
+    }
+
     if (operation === 'delete') {
+      if (window.nativeBridge?.deletePath) {
+        const result = await window.nativeBridge.deletePath(targetPath)
+        return result.success
+          ? { success: true, message: result.message || `Deleted file: ${targetPath}` }
+          : { success: false, message: result.message || 'Delete failed.' }
+      }
+
       if (!window.nativeBridge?.runShellCommand) {
         return { success: false, message: 'Shell bridge unavailable for delete operation.' }
       }
@@ -1642,6 +3008,14 @@ class TaskExecutor {
     }
 
     if (operation === 'list') {
+      if (window.nativeBridge?.listDir) {
+        const result = await window.nativeBridge.listDir(targetPath || '.')
+        if (result.success) {
+          const entries = (result.entries || []).map((item) => (item.isDir ? `[${item.name}]` : item.name))
+          return { success: true, message: `Files in ${targetPath || '.'}:\n${entries.join('\n')}` }
+        }
+      }
+
       if (!window.nativeBridge?.runShellCommand) {
         return { success: false, message: 'Shell bridge unavailable for list operation.' }
       }
@@ -1856,6 +3230,23 @@ class TaskExecutor {
       success: true,
       message: lines.join('\n'),
     }
+  }
+
+  private async logCommandOutcome(command: string, success: boolean, detail: string): Promise<void> {
+    const key = success ? 'ncul_command_success' : 'ncul_command_failure'
+    const payload = `${new Date().toISOString()} | ${command} | ${detail}`
+    await memoryEngine.rememberFact(`${key}_${Date.now()}`, payload, success ? 'habit' : 'fact')
+  }
+
+  private logReactiveActionToAgency(command: string, success: boolean): void {
+    void intentionalAgencyLayer.proposeAction({
+      description: `User command executed ${success ? 'successfully' : 'with issues'}: ${command}`,
+      source: 'task-executor-reactive-feedback',
+      context: {
+        originalCommand: command,
+        success,
+      },
+    })
   }
 }
 

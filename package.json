@@ -14,9 +14,10 @@
     "electron-run": "electron electron/main.cjs",
     "electron-dev": "electron electron/main.cjs",
     "clean:electron-dist": "node scripts/clean-electron-dist.cjs",
-    "electron-build": "npm run build && npm run clean:electron-dist && electron-builder --win nsis --x64",
-    "electron-build:installer": "npm run build && npm run clean:electron-dist && electron-builder --win nsis --x64",
-    "electron-build:portable": "npm run build && npm run clean:electron-dist && electron-builder --win portable --x64",
+    "electron-build": "npm run clean:electron-dist && npm run build && electron-builder --win nsis --x64",
+    "electron-build:setup": "npm run clean:electron-dist && npm run build && electron-builder --win nsis --x64",
+    "electron-build:installer": "npm run electron-build:setup",
+    "electron-build:portable": "npm run clean:electron-dist && npm run build && electron-builder --win portable --x64",
     "type-check": "tsc --noEmit",
     "lint": "eslint src --ext .ts,.tsx",
     "release-gate": "node scripts/release-gate.cjs",
@@ -66,13 +67,14 @@
           ]
         }
       ],
-      "artifactName": "${productName}-${version}.${ext}"
+      "artifactName": "${productName}-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Patrich"
     },
     "portable": {
       "artifactName": "${productName}-portable-${version}.exe"

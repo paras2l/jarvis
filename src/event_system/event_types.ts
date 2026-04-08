@@ -30,7 +30,130 @@ export type SystemEventName =
   | 'notification_emitted'
   | 'learning_cycle_started'
   | 'learning_cycle_completed'
+  | 'action_logged'
+  | 'agency_action_ready'
+  | 'simulation_complete'
+  | 'alignment_evaluated'
+  | 'user_override_occurred'
+  | 'outcome_evaluated'
+  | 'feedback_integrated'
+  | 'policy_update_proposed'
+  | 'policy_update_deployed'
+  | 'confidence_calibrated'
+  | 'learning_cycle_metrics_updated'
+  | 'voice_command_perceived'
+  | 'screen_state_updated'
+  | 'sensor_signal_detected'
+  | 'perception_confidence_low'
+  | 'perception_verified'
+  | 'action_feedback_logged'
 
+export interface OutcomeEvaluatedPayload {
+  evaluationId: string
+  actionId: string
+  success: boolean
+  predictionAccuracy: number
+  deviationScore: number
+  successRate: number
+  efficiency: number
+}
+
+export interface FeedbackIntegratedPayload {
+  actionId: string
+  feedbackType: 'approval' | 'rejection' | 'correction' | 'optimization' | 'safety_flag'
+  source: 'user_explicit' | 'user_implicit' | 'environment' | 'system_monitor'
+  feedbackScore: number
+  intensity: number
+}
+
+export interface PolicyUpdateProposedPayload {
+  updateId: string
+  policyName: string
+  updateType: 'threshold_adjustment' | 'pattern_promotion' | 'pattern_suppression' | 'strategy_refinement'
+  confidence: number
+  estimatedSuccessRateChange: number
+}
+
+export interface PolicyUpdateDeployedPayload {
+  updateId: string
+  policyName: string
+  previousValue: number | string
+  newValue: number | string
+  deploymentTime: number
+}
+
+export interface ConfidenceCalibratedPayload {
+  moduleId: string
+  actionType?: 'reactive' | 'proactive' | 'exploratory'
+  previousConfidence: number
+  adjustedConfidence: number
+  historicalAccuracy: number
+  sampleSize: number
+}
+
+export interface LearningCycleMetricsUpdatedPayload {
+  cycleNumber: number
+  duration: number
+  outcomeEvaluations: number
+  feedbackSignals: number
+  policiesRefined: number
+  confidenceAdjustments: number
+  detectedPatterns: number
+  systemConfidence: number
+  successRate: number
+  averageEfficiency: number
+}
+
+export interface VoiceCommandPerceivedPayload {
+  commandId: string
+  originalText: string
+  normalizedText: string
+  intent: string
+  confidence: number
+  requiresVerification: boolean
+}
+
+export interface ScreenStateUpdatedPayload {
+  snapshotId: string
+  focusedApp?: string
+  focusedWindowTitle?: string
+  runningApps: string[]
+  windowCount: number
+  confidence: number
+}
+
+export interface SensorSignalDetectedPayload {
+  signalId: string
+  channel: 'notification' | 'system_alert' | 'microphone' | 'camera' | 'peripheral' | 'network'
+  level: 'info' | 'warning' | 'critical'
+  message: string
+  confidence: number
+}
+
+export interface PerceptionConfidenceLowPayload {
+  channel: 'voice' | 'screen' | 'sensor' | 'cross_modal'
+  confidence: number
+  reason: string
+  clarificationPrompt: string
+}
+
+export interface PerceptionVerifiedPayload {
+  cycleId: string
+  aggregateConfidence: number
+  requiresVerification: boolean
+  channels: {
+    voice: number
+    screen: number
+    sensor: number
+  }
+}
+
+export interface ActionFeedbackLoggedPayload {
+  actionId: string
+  success: boolean
+  summary: string
+  source: string
+}
 export interface EventEnvelope<T = unknown> {
   id: string
   name: SystemEventName
@@ -240,6 +363,46 @@ export interface LearningCyclePayload {
   gapCount?: number
 }
 
+export interface ActionLoggedPayload {
+  actionId: string
+  description: string
+  type: 'reactive' | 'proactive'
+  confidence: number
+  utility: number
+  timestamp: number
+}
+
+export interface AgencyActionReadyPayload {
+  actionId: string
+  description: string
+  confidence: number
+  utility: number
+}
+
+export interface SimulationCompletePayload {
+  simulationId: string
+  actionId: string
+  approved: boolean
+  overallRisk: number
+  overallUtility: number
+  recommendationScore: number
+}
+
+export interface AlignmentEvaluatedPayload {
+  actionId: string
+  decision: 'approved' | 'modified' | 'blocked'
+  riskLevel: 'low' | 'medium' | 'high' | 'critical'
+  violatedPolicies: string[]
+  confidence: number
+}
+
+export interface UserOverrideOccurredPayload {
+  actionId: string
+  originalDecision: 'approved' | 'modified' | 'blocked'
+  userDecision: 'approved' | 'modified' | 'blocked'
+  reason: string
+}
+
 export interface EventPayloadMap {
   context_updated: ContextUpdatedPayload
   task_created: TaskCreatedPayload
@@ -272,6 +435,23 @@ export interface EventPayloadMap {
   notification_emitted: NotificationEmittedPayload
   learning_cycle_started: LearningCyclePayload
   learning_cycle_completed: LearningCyclePayload
+  action_logged: ActionLoggedPayload
+  agency_action_ready: AgencyActionReadyPayload
+  simulation_complete: SimulationCompletePayload
+  alignment_evaluated: AlignmentEvaluatedPayload
+  user_override_occurred: UserOverrideOccurredPayload
+  outcome_evaluated: OutcomeEvaluatedPayload
+  feedback_integrated: FeedbackIntegratedPayload
+  policy_update_proposed: PolicyUpdateProposedPayload
+  policy_update_deployed: PolicyUpdateDeployedPayload
+  confidence_calibrated: ConfidenceCalibratedPayload
+  learning_cycle_metrics_updated: LearningCycleMetricsUpdatedPayload
+  voice_command_perceived: VoiceCommandPerceivedPayload
+  screen_state_updated: ScreenStateUpdatedPayload
+  sensor_signal_detected: SensorSignalDetectedPayload
+  perception_confidence_low: PerceptionConfidenceLowPayload
+  perception_verified: PerceptionVerifiedPayload
+  action_feedback_logged: ActionFeedbackLoggedPayload
 }
 
 export type EventListener<TName extends SystemEventName = SystemEventName> = (

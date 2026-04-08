@@ -25,6 +25,37 @@ export interface AppDefinition {
 class AppRegistry {
   private apps: Map<string, AppDefinition> = new Map()
 
+  private normalize(value: string): string {
+    return String(value || '')
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '')
+  }
+
+  private levenshtein(a: string, b: string): number {
+    const m = a.length
+    const n = b.length
+    if (m === 0) return n
+    if (n === 0) return m
+
+    const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0))
+    for (let i = 0; i <= m; i++) dp[i][0] = i
+    for (let j = 0; j <= n; j++) dp[0][j] = j
+
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1
+        dp[i][j] = Math.min(
+          dp[i - 1][j] + 1,
+          dp[i][j - 1] + 1,
+          dp[i - 1][j - 1] + cost,
+        )
+      }
+    }
+
+    return dp[m][n]
+  }
+
   constructor() {
     this.initializeDefaultApps()
   }
@@ -87,13 +118,31 @@ class AppRegistry {
     this.registerApp({
       id: 'whatsapp',
       name: 'WhatsApp',
-      aliases: ['whatsapp', 'wa', 'messaging'],
+      aliases: ['whatsapp', 'wa', 'messaging', 'watsapp', 'whats app', 'whtsapp'],
       platforms: {
+        windows: 'whatsapp',
+        macos: '/Applications/WhatsApp.app',
+        linux: 'whatsapp',
         android: 'com.whatsapp',
         ios: 'whatsapp://send?phone=',
       },
       category: 'communication',
-      deviceTypes: ['mobile', 'tablet'],
+      deviceTypes: ['desktop', 'mobile', 'tablet'],
+    })
+
+    this.registerApp({
+      id: 'canva',
+      name: 'Canva',
+      aliases: ['canva', 'kanva', 'design app'],
+      platforms: {
+        windows: 'https://www.canva.com',
+        macos: 'https://www.canva.com',
+        linux: 'https://www.canva.com',
+        android: 'com.canva.editor',
+        ios: 'canva://',
+      },
+      category: 'productivity',
+      deviceTypes: ['desktop', 'mobile', 'tablet'],
     })
 
     // Browsers
@@ -243,8 +292,31 @@ class AppRegistry {
    * Find app by name or alias
    */
   findApp(query: string): AppDefinition | undefined {
-    const normalized = query.toLowerCase().trim()
-    return this.apps.get(normalized)
+    const normalized = this.normalize(query)
+    const direct = this.apps.get(normalized)
+    if (direct) return direct
+
+    const all = this.getAllApps()
+    let best: AppDefinition | undefined
+    let bestScore = Number.POSITIVE_INFINITY
+
+    for (const app of all) {
+      const candidates = [app.name, ...app.aliases].map((value) => this.normalize(value)).filter(Boolean)
+      for (const candidate of candidates) {
+        if (candidate.includes(normalized) || normalized.includes(candidate)) {
+          return app
+        }
+
+        const score = this.levenshtein(normalized, candidate)
+        if (score < bestScore) {
+          bestScore = score
+          best = app
+        }
+      }
+    }
+
+    const tolerance = normalized.length >= 8 ? 2 : 1
+    return best && bestScore <= tolerance ? best : undefined
   }
 
   /**

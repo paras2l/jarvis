@@ -69,6 +69,22 @@ declare global {
       launchApp: (appName: string) => Promise<{ success: boolean; message: string }>
       openExternal: (target: string) => Promise<{ success: boolean; message: string }>
       openAppAssistive: (appName: string) => Promise<{ success: boolean; message: string }>
+      openSpecialFolder: (folderName: string) => Promise<{ success: boolean; message: string }>
+      openRecycleBin: () => Promise<{ success: boolean; message: string }>
+      emptyRecycleBin: () => Promise<{ success: boolean; message: string }>
+      revealInFolder: (targetPath: string) => Promise<{ success: boolean; message: string }>
+      showDesktop: () => Promise<{ success: boolean; message: string }>
+      controlWindow: (action: 'minimize' | 'maximize' | 'restore' | 'focus' | 'hide' | 'show') => Promise<{ success: boolean; message: string }>
+      listRunningApps: () => Promise<{ success: boolean; apps?: Array<{ name: string; executableName?: string; windowTitle?: string }>; message?: string }>
+      focusApp: (appName: string) => Promise<{ success: boolean; message: string }>
+      listDir: (dirPath: string) => Promise<{ success: boolean; entries?: Array<{ name: string; path: string; isDir: boolean; size?: number }>; message?: string }>
+      createFolder: (folderPath: string) => Promise<{ success: boolean; message: string }>
+      copyPath: (sourcePath: string, destinationPath: string) => Promise<{ success: boolean; message: string }>
+      movePath: (sourcePath: string, destinationPath: string) => Promise<{ success: boolean; message: string }>
+      renamePath: (sourcePath: string, newName: string) => Promise<{ success: boolean; message: string }>
+      deletePath: (targetPath: string) => Promise<{ success: boolean; message: string }>
+      openPath: (targetPath: string) => Promise<{ success: boolean; message: string }>
+      terminateProcess: (identifier: string) => Promise<{ success: boolean; message: string }>
       openAppAssistiveV2?: (
         options: AssistiveAutomationOptions
       ) => Promise<AssistiveAutomationResult>
@@ -154,7 +170,63 @@ declare global {
         execute?: (action: {
           type: string; selector?: string; value?: string; url?: string; script?: string
         }) => Promise<{ success: boolean; content?: string; screenshot?: string; url?: string; title?: string; error?: string }>
+        getState?: () => Promise<{ success: boolean; url?: string; title?: string; visible?: boolean; focused?: boolean; message?: string }>
+        reload?: () => Promise<{ success: boolean; url?: string; title?: string; message?: string }>
+        openCurrent?: () => Promise<{ success: boolean; message?: string }>
         close?: () => Promise<void>
+      }
+
+      // ── Phase 5: Bulk Automation & Content Processing ──────────────────
+      bulk?: {
+        compressPath?: (sourcePath: string, destinationPath: string, format?: 'zip' | 'tar.gz' | 'gzip') => Promise<{ success: boolean; path?: string; message?: string }>
+        extractArchive?: (archivePath: string, destinationPath: string) => Promise<{ success: boolean; path?: string; message?: string }>
+        bulkMoveByPattern?: (sourceDir: string, pattern: string, destinationDir: string, useRegex?: boolean) => Promise<{ success: boolean; moved?: Array<{ from: string; to: string }>; count?: number; message?: string }>
+        searchFileContent?: (searchDir: string, textPattern: string, fileExtPattern?: string) => Promise<{ success: boolean; results?: Array<{ file: string; matches: number }>; count?: number; message?: string }>
+        getFileStats?: (filePath: string) => Promise<{ success: boolean; stats?: { size: number; created: string; modified: string; isFile: boolean; isDirectory: boolean; permissions: string; sha256: string }; message?: string }>
+        calculateHash?: (filePath: string, algorithm?: 'sha256' | 'sha512' | 'md5') => Promise<{ success: boolean; hash?: string; algorithm?: string; message?: string }>
+      }
+
+      // ── Phase 6: Advanced Automation & System Monitoring ──────────────────
+      monitor?: {
+        getSystemResources?: () => Promise<{ success: boolean; resources?: { memoryTotal: number; memoryFree: number; memoryUsed: number; memoryPercent: number; cpuCount: number; loadAverage: { oneMin: number; fiveMin: number; fifteenMin: number }; uptime: number; platform: string; arch: string; hostname: string }; message?: string }>
+        getDiskUsage?: (dirPath?: string) => Promise<{ success: boolean; diskTotal?: number; diskUsed?: number; diskFree?: number; diskPercent?: number; message?: string }>
+        getSystemInfo?: () => Promise<{ success: boolean; info?: { platform: string; arch: string; hostname: string; userInfo: any; uptime: number; networkInterfaces: string[] }; message?: string }>
+      }
+
+      environment?: {
+        getEnvVar?: (varName: string) => Promise<{ success: boolean; varName?: string; value?: string | null; found?: boolean; message?: string }>
+        setEnvVar?: (varName: string, value: string) => Promise<{ success: boolean; varName?: string; value?: string; message?: string }>
+        listEnvVars?: (filterPattern?: string) => Promise<{ success: boolean; count?: number; variables?: Record<string, string>; message?: string }>
+      }
+
+      automation?: {
+        scheduleTask?: (delayMs: number, command?: string) => Promise<{ success: boolean; taskId?: string; scheduledAt?: string; executeAt?: string; message?: string }>
+        cancelTask?: (taskId: string) => Promise<{ success: boolean; taskId?: string; message?: string }>
+        listScheduledTasks?: () => Promise<{ success: boolean; count?: number; tasks?: Array<{ taskId: string }>; message?: string }>
+      }
+
+      // ── Phase 7: Advanced System Interaction & Utilities ──────────────────
+      clipboard?: {
+        getClipboard?: () => Promise<{ success: boolean; text?: string; length?: number; message?: string }>
+        setClipboard?: (text: string) => Promise<{ success: boolean; message?: string }>
+        clearClipboard?: () => Promise<{ success: boolean; message?: string }>
+      }
+
+      window?: {
+        moveWindow?: (x: number, y: number, width?: number, height?: number) => Promise<{ success: boolean; x?: number; y?: number; width?: number; height?: number; message?: string }>
+        snapWindow?: (edge?: 'left' | 'right' | 'top' | 'bottom' | 'topleft' | 'topright' | 'bottomleft' | 'bottomright' | 'center') => Promise<{ success: boolean; x?: number; y?: number; edge?: string; message?: string }>
+      }
+
+      media?: {
+        control?: (command: 'play' | 'pause' | 'next' | 'previous' | 'stop' | 'volumeup' | 'volumedown' | 'mute') => Promise<{ success: boolean; message?: string }>
+      }
+
+      network?: {
+        checkConnectivity?: (targetHost?: string) => Promise<{ success?: boolean; reachable?: boolean; host?: string; message?: string }>
+      }
+
+      notifications?: {
+        show?: (title: string, message: string, opts?: { icon?: string }) => Promise<{ success: boolean; message?: string }>
       }
 
       // ── Wave 2: MCP Protocol (J-R1) ────────────────────────────────────

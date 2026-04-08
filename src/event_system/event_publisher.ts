@@ -1,6 +1,9 @@
 import { eventBus } from './event_bus'
 import type {
+  ActionLoggedPayload,
+  AgencyActionReadyPayload,
   AgentAssignedPayload,
+  AlignmentEvaluatedPayload,
   CommandExecutedPayload,
   CommandParsedPayload,
   CommandReceivedPayload,
@@ -17,11 +20,25 @@ import type {
   RuntimeStartedPayload,
   RuntimeStoppedPayload,
   RuntimeTickPayload,
+  SimulationCompletePayload,
   SkillExecutedPayload,
   SkillRegisteredPayload,
   SystemEventName,
   TaskCompletedPayload,
   TaskCreatedPayload,
+  UserOverrideOccurredPayload,
+  OutcomeEvaluatedPayload,
+  FeedbackIntegratedPayload,
+  PolicyUpdateProposedPayload,
+  PolicyUpdateDeployedPayload,
+  ConfidenceCalibratedPayload,
+  LearningCycleMetricsUpdatedPayload,
+  VoiceCommandPerceivedPayload,
+  ScreenStateUpdatedPayload,
+  SensorSignalDetectedPayload,
+  PerceptionConfidenceLowPayload,
+  PerceptionVerifiedPayload,
+  ActionFeedbackLoggedPayload,
 } from './event_types'
 
 class EventPublisher {
@@ -123,6 +140,74 @@ class EventPublisher {
 
   taskScheduled(id: string, title: string, runAt: number, source = 'scheduler') {
     return this.publish('task_scheduled', { id, title, runAt }, source)
+  }
+
+  actionLogged(payload: ActionLoggedPayload, source = 'intentional-agency') {
+    return this.publish('action_logged', payload, source)
+  }
+
+  agencyActionReady(payload: AgencyActionReadyPayload, source = 'intentional-agency') {
+    return this.publish('agency_action_ready', payload, source)
+  }
+
+  simulationComplete(payload: SimulationCompletePayload, source = 'counterfactual-world') {
+    return this.publish('simulation_complete', payload, source)
+  }
+
+  alignmentEvaluated(payload: AlignmentEvaluatedPayload, source = 'alignment-layer') {
+    return this.publish('alignment_evaluated', payload, source)
+  }
+
+  userOverrideOccurred(payload: UserOverrideOccurredPayload, source = 'alignment-layer') {
+    return this.publish('user_override_occurred', payload, source)
+  }
+
+  outcomeEvaluated(payload: OutcomeEvaluatedPayload, source = 'reflective-learning') {
+    return this.publish('outcome_evaluated', payload, source)
+  }
+
+  feedbackIntegrated(payload: FeedbackIntegratedPayload, source = 'reflective-learning') {
+    return this.publish('feedback_integrated', payload, source)
+  }
+
+  policyUpdateProposed(payload: PolicyUpdateProposedPayload, source = 'reflective-learning') {
+    return this.publish('policy_update_proposed', payload, source)
+  }
+
+  policyUpdateDeployed(payload: PolicyUpdateDeployedPayload, source = 'reflective-learning') {
+    return this.publish('policy_update_deployed', payload, source)
+  }
+
+  confidenceCalibrated(payload: ConfidenceCalibratedPayload, source = 'reflective-learning') {
+    return this.publish('confidence_calibrated', payload, source)
+  }
+
+  learningCycleMetricsUpdated(payload: LearningCycleMetricsUpdatedPayload, source = 'reflective-learning') {
+    return this.publish('learning_cycle_metrics_updated', payload, source)
+  }
+
+  voiceCommandPerceived(payload: VoiceCommandPerceivedPayload, source = 'perception-layer') {
+    return this.publish('voice_command_perceived', payload, source)
+  }
+
+  screenStateUpdated(payload: ScreenStateUpdatedPayload, source = 'perception-layer') {
+    return this.publish('screen_state_updated', payload, source)
+  }
+
+  sensorSignalDetected(payload: SensorSignalDetectedPayload, source = 'perception-layer') {
+    return this.publish('sensor_signal_detected', payload, source)
+  }
+
+  perceptionConfidenceLow(payload: PerceptionConfidenceLowPayload, source = 'perception-layer') {
+    return this.publish('perception_confidence_low', payload, source)
+  }
+
+  perceptionVerified(payload: PerceptionVerifiedPayload, source = 'perception-layer') {
+    return this.publish('perception_verified', payload, source)
+  }
+
+  actionFeedbackLogged(payload: ActionFeedbackLoggedPayload, source = 'perception-layer') {
+    return this.publish('action_feedback_logged', payload, source)
   }
 }
 

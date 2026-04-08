@@ -4,7 +4,15 @@ export interface WakeWordMatch {
   wakeToken: string
 }
 
-const DEFAULT_TOKENS = ['hey patrich', 'ok patrich', 'jarvis', 'hey jarvis']
+const DEFAULT_TOKENS = [
+  'hey patrich',
+  'ok patrich',
+  'okay patrich',
+  'hey patrick',
+  'jarvis',
+  'hey jarvis',
+  'ok jarvis',
+]
 
 export class WakeWordDetector {
   private tokens: string[]
@@ -19,6 +27,19 @@ export class WakeWordDetector {
 
   match(transcript: string): WakeWordMatch {
     const normalized = transcript.toLowerCase().trim()
+
+    const regex = /\b(?:hey|ok|okay)?\s*(?:patrich|patrick|jarvis)\b/i
+    const matched = normalized.match(regex)
+    if (matched && matched.index !== undefined) {
+      const suffixStart = matched.index + matched[0].length
+      const commandText = transcript.slice(suffixStart).replace(/^[\s,:-]+/, '')
+      return {
+        detected: true,
+        commandText,
+        wakeToken: matched[0].toLowerCase(),
+      }
+    }
+
     for (const token of this.tokens) {
       if (!normalized.startsWith(token)) continue
       const commandText = transcript.slice(token.length).replace(/^[\s,:-]+/, '')

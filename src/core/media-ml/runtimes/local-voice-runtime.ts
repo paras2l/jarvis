@@ -134,7 +134,10 @@ class LocalVoiceRuntime implements MediaRuntimeAdapter {
 
   // ── Web Speech API fallback ───────────────────────────────────────────────
 
-  private playWithWebSpeechAPI(text: string): Promise<void> {
+  private playWithWebSpeechAPI(
+    text: string,
+    options?: { rate?: number; pitch?: number; volume?: number },
+  ): Promise<void> {
     return new Promise((resolve) => {
       try {
         if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -143,9 +146,9 @@ class LocalVoiceRuntime implements MediaRuntimeAdapter {
         }
 
         const utterance = new SpeechSynthesisUtterance(text)
-        utterance.rate = 1.45
-        utterance.pitch = 1.6
-        utterance.volume = 1.0
+        utterance.rate = options?.rate ?? 1.45
+        utterance.pitch = options?.pitch ?? 1.6
+        utterance.volume = options?.volume ?? 1.0
 
         // Pick the best available English voice
         const voices = window.speechSynthesis.getVoices()
@@ -167,14 +170,17 @@ class LocalVoiceRuntime implements MediaRuntimeAdapter {
   /**
    * Convenience method for quick JARVIS announcements
    */
-  async speak(text: string): Promise<void> {
+  async speak(
+    text: string,
+    options?: { rate?: number; pitch?: number; volume?: number },
+  ): Promise<void> {
     if (!text) return
     console.log(`🎙️ [JARVIS] Speaking: "${text}"`)
     
     // For quick announcements, we use Web Speech directly to avoid shell latency
     // but we still try Kokoro if possible for premium feel.
     try {
-      await this.playWithWebSpeechAPI(text)
+      await this.playWithWebSpeechAPI(text, options)
     } catch (e) {
       console.warn('Voice announcement failed', e)
     }

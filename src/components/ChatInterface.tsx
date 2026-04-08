@@ -13,11 +13,12 @@ import {
   getLatestChatHistory,
   upsertChatHistory,
 } from '@/core/chat-history'
-import { intelligenceRouter } from '@/core/intelligence-router'
 import taskExecutor from '@/core/task-executor'
 import { memoryEngine } from '@/core/memory-engine'
 import { memoryTierService } from '@/core/memory/memory-tier-service'
 import { localVoiceRuntime } from '@/core/media-ml/runtimes/local-voice-runtime'
+import { chatResponseEngine } from '@/core/chat-response-engine'
+import { naturalCommandLayer } from '@/core/natural-command-layer'
 import voiceHandler from '@/core/voice-handler'
 import { runtimeStatusStore, RuntimeStatusSnapshot } from '@/core/runtime-status'
 import { db } from '@/lib/db'
@@ -32,6 +33,9 @@ type PendingExecution = {
   originalText: string
   fromVoice: boolean
 }
+
+const CHAT_ACTIVE_UNTIL_KEY = 'patrich.chat.activeUntil'
+const CHAT_ACTIVE_WINDOW_MS = 45_000
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({
   isDark,
@@ -78,6 +82,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setActiveAgentName(mainAgent.name)
     // Load long-term memories from Supabase on startup
     memoryEngine.loadMemories().catch(() => {})
+    naturalCommandLayer.warmup().catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -252,29 +257,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       : completedTask.error || 'Task not completed.'
   }
 
-  const getCasualReply = (input: string): string | null => {
-    const normalized = input.trim().toLowerCase()
-    const knownName = memoryEngine.get('user_name') || 'Paras'
-
-    if (/^(hi|hello|hey|yo|sup|good\s*(morning|afternoon|evening|night))\b/.test(normalized)) {
-      return 'Hey! I am here. What do you want me to do?'
-    }
-
-    if (/(do\s+u\s+know\s+my\s+name|do\s+you\s+know\s+my\s+name|what\s+is\s+my\s+name|who\s+am\s+i)/.test(normalized)) {
-      return `Yes. Your name is ${knownName}.`
-    }
-
-    if (/(who\s+are\s+you|what\s+are\s+you)/.test(normalized)) {
-      return 'I am Patrich, your personal sovereign companion. I can chat naturally and execute tasks when you ask.'
-    }
-
-    if (/^(thanks|thank you|thx)\b/.test(normalized)) {
-      return 'Anytime. Ready when you are.'
-    }
-
-    return null
-  }
-
   const shouldExecuteTask = (
     parsed: { intent: string; action: string; confidence: number },
     text: string,
@@ -416,7 +398,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         }
 
         setMessages((prev: Message[]) => [...prev, completionMessage])
-        speakIfNeeded(completionMessage.content, fromVoice)
+        if (fromVoice) {
+          voiceHandler.announceNCULTaskExecution({
+            intent: parsed.intent,
+            success: completedTask.status === 'completed',
+            message: summarizeTaskOutcome(completedTask),
+            requiresAudioConfirmation: completedTask.status === 'completed',
+          }).catch(() => {})
+        } else {
+          speakIfNeeded(completionMessage.content, fromVoice)
+        }
       })
       .catch((error: unknown) => {
         const failureMessage = error instanceof Error ? error.message : 'Execution failed.'
@@ -432,7 +423,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             metadata: { taskId: task.id },
           },
         ])
-        speakIfNeeded(`Execution failed. ${failureMessage}`, fromVoice)
+        if (fromVoice) {
+          voiceHandler.announceNCULTaskExecution({
+            intent: parsed.intent,
+            success: false,
+            message: failureMessage,
+            requiresAudioConfirmation: true,
+          }).catch(() => {})
+        } else {
+          speakIfNeeded(`Execution failed. ${failureMessage}`, fromVoice)
+        }
       })
       .finally(() => {
         setActiveAgentName('Main Agent')
@@ -479,28 +479,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }
 
   const respondAsNormalChat = async (text: string, fromVoice = false): Promise<void> => {
-    const casualReply = getCasualReply(text)
-    if (casualReply) {
-      setMessages((prev: Message[]) => [
-        ...prev,
-        {
-          id: `msg-${Date.now()}-chat`,
-          type: 'agent',
-          content: casualReply,
-          timestamp: new Date(),
-        },
-      ])
-      speakIfNeeded(casualReply, fromVoice)
-      return
-    }
-
-    const friendContext = memoryEngine.buildFriendContext()
-    const chatPrompt = `User: "${text}"\n\nReply naturally as a helpful personal AI companion. Keep it short, clear, and human. If asked about name/memory, answer based on known context.`
-
-    const response = await intelligenceRouter.query(chatPrompt, {
-      systemPrompt: friendContext,
-      urgency: 'normal',
-      taskType: 'chat',
+    const response = await chatResponseEngine.generate({
+      text,
+      fromVoice,
+      silentMode: voiceMode === 'silent',
+      mood: currentMood,
     })
 
     setMessages((prev: Message[]) => [
@@ -512,13 +495,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         timestamp: new Date(),
       },
     ])
-    speakIfNeeded(response.content || 'I am here with you. Tell me what you need.', fromVoice)
+    if (!response.shouldSpeak) {
+      speakIfNeeded(response.content || 'I am here with you. Tell me what you need.', fromVoice)
+    }
   }
 
   const handleSendMessage = (text: string, fromVoice = false): void => {
     if (!text.trim()) return
 
     setErrorMessage('')
+    localStorage.setItem(CHAT_ACTIVE_UNTIL_KEY, String(Date.now() + CHAT_ACTIVE_WINDOW_MS))
 
     // Add user message
     const userMessage: Message = {
@@ -545,6 +531,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     const modeCommand = text.trim().toLowerCase()
     if (/^(silent\s*mode|be\s*silent|silent)$/.test(modeCommand)) {
       setVoiceMode('silent')
+      memoryEngine.setUserPreference('silent_mode', 'on').catch(() => {})
       setMessages((prev: Message[]) => [
         ...prev,
         {
@@ -560,6 +547,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
     if (/^(talking\s*mode|speak\s*mode|talking|speak)$/.test(modeCommand)) {
       setVoiceMode('talking')
+      memoryEngine.setUserPreference('silent_mode', 'off').catch(() => {})
       const ack = 'Talking mode enabled. I will listen and reply with voice for voice commands.'
       setMessages((prev: Message[]) => [
         ...prev,

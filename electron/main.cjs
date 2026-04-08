@@ -4,6 +4,8 @@ const fs = require('fs')
 const { spawn, exec } = require('child_process')
 const os = require('os')
 const { createWorker } = require('tesseract.js')
+const zlib = require('zlib')
+const crypto = require('crypto')
 
 const isDev = !app.isPackaged
 let assistiveAutomationPermission = false
@@ -591,6 +593,451 @@ function runPowerShellStart(filePath) {
   })
 }
 
+function normalizeSpecialFolderName(folderName) {
+  return String(folderName || '').toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+function resolveSpecialFolderPath(folderName) {
+  const normalized = normalizeSpecialFolderName(folderName)
+
+  if (normalized === 'desktop') return app.getPath('desktop')
+  if (normalized === 'downloads') return app.getPath('downloads')
+  if (normalized === 'documents') return app.getPath('documents')
+  if (normalized === 'pictures' || normalized === 'photos') return app.getPath('pictures')
+  if (normalized === 'music') return app.getPath('music')
+  if (normalized === 'videos') return app.getPath('videos')
+  if (normalized === 'home' || normalized === 'user home') return app.getPath('home')
+  if (normalized === 'app data' || normalized === 'appdata' || normalized === 'application data') return app.getPath('userData')
+  if (normalized === 'temp' || normalized === 'temporary files') return os.tmpdir()
+
+  return null
+}
+
+async function openRecycleBin() {
+  if (process.platform === 'win32') {
+    try {
+      const result = await runPowerShellStart('shell:RecycleBinFolder')
+      return result.success ? { success: true, message: 'Opened Recycle Bin.' } : result
+    } catch (e) {
+      return { success: false, message: e.message }
+    }
+  }
+
+  const home = app.getPath('home')
+  const trashCandidates = [
+    path.join(home, '.Trash'),
+    path.join(home, '.local', 'share', 'Trash', 'files'),
+  ]
+
+  for (const candidate of trashCandidates) {
+    if (!fs.existsSync(candidate)) {
+      continue
+    }
+
+    const openResult = await shell.openPath(candidate)
+    if (!openResult) {
+      return { success: true, message: 'Opened Trash.' }
+    }
+  }
+
+  return { success: false, message: 'Recycle Bin / Trash is not directly available on this platform.' }
+}
+
+async function openSpecialFolder(folderName) {
+  const normalized = normalizeSpecialFolderName(folderName)
+  if (!normalized) {
+    return { success: false, message: 'No folder name provided.' }
+  }
+
+  if (normalized.includes('recycle') || normalized === 'trash') {
+    return openRecycleBin()
+  }
+
+  const targetPath = resolveSpecialFolderPath(normalized)
+  if (!targetPath) {
+    return { success: false, message: `Unsupported special folder: ${folderName}` }
+  }
+
+  const openResult = await shell.openPath(targetPath)
+  if (openResult) {
+    return { success: false, message: openResult }
+  }
+
+  return { success: true, message: `Opened ${folderName}.` }
+}
+
+async function emptyRecycleBin() {
+  if (process.platform !== 'win32') {
+    return { success: false, message: 'Empty Recycle Bin is only implemented on Windows in this build.' }
+  }
+
+  return new Promise((resolve) => {
+    const child = spawn(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', 'Clear-RecycleBin -Force -ErrorAction Stop'],
+      { windowsHide: true }
+    )
+
+    let stderr = ''
+    child.stderr.on('data', (c) => { stderr += c })
+    child.on('close', (code) => {
+      resolve(code === 0
+        ? { success: true, message: 'Emptied Recycle Bin.' }
+        : { success: false, message: stderr || 'Failed to empty Recycle Bin.' })
+    })
+    child.on('error', (e) => resolve({ success: false, message: e.message }))
+  })
+}
+
+async function revealInFolder(targetPath) {
+  const raw = String(targetPath || '').trim()
+  if (!raw) {
+    return { success: false, message: 'No file or folder path provided.' }
+  }
+
+  const resolved = path.isAbsolute(raw) ? raw : sandboxedPath(raw)
+  if (!fs.existsSync(resolved)) {
+    return { success: false, message: `Path does not exist: ${raw}` }
+  }
+
+  try {
+    const stat = fs.statSync(resolved)
+    if (stat.isDirectory()) {
+      const openResult = await shell.openPath(resolved)
+      if (openResult) {
+        return { success: false, message: openResult }
+      }
+      return { success: true, message: `Opened folder: ${resolved}` }
+    }
+
+    shell.showItemInFolder(resolved)
+    return { success: true, message: `Revealed ${resolved}` }
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+}
+
+async function showDesktop() {
+  if (process.platform !== 'win32') {
+    return { success: false, message: 'Show desktop is only implemented on Windows in this build.' }
+  }
+
+  return new Promise((resolve) => {
+    const script = '$wshell = New-Object -ComObject WScript.Shell; $wshell.SendKeys("#d")'
+    const child = spawn(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script],
+      { windowsHide: true }
+    )
+
+    let stderr = ''
+    child.stderr.on('data', (c) => { stderr += c })
+    child.on('close', (code) => {
+      resolve(code === 0
+        ? { success: true, message: 'Showed desktop.' }
+        : { success: false, message: stderr || 'Failed to show desktop.' })
+    })
+    child.on('error', (e) => resolve({ success: false, message: e.message }))
+  })
+}
+
+function resolveFsTargetPath(targetPath) {
+  const raw = String(targetPath || '').trim()
+  if (!raw) {
+    throw new Error('No path provided.')
+  }
+
+  return path.isAbsolute(raw) ? raw : sandboxedPath(raw)
+}
+
+function readDirectoryEntries(dirPath) {
+  const resolved = resolveFsTargetPath(dirPath)
+  const entries = fs.readdirSync(resolved, { withFileTypes: true })
+
+  return entries.map((entry) => {
+    const fullPath = path.join(resolved, entry.name)
+    const stats = fs.statSync(fullPath)
+    return {
+      name: entry.name,
+      path: fullPath,
+      isDir: entry.isDirectory(),
+      size: entry.isDirectory() ? undefined : stats.size,
+    }
+  })
+}
+
+function copyFileOrFolder(sourcePath, destinationPath) {
+  const source = resolveFsTargetPath(sourcePath)
+  const destination = resolveFsTargetPath(destinationPath)
+
+  if (!fs.existsSync(source)) {
+    return { success: false, message: `Source does not exist: ${sourcePath}` }
+  }
+
+  const stats = fs.statSync(source)
+  fs.mkdirSync(path.dirname(destination), { recursive: true })
+
+  if (stats.isDirectory()) {
+    fs.cpSync(source, destination, { recursive: true, force: true })
+  } else {
+    fs.copyFileSync(source, destination)
+  }
+
+  return { success: true, message: `Copied ${sourcePath} to ${destinationPath}.` }
+}
+
+function moveFileOrFolder(sourcePath, destinationPath) {
+  const source = resolveFsTargetPath(sourcePath)
+  const destination = resolveFsTargetPath(destinationPath)
+
+  if (!fs.existsSync(source)) {
+    return { success: false, message: `Source does not exist: ${sourcePath}` }
+  }
+
+  fs.mkdirSync(path.dirname(destination), { recursive: true })
+  fs.renameSync(source, destination)
+  return { success: true, message: `Moved ${sourcePath} to ${destinationPath}.` }
+}
+
+function renameFileOrFolder(sourcePath, newName) {
+  const source = resolveFsTargetPath(sourcePath)
+  const name = String(newName || '').trim()
+  if (!name) {
+    return { success: false, message: 'No new name provided.' }
+  }
+
+  if (!fs.existsSync(source)) {
+    return { success: false, message: `Source does not exist: ${sourcePath}` }
+  }
+
+  const destination = path.join(path.dirname(source), name)
+  fs.renameSync(source, destination)
+  return { success: true, message: `Renamed ${sourcePath} to ${name}.` }
+}
+
+function deletePathTarget(targetPath) {
+  const resolved = resolveFsTargetPath(targetPath)
+  if (!fs.existsSync(resolved)) {
+    return { success: false, message: `Path does not exist: ${targetPath}` }
+  }
+
+  const stats = fs.statSync(resolved)
+  fs.rmSync(resolved, { recursive: stats.isDirectory(), force: true })
+  return { success: true, message: `Deleted ${targetPath}.` }
+}
+
+async function openPathTarget(targetPath) {
+  const resolved = resolveFsTargetPath(targetPath)
+  if (!fs.existsSync(resolved)) {
+    return { success: false, message: `Path does not exist: ${targetPath}` }
+  }
+
+  const result = await shell.openPath(resolved)
+  if (result) {
+    return { success: false, message: result }
+  }
+
+  return { success: true, message: `Opened ${targetPath}.` }
+}
+
+function createFolderTarget(folderPath) {
+  const resolved = resolveFsTargetPath(folderPath)
+  fs.mkdirSync(resolved, { recursive: true })
+  return { success: true, message: `Created folder ${folderPath}.` }
+}
+
+async function terminateProcessTarget(identifier) {
+  const raw = String(identifier || '').trim()
+  if (!raw) {
+    return { success: false, message: 'No process identifier provided.' }
+  }
+
+  if (process.platform === 'win32') {
+    return new Promise((resolve) => {
+      const command = /^\d+$/.test(raw)
+        ? `taskkill /PID ${raw} /F`
+        : `taskkill /IM "${raw.endsWith('.exe') ? raw : `${raw}.exe`}" /F`
+
+      exec(command, (error, stdout, stderr) => {
+        if (error) {
+          resolve({ success: false, message: stderr || error.message })
+          return
+        }
+
+        resolve({ success: true, message: stdout || `Terminated ${raw}.` })
+      })
+    })
+  }
+
+  return new Promise((resolve) => {
+    const command = /^\d+$/.test(raw) ? `kill -9 ${raw}` : `pkill -f "${raw}"`
+    exec(command, (error, stdout, stderr) => {
+      if (error) {
+        resolve({ success: false, message: stderr || error.message })
+        return
+      }
+
+      resolve({ success: true, message: stdout || `Terminated ${raw}.` })
+    })
+  })
+}
+
+function getActiveWindow() {
+  return BrowserWindow.getFocusedWindow() || mainWindow || null
+}
+
+function controlActiveWindow(action) {
+  const win = getActiveWindow()
+  if (!win || win.isDestroyed()) {
+    return { success: false, message: 'No active window is available.' }
+  }
+
+  if (action === 'minimize') {
+    win.minimize()
+    return { success: true, message: 'Minimized the active window.' }
+  }
+
+  if (action === 'maximize') {
+    win.maximize()
+    win.show()
+    win.focus()
+    return { success: true, message: 'Maximized the active window.' }
+  }
+
+  if (action === 'restore') {
+    win.restore()
+    win.show()
+    win.focus()
+    return { success: true, message: 'Restored the active window.' }
+  }
+
+  if (action === 'focus') {
+    win.show()
+    win.focus()
+    return { success: true, message: 'Focused the active window.' }
+  }
+
+  if (action === 'hide') {
+    win.hide()
+    return { success: true, message: 'Hid the active window.' }
+  }
+
+  if (action === 'show') {
+    win.show()
+    win.focus()
+    return { success: true, message: 'Showed the active window.' }
+  }
+
+  return { success: false, message: `Unsupported window action: ${action}` }
+}
+
+function listRunningApps() {
+  return new Promise((resolve) => {
+    if (process.platform === 'win32') {
+      const child = spawn(
+        'powershell.exe',
+        ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', 'Get-Process | Select-Object ProcessName,Id,MainWindowTitle | ConvertTo-Json -Depth 2'],
+        { windowsHide: true }
+      )
+
+      let out = ''
+      let err = ''
+      child.stdout.on('data', (c) => { out += String(c) })
+      child.stderr.on('data', (c) => { err += String(c) })
+      child.on('close', (code) => {
+        if (code !== 0) {
+          resolve({ success: false, message: err || 'Failed to list running apps.' })
+          return
+        }
+
+        try {
+          const parsed = JSON.parse(out.trim() || '[]')
+          const items = (Array.isArray(parsed) ? parsed : [parsed])
+            .filter((item) => item && (item.ProcessName || item.MainWindowTitle))
+            .slice(0, 40)
+            .map((item) => ({
+              name: String(item.MainWindowTitle || item.ProcessName || 'Unknown'),
+              executableName: item.ProcessName ? `${String(item.ProcessName)}.exe` : undefined,
+              windowTitle: item.MainWindowTitle || '',
+            }))
+
+          resolve({
+            success: true,
+            apps: items,
+            message: `Found ${items.length} running app entries.`,
+          })
+        } catch (e) {
+          resolve({ success: false, message: e.message || 'Failed to parse running apps.' })
+        }
+      })
+      child.on('error', (e) => resolve({ success: false, message: e.message }))
+      return
+    }
+
+    const child = spawn('bash', ['-lc', "ps -A -o comm= | head -n 40"], { windowsHide: true })
+    let out = ''
+    let err = ''
+    child.stdout.on('data', (c) => { out += String(c) })
+    child.stderr.on('data', (c) => { err += String(c) })
+    child.on('close', (code) => {
+      if (code !== 0) {
+        resolve({ success: false, message: err || 'Failed to list running apps.' })
+        return
+      }
+
+      const apps = out
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .slice(0, 40)
+        .map((line) => ({ name: line, executableName: line }))
+
+      resolve({ success: true, apps, message: `Found ${apps.length} running app entries.` })
+    })
+    child.on('error', (e) => resolve({ success: false, message: e.message }))
+  })
+}
+
+async function focusAppByName(appName) {
+  const raw = String(appName || '').trim()
+  if (!raw) {
+    return { success: false, message: 'No app name provided.' }
+  }
+
+  if (process.platform === 'win32') {
+    return new Promise((resolve) => {
+      const escaped = raw.replace(/'/g, "''")
+      const script = [
+        'Add-Type -AssemblyName Microsoft.VisualBasic',
+        `$ok = [Microsoft.VisualBasic.Interaction]::AppActivate('${escaped}')`,
+        'if ($ok) { Write-Output "OK|Focused app" } else { Write-Output "ERR|Could not focus app"; exit 1 }',
+      ].join('; ')
+
+      const child = spawn(
+        'powershell.exe',
+        ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script],
+        { windowsHide: true }
+      )
+
+      let out = ''
+      let err = ''
+      child.stdout.on('data', (c) => { out += String(c) })
+      child.stderr.on('data', (c) => { err += String(c) })
+      child.on('close', (code) => {
+        if (code === 0) {
+          resolve({ success: true, message: `Focused ${raw}.` })
+          return
+        }
+
+        resolve({ success: false, message: err || out || `Could not focus ${raw}.` })
+      })
+      child.on('error', (e) => resolve({ success: false, message: e.message }))
+    })
+  }
+
+  return { success: false, message: 'Focus-by-name is only implemented on Windows in this build.' }
+}
+
 function getForegroundAppMetadataWindows() {
   return new Promise((resolve) => {
     if (process.platform !== 'win32') {
@@ -826,6 +1273,102 @@ ipcMain.handle('native:open-app-assistive', async (_ev, appInput) => {
     return { success: false, message: 'Assistive automation disabled. Enable in Settings.' }
   }
   return openAppWithAssistiveAutomation(appInput)
+})
+
+ipcMain.handle('native:open-special-folder', async (_ev, folderName) => {
+  return openSpecialFolder(folderName)
+})
+
+ipcMain.handle('native:open-recycle-bin', async () => {
+  return openRecycleBin()
+})
+
+ipcMain.handle('native:empty-recycle-bin', async () => {
+  return emptyRecycleBin()
+})
+
+ipcMain.handle('native:reveal-in-folder', async (_ev, targetPath) => {
+  return revealInFolder(targetPath)
+})
+
+ipcMain.handle('native:show-desktop', async () => {
+  return showDesktop()
+})
+
+ipcMain.handle('native:list-dir', async (_ev, dirPath) => {
+  try {
+    return { success: true, entries: readDirectoryEntries(dirPath), message: 'Listed directory.' }
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+})
+
+ipcMain.handle('native:create-folder', async (_ev, folderPath) => {
+  try {
+    return createFolderTarget(folderPath)
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+})
+
+ipcMain.handle('native:copy-path', async (_ev, sourcePath, destinationPath) => {
+  try {
+    return copyFileOrFolder(sourcePath, destinationPath)
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+})
+
+ipcMain.handle('native:move-path', async (_ev, sourcePath, destinationPath) => {
+  try {
+    return moveFileOrFolder(sourcePath, destinationPath)
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+})
+
+ipcMain.handle('native:rename-path', async (_ev, sourcePath, newName) => {
+  try {
+    return renameFileOrFolder(sourcePath, newName)
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+})
+
+ipcMain.handle('native:delete-path', async (_ev, targetPath) => {
+  try {
+    return deletePathTarget(targetPath)
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+})
+
+ipcMain.handle('native:open-path', async (_ev, targetPath) => {
+  try {
+    return await openPathTarget(targetPath)
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+})
+
+ipcMain.handle('native:terminate-process', async (_ev, identifier) => {
+  try {
+    return await terminateProcessTarget(identifier)
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+})
+
+ipcMain.handle('native:control-window', async (_ev, action) => {
+  return controlActiveWindow(String(action || '').trim().toLowerCase())
+})
+
+ipcMain.handle('native:list-running-apps', async () => {
+  return listRunningApps()
+})
+
+ipcMain.handle('native:focus-app', async (_ev, appName) => {
+  return focusAppByName(appName)
 })
 
 ipcMain.handle('native:get-installed-apps-metadata', async (_ev, platformHint) => {
@@ -1222,9 +1765,716 @@ ipcMain.handle('native:browser-close', async () => {
   browserAgentWindow = null
 })
 
+ipcMain.handle('native:browser-get-state', async () => {
+  if (!browserAgentWindow || browserAgentWindow.isDestroyed()) {
+    return { success: false, message: 'Browser agent is not running.' }
+  }
+
+  return {
+    success: true,
+    url: browserAgentWindow.webContents.getURL(),
+    title: browserAgentWindow.getTitle(),
+    visible: browserAgentWindow.isVisible(),
+    focused: browserAgentWindow.isFocused(),
+  }
+})
+
+ipcMain.handle('native:browser-reload', async () => {
+  if (!browserAgentWindow || browserAgentWindow.isDestroyed()) {
+    return { success: false, message: 'Browser agent is not running.' }
+  }
+
+  browserAgentWindow.webContents.reloadIgnoringCache()
+  return {
+    success: true,
+    url: browserAgentWindow.webContents.getURL(),
+    title: browserAgentWindow.getTitle(),
+  }
+})
+
+ipcMain.handle('native:browser-open-current', async () => {
+  if (!browserAgentWindow || browserAgentWindow.isDestroyed()) {
+    return { success: false, message: 'Browser agent is not running.' }
+  }
+
+  const currentUrl = browserAgentWindow.webContents.getURL()
+  if (!currentUrl || currentUrl === 'about:blank') {
+    return { success: false, message: 'No current browser page is loaded.' }
+  }
+
+  try {
+    await shell.openExternal(currentUrl)
+    return { success: true, message: `Opened current page externally: ${currentUrl}` }
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper Functions — Phase 5 (Bulk Automation & Content Processing)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function calculateFileHash(filePath, algorithm = 'sha256') {
+  try {
+    const hash = crypto.createHash(algorithm)
+    const data = fs.readFileSync(filePath)
+    hash.update(data)
+    return hash.digest('hex')
+  } catch (e) {
+    throw new Error(`Hash calculation failed: ${e.message}`)
+  }
+}
+
+function getFileStats(filePath) {
+  try {
+    const stats = fs.statSync(filePath)
+    return {
+      size: stats.size,
+      created: stats.birthtime.toISOString(),
+      modified: stats.mtime.toISOString(),
+      isFile: stats.isFile(),
+      isDirectory: stats.isDirectory(),
+      permissions: `0${(stats.mode & parseInt('777', 8)).toString(8)}`,
+    }
+  } catch (e) {
+    throw new Error(`Failed to get file stats: ${e.message}`)
+  }
+}
+
+function searchFilesSync(searchDir, textPattern, fileExtPattern = '.*') {
+  const results = []
+  const regex = new RegExp(textPattern, 'i')
+  const extRegex = new RegExp(fileExtPattern)
+
+  try {
+    function walkDir(dir) {
+      const entries = fs.readdirSync(dir, { withFileTypes: true })
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name)
+        if (entry.isDirectory()) {
+          walkDir(fullPath)
+        } else if (entry.isFile() && extRegex.test(entry.name)) {
+          try {
+            const content = fs.readFileSync(fullPath, 'utf8')
+            if (regex.test(content)) {
+              results.push({ file: fullPath, matches: (content.match(regex) || []).length })
+            }
+          } catch {
+            // Skip unreadable files
+          }
+        }
+      }
+    }
+    walkDir(searchDir)
+    return results
+  } catch (e) {
+    throw new Error(`File search failed: ${e.message}`)
+  }
+}
+
+function bulkMoveByPatternSync(sourceDir, pattern, destinationDir, useRegex = false) {
+  const moved = []
+  const regex = useRegex ? new RegExp(pattern) : null
+
+  try {
+    fs.mkdirSync(destinationDir, { recursive: true })
+    const entries = fs.readdirSync(sourceDir, { withFileTypes: true })
+
+    for (const entry of entries) {
+      const shouldMove = useRegex ? regex.test(entry.name) : entry.name.includes(pattern)
+      if (shouldMove && entry.isFile()) {
+        const source = path.join(sourceDir, entry.name)
+        const destination = path.join(destinationDir, entry.name)
+        fs.renameSync(source, destination)
+        moved.push({ from: source, to: destination })
+      }
+    }
+    return moved
+  } catch (e) {
+    throw new Error(`Bulk move failed: ${e.message}`)
+  }
+}
+
+function compressFileOrFolder(sourcePath, destinationPath, format = 'zip') {
+  return new Promise((resolve, reject) => {
+    try {
+      const source = sandboxedPath(sourcePath)
+      const dest = sandboxedPath(destinationPath)
+      fs.mkdirSync(path.dirname(dest), { recursive: true })
+
+      if (format === 'gzip' || format === 'tar.gz') {
+        // Use tar with gzip compression
+        const tarCmd =
+          process.platform === 'win32'
+            ? `powershell -Command "tar -czf '${dest}' -C '${path.dirname(source)}' '${path.basename(source)}'"`
+            : `tar -czf '${dest}' -C '${path.dirname(source)}' '${path.basename(source)}'`
+
+        exec(tarCmd, (err) => {
+          if (err) reject(new Error(`Compression failed: ${err.message}`))
+          else resolve({ success: true, path: dest })
+        })
+      } else {
+        // Use ZIP compression (PowerShell on Windows, zip command on Unix)
+        const zipCmd =
+          process.platform === 'win32'
+            ? `powershell -Command "Compress-Archive -Path '${source}' -DestinationPath '${dest}' -Force"`
+            : `zip -r '${dest}' '${path.basename(source)}' -C '${path.dirname(source)}'`
+
+        exec(zipCmd, (err) => {
+          if (err) reject(new Error(`Compression failed: ${err.message}`))
+          else resolve({ success: true, path: dest })
+        })
+      }
+    } catch (e) {
+      reject(new Error(`Compression setup failed: ${e.message}`))
+    }
+  })
+}
+
+function extractArchive(archivePath, destinationPath) {
+  return new Promise((resolve, reject) => {
+    try {
+      const source = sandboxedPath(archivePath)
+      const dest = sandboxedPath(destinationPath)
+      fs.mkdirSync(dest, { recursive: true })
+
+      const ext = path.extname(source).toLowerCase()
+      const extractCmd =
+        process.platform === 'win32'
+          ? ext === '.gz'
+            ? `powershell -Command "tar -xzf '${source}' -C '${dest}'"`
+            : `powershell -Command "Expand-Archive -Path '${source}' -DestinationPath '${dest}' -Force"`
+          : ext === '.gz'
+            ? `tar -xzf '${source}' -C '${dest}'`
+            : `unzip -o '${source}' -d '${dest}'`
+
+      exec(extractCmd, (err) => {
+        if (err) reject(new Error(`Extraction failed: ${err.message}`))
+        else resolve({ success: true, path: dest })
+      })
+    } catch (e) {
+      reject(new Error(`Extraction setup failed: ${e.message}`))
+    }
+  })
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// IPC Handlers — Phase 5: Bulk Automation & Content Processing
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('native:compress-path', async (_ev, sourcePath, destinationPath, format = 'zip') => {
+  try {
+    const result = await compressFileOrFolder(sourcePath, destinationPath, format)
+    return { success: true, path: result.path, message: `Compressed to ${format}: ${result.path}` }
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+})
+
+ipcMain.handle('native:extract-archive', async (_ev, archivePath, destinationPath) => {
+  try {
+    const result = await extractArchive(archivePath, destinationPath)
+    return { success: true, path: result.path, message: `Extracted to: ${result.path}` }
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+})
+
+ipcMain.handle('native:bulk-move-by-pattern', async (_ev, sourceDir, pattern, destinationDir, useRegex = false) => {
+  try {
+    const moved = bulkMoveByPatternSync(sourceDir, pattern, destinationDir, useRegex)
+    return { success: true, moved, count: moved.length, message: `Moved ${moved.length} files` }
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+})
+
+ipcMain.handle('native:search-file-content', async (_ev, searchDir, textPattern, fileExtPattern) => {
+  try {
+    const results = searchFilesSync(searchDir, textPattern, fileExtPattern)
+    return { success: true, results, count: results.length, message: `Found ${results.length} matching files` }
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+})
+
+ipcMain.handle('native:get-file-stats', async (_ev, filePath) => {
+  try {
+    const safe = sandboxedPath(filePath)
+    const stats = getFileStats(safe)
+    const hash = calculateFileHash(safe, 'sha256')
+    return { success: true, stats: { ...stats, sha256: hash } }
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+})
+
+ipcMain.handle('native:calculate-hash', async (_ev, filePath, algorithm = 'sha256') => {
+  try {
+    const safe = sandboxedPath(filePath)
+    const hash = calculateFileHash(safe, algorithm)
+    return { success: true, hash, algorithm, message: `${algorithm}: ${hash}` }
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper Functions — Phase 6 (Advanced Automation & System Monitoring)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const scheduledTasks = new Map()
+let taskIdCounter = 0
+
+function getSystemResourcesSync() {
+  const totalMem = os.totalmem()
+  const freeMem = os.freemem()
+  const usedMem = totalMem - freeMem
+  const memPercent = (usedMem / totalMem) * 100
+  const cpus = os.cpus()
+  const loadAvg = os.loadavg()
+
+  return {
+    memoryTotal: totalMem,
+    memoryFree: freeMem,
+    memoryUsed: usedMem,
+    memoryPercent: Math.round(memPercent * 100) / 100,
+    cpuCount: cpus.length,
+    loadAverage: {
+      oneMin: loadAvg[0],
+      fiveMin: loadAvg[1],
+      fifteenMin: loadAvg[2],
+    },
+    uptime: os.uptime(),
+    platform: os.platform(),
+    arch: os.arch(),
+    hostname: os.hostname(),
+  }
+}
+
+function getEnvironmentVariable(varName) {
+  return process.env[varName] || null
+}
+
+function setEnvironmentVariable(varName, value) {
+  process.env[varName] = String(value)
+  return { success: true, varName, value }
+}
+
+function getAllEnvironmentVariables(filterPattern = '') {
+  const pattern = filterPattern ? new RegExp(filterPattern, 'i') : null
+  const vars = {}
+  for (const [key, val] of Object.entries(process.env)) {
+    if (!pattern || pattern.test(key)) {
+      vars[key] = val
+    }
+  }
+  return vars
+}
+
+function scheduleTask(taskId, delayMs, command) {
+  if (scheduledTasks.has(taskId)) {
+    clearTimeout(scheduledTasks.get(taskId))
+  }
+
+  const timeoutId = setTimeout(async () => {
+    try {
+      if (command) {
+        exec(command, (err) => {
+          if (err) {
+            logAssistant(`Scheduled task ${taskId} failed: ${err.message}`)
+          } else {
+            logAssistant(`Scheduled task ${taskId} executed successfully`)
+          }
+        })
+      }
+      scheduledTasks.delete(taskId)
+    } catch (e) {
+      logAssistant(`Scheduled task ${taskId} error: ${e.message}`)
+      scheduledTasks.delete(taskId)
+    }
+  }, delayMs)
+
+  scheduledTasks.set(taskId, timeoutId)
+  return { taskId, scheduledAt: new Date().toISOString(), executeAt: new Date(Date.now() + delayMs).toISOString() }
+}
+
+function cancelTask(taskId) {
+  if (scheduledTasks.has(taskId)) {
+    clearTimeout(scheduledTasks.get(taskId))
+    scheduledTasks.delete(taskId)
+    return true
+  }
+  return false
+}
+
+function listScheduledTasks() {
+  return Array.from(scheduledTasks.keys()).map((id) => ({ taskId: id }))
+}
+
+function getDiskUsage(dirPath = '/') {
+  return new Promise((resolve) => {
+    const cmd =
+      process.platform === 'win32'
+        ? `powershell -Command "Get-Volume | Select-Object DriveLetter,Size,SizeRemaining | ConvertTo-Json"`
+        : `df -k ${dirPath} | tail -1 | awk '{print $2, $3, $4}'`
+
+    exec(cmd, (err, stdout) => {
+      if (err) {
+        resolve({ success: false, message: err.message })
+      } else {
+        try {
+          if (process.platform === 'win32') {
+            const parsed = JSON.parse(stdout)
+            const volume = Array.isArray(parsed) ? parsed[0] : parsed
+            resolve({
+              success: true,
+              diskTotal: volume.Size,
+              diskUsed: volume.Size - volume.SizeRemaining,
+              diskFree: volume.SizeRemaining,
+              diskPercent: ((volume.Size - volume.SizeRemaining) / volume.Size) * 100,
+            })
+          } else {
+            const parts = stdout.trim().split(/\s+/)
+            const total = parseInt(parts[0]) * 1024
+            const used = parseInt(parts[1]) * 1024
+            const free = parseInt(parts[2]) * 1024
+            resolve({
+              success: true,
+              diskTotal: total,
+              diskUsed: used,
+              diskFree: free,
+              diskPercent: (used / total) * 100,
+            })
+          }
+        } catch (e) {
+          resolve({ success: false, message: e.message })
+        }
+      }
+    })
+  })
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// IPC Handlers — Phase 6: Advanced Automation & System Monitoring
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('native:get-system-resources', async () => {
+  try {
+    return { success: true, resources: getSystemResourcesSync() }
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+})
+
+ipcMain.handle('native:get-disk-usage', async (_ev, dirPath = '/') => {
+  return getDiskUsage(dirPath)
+})
+
+ipcMain.handle('native:get-env-var', async (_ev, varName) => {
+  try {
+    const value = getEnvironmentVariable(varName)
+    return { success: true, varName, value, found: value !== null }
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+})
+
+ipcMain.handle('native:set-env-var', async (_ev, varName, value) => {
+  try {
+    const result = setEnvironmentVariable(varName, value)
+    return { success: true, ...result }
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+})
+
+ipcMain.handle('native:list-env-vars', async (_ev, filterPattern) => {
+  try {
+    const vars = getAllEnvironmentVariables(filterPattern)
+    return { success: true, count: Object.keys(vars).length, variables: vars }
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+})
+
+ipcMain.handle('native:schedule-task', async (_ev, delayMs, command) => {
+  try {
+    const taskId = `task_${++taskIdCounter}_${Date.now()}`
+    const result = scheduleTask(taskId, delayMs, command)
+    return { success: true, ...result }
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+})
+
+ipcMain.handle('native:cancel-task', async (_ev, taskId) => {
+  try {
+    const cancelled = cancelTask(taskId)
+    return { success: cancelled, taskId, message: cancelled ? `Task ${taskId} cancelled.` : `Task ${taskId} not found.` }
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+})
+
+ipcMain.handle('native:list-scheduled-tasks', async () => {
+  try {
+    const tasks = listScheduledTasks()
+    return { success: true, count: tasks.length, tasks }
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+})
+
+ipcMain.handle('native:get-system-info', async () => {
+  try {
+    return {
+      success: true,
+      info: {
+        platform: os.platform(),
+        arch: os.arch(),
+        hostname: os.hostname(),
+        userInfo: os.userInfo(),
+        uptime: os.uptime(),
+        networkInterfaces: Object.keys(os.networkInterfaces()),
+      },
+    }
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper Functions — Phase 7 (Advanced System Interaction & Utilities)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function getClipboardText() {
+  try {
+    const { clipboard } = require('electron')
+    return clipboard.readText()
+  } catch (e) {
+    throw new Error(`Failed to read clipboard: ${e.message}`)
+  }
+}
+
+function setClipboardText(text) {
+  try {
+    const { clipboard } = require('electron')
+    clipboard.writeText(String(text))
+    return true
+  } catch (e) {
+    throw new Error(`Failed to write clipboard: ${e.message}`)
+  }
+}
+
+function clearClipboard() {
+  try {
+    const { clipboard } = require('electron')
+    clipboard.clear()
+    return true
+  } catch (e) {
+    throw new Error(`Failed to clear clipboard: ${e.message}`)
+  }
+}
+
+function moveWindowToPosition(x, y, width = null, height = null) {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    throw new Error('Main window is unavailable.')
+  }
+  const bounds = mainWindow.getBounds()
+  mainWindow.setBounds({
+    x: parseInt(x),
+    y: parseInt(y),
+    width: width ? parseInt(width) : bounds.width,
+    height: height ? parseInt(height) : bounds.height,
+  })
+  return { success: true, x, y, width: width || bounds.width, height: height || bounds.height }
+}
+
+function snapWindowToEdge(edge = 'center') {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    throw new Error('Main window is unavailable.')
+  }
+  const primaryDisplay = screen.getPrimaryDisplay()
+  const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize
+  const { width: winWidth, height: winHeight } = mainWindow.getBounds()
+
+  let x, y
+  switch (String(edge).toLowerCase()) {
+    case 'left':
+      x = 0
+      y = 0
+      break
+    case 'right':
+      x = screenWidth - winWidth
+      y = 0
+      break
+    case 'top':
+      x = (screenWidth - winWidth) / 2
+      y = 0
+      break
+    case 'bottom':
+      x = (screenWidth - winWidth) / 2
+      y = screenHeight - winHeight
+      break
+    case 'topleft':
+      x = 0
+      y = 0
+      break
+    case 'topright':
+      x = screenWidth - winWidth
+      y = 0
+      break
+    case 'bottomleft':
+      x = 0
+      y = screenHeight - winHeight
+      break
+    case 'bottomright':
+      x = screenWidth - winWidth
+      y = screenHeight - winHeight
+      break
+    case 'center':
+    default:
+      x = (screenWidth - winWidth) / 2
+      y = (screenHeight - winHeight) / 2
+  }
+
+  mainWindow.setBounds({ x, y, width: winWidth, height: winHeight })
+  return { x, y, edge, success: true }
+}
+
+function sendMediaCommand(command) {
+  const cmdMap: Record<string, string> = {
+    play: 'media_play_pause',
+    pause: 'media_play_pause',
+    next: 'media_next_track',
+    previous: 'media_prev_track',
+    prev: 'media_prev_track',
+    stop: 'media_stop',
+    volumeup: 'volume_up',
+    volumedown: 'volume_down',
+    mute: 'volume_mute',
+  }
+
+  const keyName = cmdMap[String(command).toLowerCase()] || `media_${command}`
+
+  if (process.platform === 'win32') {
+    const commands: Record<string, string> = {
+      media_play_pause: 'powershell -Command "Add-Type –AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'% \'); Exit"',
+      media_next_track: 'powershell -Command "Add-Type –AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'{MEDIA_NEXT_TRACK}\'); Exit"',
+      media_prev_track: 'powershell -Command "Add-Type –AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'{MEDIA_PREV_TRACK}\'); Exit"',
+      media_stop: 'powershell -Command "Add-Type –AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'{MEDIA_STOP}\'); Exit"',
+      volume_up: 'powershell -Command "Add-Type –AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'{VOLUME_UP}\'); Exit"',
+      volume_down: 'powershell -Command "Add-Type –AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'{VOLUME_DOWN}\'); Exit"',
+      volume_mute: 'powershell -Command "Add-Type –AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'{VOLUME_MUTE}\'); Exit"',
+    }
+
+    const cmd = commands[keyName]
+    if (cmd) {
+      return new Promise((resolve) => {
+        exec(cmd, (err) => {
+          resolve({ success: !err, message: err ? err.message : `Sent media command: ${command}` })
+        })
+      })
+    }
+    return Promise.resolve({ success: false, message: `Unsupported media command: ${command}` })
+  } else {
+    // macOS/Linux fallback
+    return Promise.resolve({ success: false, message: 'Media control not yet supported on this platform.' })
+  }
+}
+
+function checkNetworkConnectivity(targetHost = '8.8.8.8') {
+  return new Promise((resolve) => {
+    const cmd =
+      process.platform === 'win32'
+        ? `ping -n 1 -w 2000 ${targetHost}`
+        : `ping -c 1 -W 2000 ${targetHost}`
+
+    exec(cmd, (err) => {
+      resolve({ success: !err, reachable: !err, host: targetHost })
+    })
+  })
+}
+
+function showNotification(title, message, opts = {}) {
+  try {
+    const { Notification } = require('electron')
+    new Notification({
+      title: String(title),
+      body: String(message),
+      icon: opts.icon || path.join(__dirname, '../public/logo.png'),
+      ...opts,
+    }).show()
+    return { success: true, message: 'Notification sent.' }
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// IPC Handlers — Phase 7: Advanced System Interaction & Utilities
+// ─────────────────────────────────────────────────────────────────────────────
+
+ipcMain.handle('native:get-clipboard', async () => {
+  try {
+    const text = await getClipboardText()
+    return { success: true, text, length: text.length }
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+})
+
+ipcMain.handle('native:set-clipboard', async (_ev, text) => {
+  try {
+    setClipboardText(text)
+    return { success: true, message: `Copied ${String(text).length} characters to clipboard.` }
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+})
+
+ipcMain.handle('native:clear-clipboard', async () => {
+  try {
+    clearClipboard()
+    return { success: true, message: 'Clipboard cleared.' }
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+})
+
+ipcMain.handle('native:move-window', async (_ev, x, y, width, height) => {
+  try {
+    const result = moveWindowToPosition(x, y, width, height)
+    return { success: true, ...result }
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+})
+
+ipcMain.handle('native:snap-window', async (_ev, edge = 'center') => {
+  try {
+    const result = snapWindowToEdge(edge)
+    return { success: true, ...result }
+  } catch (e) {
+    return { success: false, message: e.message }
+  }
+})
+
+ipcMain.handle('native:media-control', async (_ev, command) => {
+  return sendMediaCommand(command)
+})
+
+ipcMain.handle('native:check-connectivity', async (_ev, targetHost = '8.8.8.8') => {
+  return checkNetworkConnectivity(targetHost)
+})
+
+ipcMain.handle('native:show-notification', async (_ev, title, message, opts = {}) => {
+  return showNotification(title, message, opts)
+})
+
 // ─────────────────────────────────────────────────────────────────────────────
 // IPC Handlers — Shell Commands (for Python AI workers)
-// ─────────────────────────────────────────────────────────────────────────────
 
 ipcMain.handle('native:run-command', async (_ev, command, opts = {}) => {
   const timeoutMs = opts.timeoutMs ?? 300_000 // 5 minutes default for AI inference

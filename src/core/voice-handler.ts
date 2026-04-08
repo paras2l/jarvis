@@ -1,4 +1,5 @@
 import { VoiceConfig } from '@/types'
+import { localVoiceRuntime } from '@/core/media-ml/runtimes/local-voice-runtime'
 
 /**
  * Voice Handler
@@ -14,6 +15,9 @@ class VoiceHandler {
   private pendingRestartTimer: number | null = null
   private lastReportedListeningState: boolean = false
   private activatedUntilMs: number = 0
+  private listeningWatchdogTimer: number | null = null
+  private speechQueue: Array<{ text: string; requiresAudioConfirmation: boolean }> = []
+  private isSpeaking = false
   private config: VoiceConfig
   
   // WebAudio API for spectrum analysis
@@ -317,6 +321,7 @@ class VoiceHandler {
     try {
       this.shouldStayListening = true
       this.isActivated = false
+      this.ensureBackgroundWatchdog()
       this.recognition.start()
       return { success: true, message: 'Voice recognition started.' }
     } catch (error) {
@@ -329,9 +334,28 @@ class VoiceHandler {
         return { success: true, message: 'Voice recognition already active.' }
       }
       this.shouldStayListening = true
+      this.ensureBackgroundWatchdog()
       this.requestRecognitionRestart()
       return { success: false, message }
     }
+  }
+
+  private ensureBackgroundWatchdog(): void {
+    if (this.listeningWatchdogTimer !== null) {
+      return
+    }
+
+    // Keeps wake listening resilient when background/browser lifecycle interrupts recognition.
+    this.listeningWatchdogTimer = window.setInterval(() => {
+      if (!this.shouldStayListening || !this.recognition || this.isListening) {
+        return
+      }
+      try {
+        this.recognition.start()
+      } catch {
+        this.requestRecognitionRestart()
+      }
+    }, 6000)
   }
 
   /**
@@ -341,6 +365,10 @@ class VoiceHandler {
     if (this.recognition) {
       this.shouldStayListening = false
       this.restartAttempts = 0
+      if (this.listeningWatchdogTimer !== null) {
+        window.clearInterval(this.listeningWatchdogTimer)
+        this.listeningWatchdogTimer = null
+      }
       if (this.pendingRestartTimer !== null) {
         window.clearTimeout(this.pendingRestartTimer)
         this.pendingRestartTimer = null
@@ -521,6 +549,67 @@ class VoiceHandler {
       profile: this.toneProfile,
       sentiment: this.currentSpectrumSentiment,
     }
+  }
+
+  private canSpeak(requiresAudioConfirmation: boolean): boolean {
+    const mode = localStorage.getItem('patrich.voiceMode')
+    if (mode === 'silent') {
+      return false
+    }
+    if (!requiresAudioConfirmation) {
+      return false
+    }
+    return true
+  }
+
+  async enqueueSpeech(payload: { text: string; requiresAudioConfirmation: boolean }): Promise<void> {
+    const text = String(payload.text || '').trim()
+    if (!text) return
+
+    this.speechQueue.push({
+      text,
+      requiresAudioConfirmation: Boolean(payload.requiresAudioConfirmation),
+    })
+    await this.flushSpeechQueue()
+  }
+
+  private async flushSpeechQueue(): Promise<void> {
+    if (this.isSpeaking) {
+      return
+    }
+
+    this.isSpeaking = true
+    try {
+      while (this.speechQueue.length) {
+        const next = this.speechQueue.shift()
+        if (!next) continue
+        if (!this.canSpeak(next.requiresAudioConfirmation)) {
+          continue
+        }
+        await localVoiceRuntime.speak(next.text)
+      }
+    } catch {
+      // Keep queueing resilient even if a single TTS call fails.
+    } finally {
+      this.isSpeaking = false
+    }
+  }
+
+  async announceNCULTaskExecution(result: {
+    intent: string
+    success: boolean
+    message: string
+    requiresAudioConfirmation?: boolean
+  }): Promise<void> {
+    const requiresAudioConfirmation = result.requiresAudioConfirmation ?? result.intent !== 'chat'
+    const text = result.success
+      ? `Done. ${result.message}`
+      : `I could not complete that. ${result.message}`
+
+    await this.enqueueSpeech({
+      text,
+      requiresAudioConfirmation,
+    })
   }
 }
 

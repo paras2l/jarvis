@@ -37,12 +37,58 @@ function normalizeAppKey(value: string): string {
     .replace(/[^a-z0-9]+/g, '')
 }
 
+function levenshtein(a: string, b: string): number {
+  const m = a.length
+  const n = b.length
+  if (m === 0) return n
+  if (n === 0) return m
+
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0))
+  for (let i = 0; i <= m; i++) dp[i][0] = i
+  for (let j = 0; j <= n; j++) dp[0][j] = j
+
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + cost,
+      )
+    }
+  }
+
+  return dp[m][n]
+}
+
 function findStaticProfile(appName: string): AppProfile | undefined {
   const normalized = normalizeAppKey(appName)
-
-  return APP_PROFILES.find((profile) =>
+  const direct = APP_PROFILES.find((profile) =>
     profile.names.some((name) => normalizeAppKey(name) === normalized)
   )
+  if (direct) return direct
+
+  let best: AppProfile | undefined
+  let bestScore = Number.POSITIVE_INFINITY
+
+  for (const profile of APP_PROFILES) {
+    for (const name of profile.names) {
+      const candidate = normalizeAppKey(name)
+      if (!candidate) continue
+      if (candidate.includes(normalized) || normalized.includes(candidate)) {
+        return profile
+      }
+
+      const score = levenshtein(normalized, candidate)
+      if (score < bestScore) {
+        bestScore = score
+        best = profile
+      }
+    }
+  }
+
+  const tolerance = normalized.length >= 8 ? 2 : 1
+  return best && bestScore <= tolerance ? best : undefined
 }
 
 function isSensitiveCategory(categories: string[] = []): boolean {
@@ -79,9 +125,13 @@ function defaultPolicyFor(platform: PlatformId, profile?: AppProfile): AppFallba
   }
 
   return {
-    launchability: 'blocked',
-    blockedReason: `No supported launch target metadata for ${platform}.`,
-    allowScreenAutomation: false,
+    launchability: platform === 'windows' || platform === 'macos' || platform === 'linux'
+      ? 'launchable_by_intent'
+      : 'blocked',
+    blockedReason: platform === 'windows' || platform === 'macos' || platform === 'linux'
+      ? undefined
+      : `No supported launch target metadata for ${platform}.`,
+    allowScreenAutomation: platform === 'windows' || platform === 'macos' || platform === 'linux',
     requiresManualAuthHandoff: false,
     sensitiveByDefault: false,
   }
@@ -111,7 +161,7 @@ const APP_PROFILES: AppProfile[] = [
     webFallback: 'https://www.instagram.com',
   },
   {
-    names: ['whatsapp'],
+    names: ['whatsapp', 'whats app', 'watsapp', 'whtsapp', 'wa'],
     executableName: 'whatsapp.exe',
     packageName: {
       android: 'com.whatsapp',
@@ -341,6 +391,33 @@ const APP_PROFILES: AppProfile[] = [
     webFallback: 'https://www.microsoft.com/edge',
   },
   {
+    names: ['visual studio code', 'vs code', 'vscode', 'code'],
+    executableName: 'code.exe',
+    deepLinks: {
+      windows: ['vscode://'],
+      macos: ['vscode://'],
+      linux: ['vscode://'],
+      web: ['https://code.visualstudio.com'],
+    },
+    webFallback: 'https://code.visualstudio.com',
+  },
+  {
+    names: ['canva', 'kanva'],
+    executableName: 'canva.exe',
+    packageName: {
+      android: 'com.canva.editor',
+      ios: 'canva://',
+    },
+    iosAllowedSchemes: ['canva'],
+    deepLinks: {
+      android: ['canva://'],
+      ios: ['canva://'],
+      windows: ['https://www.canva.com'],
+      web: ['https://www.canva.com'],
+    },
+    webFallback: 'https://www.canva.com',
+  },
+  {
     names: ['slack'],
     executableName: 'slack.exe',
     packageName: {
@@ -441,6 +518,28 @@ class AppIndexer {
 
     if (learned) {
       return learned
+    }
+
+    let bestLearned: AppProfile | undefined
+    let bestLearnedScore = Number.POSITIVE_INFINITY
+    for (const profile of this.learnedProfiles) {
+      for (const name of profile.names) {
+        const candidate = normalizeAppKey(name)
+        if (!candidate) continue
+        if (candidate.includes(normalized) || normalized.includes(candidate)) {
+          return profile
+        }
+        const score = levenshtein(normalized, candidate)
+        if (score < bestLearnedScore) {
+          bestLearnedScore = score
+          bestLearned = profile
+        }
+      }
+    }
+
+    const learnedTolerance = normalized.length >= 8 ? 2 : 1
+    if (bestLearned && bestLearnedScore <= learnedTolerance) {
+      return bestLearned
     }
 
     return findStaticProfile(appName)

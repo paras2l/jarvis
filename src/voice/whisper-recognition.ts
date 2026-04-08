@@ -1,11 +1,11 @@
-export interface WhisperTranscriptResult {
+﻿export interface WhisperTranscriptResult {
   success: boolean
   transcript?: string
   confidence?: number
   error?: string
 }
 
-const WHISPER_CONFIG_KEY = 'patrich.whisper.config'
+const WHISPER_CONFIG_KEY = 'Pixi.whisper.config'
 
 export interface WhisperConfig {
   provider: 'local_whisper'
@@ -56,3 +56,4 @@ class WhisperRecognition {
 }
 
 export const whisperRecognition = new WhisperRecognition()
+

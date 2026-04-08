@@ -1,17 +1,17 @@
-/**
- * Data Analyzer — Feature #7
+﻿/**
+ * Data Analyzer â€” Feature #7
  *
- * Real-time data analysis + chart generation. Inspired by JARVIS-MARK5's
- * data analysis capability — completely rebuilt for our stack.
+ * Real-time data analysis + chart generation. Inspired by Pixi-MARK5's
+ * data analysis capability â€” completely rebuilt for our stack.
  *
- * Zero API calls — all analysis runs locally.
+ * Zero API calls â€” all analysis runs locally.
  * Reads CSV/Excel/JSON from disk, computes statistics, emits Chart.js configs.
  * Agent can answer "analyze my sales data" by reading + reasoning without cloud.
  */
 
 import { intelligenceRouter } from './intelligence-router'
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface DataSet {
   headers: string[]
@@ -53,18 +53,18 @@ export interface AnalysisResult {
   summary: string
 }
 
-// ── Colors for charts ──────────────────────────────────────────────────────
+// â”€â”€ Colors for charts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const CHART_COLORS = [
   '#6366f1', '#22d3ee', '#a78bfa', '#34d399',
   '#fb923c', '#f43f5e', '#facc15', '#60a5fa',
 ]
 
-// ── DataAnalyzer ───────────────────────────────────────────────────────────
+// â”€â”€ DataAnalyzer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class DataAnalyzer {
 
-  // ── Public API ──────────────────────────────────────────────────────────
+  // â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /**
    * Analyze data from a file path (CSV/JSON supported via IPC).
@@ -107,7 +107,7 @@ class DataAnalyzer {
     return r.content
   }
 
-  // ── Private: Core Analysis ─────────────────────────────────────────────
+  // â”€â”€ Private: Core Analysis â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private async analyze(data: DataSet, _source: string): Promise<AnalysisResult> {
     const stats = this.computeStats(data)
@@ -150,7 +150,7 @@ class DataAnalyzer {
         }
       }
 
-      // Text — count frequencies
+      // Text â€” count frequencies
       const freq = new Map<string, number>()
       for (const v of values) {
         const s = String(v)
@@ -233,14 +233,14 @@ class DataAnalyzer {
       if (s.type === 'numeric' && s.min !== undefined && s.max !== undefined) {
         const range = s.max - s.min
         if (range > s.mean! * 2) {
-          insights.push(`⚠️ ${s.column} has high variance (${s.min.toFixed(0)} to ${s.max.toFixed(0)})`)
+          insights.push(`âš ï¸ ${s.column} has high variance (${s.min.toFixed(0)} to ${s.max.toFixed(0)})`)
         }
         if (s.sum! > 0) {
-          insights.push(`📊 ${s.column}: Total = ${s.sum!.toLocaleString()}, Avg = ${s.mean!.toFixed(2)}`)
+          insights.push(`ðŸ“Š ${s.column}: Total = ${s.sum!.toLocaleString()}, Avg = ${s.mean!.toFixed(2)}`)
         }
       }
       if (s.type === 'text' && s.topValues && s.topValues[0]) {
-        insights.push(`🏆 Most common ${s.column}: "${s.topValues[0].value}" (${s.topValues[0].count} times)`)
+        insights.push(`ðŸ† Most common ${s.column}: "${s.topValues[0].value}" (${s.topValues[0].count} times)`)
       }
     }
 
@@ -256,7 +256,7 @@ class DataAnalyzer {
     return result
   }
 
-  // ── Parsers ───────────────────────────────────────────────────────────
+  // â”€â”€ Parsers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private parseCSV(csv: string): DataSet {
     const lines = csv.trim().split('\n').filter(Boolean)
@@ -300,3 +300,4 @@ class DataAnalyzer {
 }
 
 export const dataAnalyzer = new DataAnalyzer()
+

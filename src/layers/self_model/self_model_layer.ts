@@ -1,4 +1,4 @@
-import { eventPublisher } from '@/event_system/event_publisher'
+﻿import { eventPublisher } from '@/event_system/event_publisher'
 import { getCognitiveWorkspace } from '@/core/cognitive-workspace'
 import { memoryEngine } from '@/core/memory-engine'
 import { detectPlatform } from '@/core/platform/platform-detection'
@@ -22,7 +22,7 @@ import { selfTaskManager } from './task_manager'
 import { selfModelLogger } from './logging_handler'
 
 class SelfModelLayer {
-  private state: SelfModelState = createInitialSelfState('patrich-main', `session_${Date.now()}`)
+  private state: SelfModelState = createInitialSelfState('Pixi-main', `session_${Date.now()}`)
   private transitionClock = 0
   private lastPriority = 0
   private updateQueue: Promise<void> = Promise.resolve()
@@ -638,3 +638,4 @@ class SelfModelLayer {
 }
 
 export const selfModelLayer = new SelfModelLayer()
+

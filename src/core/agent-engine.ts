@@ -1,4 +1,4 @@
-import { Agent, Boundary, Task } from '@/types'
+﻿import { Agent, Boundary, Task } from '@/types'
 import apiGateway from './api-gateway'
 import { getDeviceMesh } from '@/core/device-mesh'
 import { getDeviceBridge } from '@/core/device-bridge'
@@ -43,7 +43,7 @@ import { runRedTeamPass } from './security/red-team-harness'
 import { episodicMemoryGraph } from './memory/EpisodicMemoryGraph'
 import { continuityEngine } from './ops/ContinuityEngine'
 import { getAuthenticatedContext } from './security/auth-context'
-import { jarvisOS } from './jarvis3'
+import { PixiOS } from './Pixi3'
 import { eventPublisher } from '@/event_system/event_publisher'
 
 type HierarchicalAgentRole =
@@ -104,11 +104,11 @@ class AgentEngine {
       createdAt: new Date(),
     }
 
-    // 🧬 Start the Humanoid Brain (Phase 9)
+    // ðŸ§¬ Start the Humanoid Brain (Phase 9)
     proactiveEngine.start()
     notificationBridge.start()
 
-    // 🛡️ Beyond OpenClaw: Protocol Registration (Wave 1, 2, 3 & Meta-Governance)
+    // ðŸ›¡ï¸ Beyond OpenClaw: Protocol Registration (Wave 1, 2, 3 & Meta-Governance)
     protocolRegistry.register(coreSoulProtocol)
     protocolRegistry.register(personaEngineProtocol)
     protocolRegistry.register(akashaEngineProtocol)
@@ -132,17 +132,17 @@ class AgentEngine {
     protocolRegistry.register(ghostWriterProtocol)
     protocolRegistry.register(closerProtocol)
     protocolRegistry.register(waveProtocol)
-    protocolRegistry.register(hardcodeProtocol) // 🛡️ Unyielding Sovereignty
-    protocolRegistry.register(custodianProtocol) // 🧙 The 25th Protocol: Meta-Guardian
+    protocolRegistry.register(hardcodeProtocol) // ðŸ›¡ï¸ Unyielding Sovereignty
+    protocolRegistry.register(custodianProtocol) // ðŸ§™ The 25th Protocol: Meta-Guardian
     protocolRegistry.initializeAll()
 
-    // 🎯 Enterprise Protocol Orchestration
+    // ðŸŽ¯ Enterprise Protocol Orchestration
     protocolOrchestrator.initializeHealthTracking()
     protocolOrchestrator.initializeProtocolChains()
     policyGateway.bootstrapDefaultPolicy()
     proactiveScheduler.start()
     
-    // 🌌 Patrich Implants: Initialization (v4.0)
+    // ðŸŒŒ Pixi Implants: Initialization (v4.0)
     episodicMemoryGraph.consolidate().catch(() => {})
     continuityEngine.startMonitoring().catch(() => {})
     
@@ -151,9 +151,9 @@ class AgentEngine {
       policyGateway.setPolicyPack('protected_zone')
     })
 
-    console.log('✅ PATRICH OS v4.0 - All 25 Beyond-OpenClaw protocols active')
-    console.log('✅ Protocol Orchestrator online with health monitoring & mesh resonance')
-    console.log('✅ Custodian Protocol activated - governance & boundaries enforced')
+    console.log('âœ… Pixi OS v4.0 - All 25 Beyond-OpenClaw protocols active')
+    console.log('âœ… Protocol Orchestrator online with health monitoring & mesh resonance')
+    console.log('âœ… Custodian Protocol activated - governance & boundaries enforced')
 
     this.agents.set(this.mainAgent.id, this.mainAgent)
     this.ensureHierarchicalAgents(this.mainAgent.id)
@@ -444,7 +444,7 @@ class AgentEngine {
     const soulPrompt = soulEngine.getSystemPrompt()
     const prompt = taskResult 
       ? `The user said: "${userInput}". I have executed their task. Result: ${JSON.stringify(taskResult)}. Give a 1-sentence friendly, witty update to the user like a partner.`
-      : `The user said: "${userInput}". I'm about to start this task. Give a 1-sentence witty acknowledging response that sounds like a smart partner (JARVIS).`
+      : `The user said: "${userInput}". I'm about to start this task. Give a 1-sentence witty acknowledging response that sounds like a smart partner (Pixi).`
 
     const response = await intelligenceRouter.query(prompt, { 
       systemPrompt: soulPrompt,
@@ -481,7 +481,7 @@ class AgentEngine {
     try {
       console.log(`[AgentEngine] Executing local task: ${cmd}`)
 
-      // ── STEALTH ENGINE (Dynamic Background execution) ─────────────────
+      // â”€â”€ STEALTH ENGINE (Dynamic Background execution) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       // If the command explicitly asks for stealth, or if the system detects the user is busy
       const isUserBusy = typeof window !== 'undefined' && (window as any).nativeBridge?.checkUserBusy ? await (window as any).nativeBridge.checkUserBusy() : false;
       const isExplicitApp = lower.startsWith('app:') || lower.startsWith('stealth:');
@@ -496,7 +496,7 @@ class AgentEngine {
           action = parts.slice(2).join(':') || 'generic-action';
         }
 
-        console.log(`🥷 [AgentEngine] Routing to Stealth mode (Busy: ${isUserBusy}). Target: ${targetApp}`);
+        console.log(`ðŸ¥· [AgentEngine] Routing to Stealth mode (Busy: ${isUserBusy}). Target: ${targetApp}`);
         const { stealthEngine } = await import('./stealth-engine');
         
         this.updateCanvas({
@@ -513,40 +513,40 @@ class AgentEngine {
           requiresUI: false
         });
 
-        output = result.success ? `✅ Background success: ${result.message}` : `⏸️ ${result.message}`;
+        output = result.success ? `âœ… Background success: ${result.message}` : `â¸ï¸ ${result.message}`;
         this.updateCanvas({ type: 'stealth', title: 'Task Complete', content: output, lastUpdated: new Date().toLocaleTimeString() });
       }
       
-      // ── VFX ENGINE ────────────────────────────────────────────────────
+      // â”€â”€ VFX ENGINE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       else if (lower.startsWith('vfx:') || lower.startsWith('video:')) {
         const goal = cmd.split(':').slice(1).join(':').trim()
         const { vfxEngine } = await import('./vfx-engine');
         
         this.updateCanvas({ type: 'media', title: 'VFX Rendering', content: `Rendering: ${goal}`, lastUpdated: new Date().toLocaleTimeString() })
         const result = await vfxEngine.executeMediaTask(goal)
-        output = result.status === 'completed' ? `✅ Rendered: ${result.outputFile}` : `❌ Failed: ${result.goal}`
+        output = result.status === 'completed' ? `âœ… Rendered: ${result.outputFile}` : `âŒ Failed: ${result.goal}`
         this.updateCanvas({ type: 'media', title: 'Render Complete', content: output, lastUpdated: new Date().toLocaleTimeString() })
       }
 
-      // ── VIBE CODING ───────────────────────────────────────────────────
+      // â”€â”€ VIBE CODING â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       else if (lower.startsWith('vibe:') || lower.startsWith('code:')) {
         const goal = cmd.split(':').slice(1).join(':').trim()
         const { codeExecutionEngine } = await import('./code-execution-engine');
         
         this.updateCanvas({ type: 'progress', title: 'Vibe Coding', content: `Building: "${goal}"...`, lastUpdated: new Date().toLocaleTimeString() })
         const result = await codeExecutionEngine.buildProject(goal)
-        output = result.success ? `✅ Project updated: ${result.projectPath}` : `❌ Failed: ${result.message}`
+        output = result.success ? `âœ… Project updated: ${result.projectPath}` : `âŒ Failed: ${result.message}`
         this.updateCanvas({ type: 'sandbox', title: 'Coding Result', content: output, lastUpdated: new Date().toLocaleTimeString() })
       }
       
-      // ── VISION ENGINE ─────────────────────────────────────────────────
+      // â”€â”€ VISION ENGINE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       else if (lower.startsWith('vision:') || lower.startsWith('see:')) {
         const { visionIntegration } = await import('./vision-integration');
         const report = await visionIntegration.captureAndAnalyze();
-        output = `👁️ Vision Analysis at ${report.timestamp}\nText Found: "${report.textFound || 'None'}"\nConfidence: ${report.confidence * 100}%`;
+        output = `ðŸ‘ï¸ Vision Analysis at ${report.timestamp}\nText Found: "${report.textFound || 'None'}"\nConfidence: ${report.confidence * 100}%`;
       }
       
-      // ── STANDARD TASK ─────────────────────────────────────────────────
+      // â”€â”€ STANDARD TASK â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       else {
         // Fallback for normal UI/Command tasks
         await new Promise(resolve => setTimeout(resolve, 500))
@@ -567,13 +567,13 @@ class AgentEngine {
         'agent-engine',
       )
 
-      // ── BACKGROUND PARTNERSHIP NOTIFICATION ───────────────────────────
+      // â”€â”€ BACKGROUND PARTNERSHIP NOTIFICATION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       // If the task was stealth or media, tap the user on the shoulder
       if (isUserBusy || lower.startsWith('vfx:') || lower.startsWith('stealth:')) {
         const updateText = await this.getAgentResponse(cmd, task.result)
         
         notificationEngine.notify(
-          'JARVIS Update', 
+          'Pixi Update', 
           updateText || `Task complete: ${output.slice(0, 50)}...`
         )
 
@@ -707,8 +707,8 @@ class AgentEngine {
     return Array.from(this.agents.values())
   }
 
-  async executeGoalWithJarvisOS(goal: string): Promise<{ status: string; summary: string; planId: string }> {
-    const report = await jarvisOS.executeGoal(goal)
+  async executeGoalWithPixiOS(goal: string): Promise<{ status: string; summary: string; planId: string }> {
+    const report = await PixiOS.executeGoal(goal)
     return {
       status: report.status,
       summary: report.summary,
@@ -728,3 +728,4 @@ class AgentEngine {
 }
 
 export default new AgentEngine()
+

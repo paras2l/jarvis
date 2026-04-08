@@ -3,8 +3,6 @@ import { notificationEngine } from './core/notification-engine'
 import { daemonManager } from './core/daemon-manager'
 import ChatInterface from './components/ChatInterface'
 import WebControlDashboard from './components/WebControlDashboard'
-import VoiceSettingsPanel from './components/voice/VoiceSettingsPanel'
-import { ConsciousnessPanel } from './components/consciousness/ConsciousnessPanel'
 import { whisperEngine } from './voice/whisper-engine'
 import { getWhisperConfig } from './voice/whisper-recognition'
 import '@/styles/theme.css'
@@ -56,11 +54,6 @@ function App() {
       {dashboardMode
         ? <WebControlDashboard />
         : <ChatInterface isDark={isDark} onThemeToggle={handleThemeToggle} />}
-
-      <div style={{ display: 'grid', gap: 24, gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', padding: '0 16px 24px' }}>
-        <ConsciousnessPanel />
-        <VoiceSettingsPanel />
-      </div>
     </div>
   )
 }

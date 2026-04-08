@@ -1,16 +1,16 @@
-# Jarvis Python Runtime Scaffold
+﻿# Pixi Python Runtime Scaffold
 
-This folder contains a clean-architecture Python scaffold for Jarvis.
+This folder contains a clean-architecture Python scaffold for Pixi.
 
 ## Structure
 
-- `jarvis/core/context`: Context Engine
-- `jarvis/core/planner`: Planner Engine
-- `jarvis/core/orchestrator`: Agent Orchestrator
-- `jarvis/skills`: Skill Registry
-- `jarvis/memory`: Memory System
-- `jarvis/runtime`: Runtime composition root
-- `jarvis/main.py`: Executable entrypoint
+- `Pixi/core/context`: Context Engine
+- `Pixi/core/planner`: Planner Engine
+- `Pixi/core/orchestrator`: Agent Orchestrator
+- `Pixi/skills`: Skill Registry
+- `Pixi/memory`: Memory System
+- `Pixi/runtime`: Runtime composition root
+- `Pixi/main.py`: Executable entrypoint
 
 ## Quick Start
 
@@ -18,11 +18,12 @@ From repo root:
 
 ```powershell
 cd python
-python -m jarvis.main "Plan and summarize a learning session"
+python -m Pixi.main "Plan and summarize a learning session"
 ```
 
 ## Design Notes
 
-- Core logic depends on interfaces in `jarvis/core/contracts.py`.
+- Core logic depends on interfaces in `Pixi/core/contracts.py`.
 - Infrastructure adapters (`memory`, `skills`) can be replaced without changing orchestration flow.
-- Runtime wiring is centralized in `jarvis/runtime/app_runtime.py` for scalability.
+- Runtime wiring is centralized in `Pixi/runtime/app_runtime.py` for scalability.
+

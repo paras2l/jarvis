@@ -1,4 +1,4 @@
-export interface VectorMemoryRecord {
+﻿export interface VectorMemoryRecord {
   id: string
   text: string
   tags: string[]
@@ -6,7 +6,7 @@ export interface VectorMemoryRecord {
   createdAt: number
 }
 
-const STORAGE_KEY = 'patrich.vector.memory'
+const STORAGE_KEY = 'Pixi.vector.memory'
 
 class VectorMemory {
   private records: VectorMemoryRecord[] = []
@@ -80,3 +80,4 @@ class VectorMemory {
 }
 
 export const vectorMemory = new VectorMemory()
+

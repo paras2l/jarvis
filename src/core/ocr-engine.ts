@@ -1,19 +1,19 @@
-/**
- * OCR Engine — Feature #8
+﻿/**
+ * OCR Engine â€” Feature #8
  *
  * Screen text extraction without ANY screenshot API.
- * Inspired by JARVIS original's OCR capability — re-built for Electron.
+ * Inspired by Pixi original's OCR capability â€” re-built for Electron.
  *
  * Uses Tesseract.js (100% local, free, runs in Node.js via IPC).
  * The agent can READ any app's text without a cloud vision call.
  *
- * This completely eliminates screenshot → API → coordinates workflow
+ * This completely eliminates screenshot â†’ API â†’ coordinates workflow
  * for READ operations. The agent just reads text directly.
  *
  * Works with: VS Code panels, browser content, file dialogs, any window.
  */
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface OCRResult {
   text: string
@@ -34,13 +34,13 @@ export interface ScreenRegion {
   height: number
 }
 
-// ── OCREngine ─────────────────────────────────────────────────────────────
+// â”€â”€ OCREngine â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class OCREngine {
   private lastResult: OCRResult | null = null
   private cache = new Map<string, OCRResult>()
 
-  // ── Public API ──────────────────────────────────────────────────────────
+  // â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /**
    * Read ALL text visible on the current screen.
@@ -139,7 +139,7 @@ class OCREngine {
   }
 
   /**
-   * Find specific text on screen — returns the bounding box if found.
+   * Find specific text on screen â€” returns the bounding box if found.
    * Useful for "click on the Save button" without coordinate guessing.
    */
   async findText(searchText: string): Promise<{
@@ -184,7 +184,7 @@ class OCREngine {
     this.cache.clear()
   }
 
-  // ── Private ──────────────────────────────────────────────────────────────
+  // â”€â”€ Private â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private unavailable(source: OCRResult['source']): OCRResult {
     return {
@@ -198,3 +198,4 @@ class OCREngine {
 }
 
 export const ocrEngine = new OCREngine()
+

@@ -1,4 +1,4 @@
-import { reflectiveLearningCore } from '@/layers/reflective_learning/reflective_learning_core'
+﻿import { reflectiveLearningCore } from '@/layers/reflective_learning/reflective_learning_core'
 import { clamp01 } from './self_state_schema'
 import { selfReflectionSimulator } from './self_reflection_simulator'
 import { selfReflectionPolicyController } from './self_reflection_policy_controller'
@@ -110,7 +110,7 @@ export interface ReflectionSnapshot {
   version: number
 }
 
-const STORAGE_KEY = 'patrich.self_model.reflection_engine.v1'
+const STORAGE_KEY = 'Pixi.self_model.reflection_engine.v1'
 const MAX_HISTORY = 240
 const MAX_INSIGHTS = 80
 const MAX_UPDATES = 60
@@ -514,3 +514,4 @@ class SelfReflectionEngine {
 }
 
 export const selfReflectionEngine = new SelfReflectionEngine()
+

@@ -1,7 +1,7 @@
-/**
- * Agent-to-Agent (A2A) Protocol — Feature #11
+﻿/**
+ * Agent-to-Agent (A2A) Protocol â€” Feature #11
  *
- * Re-architected from OpenJarvis's A2A module for our Electron/TypeScript stack.
+ * Re-architected from OpenPixi's A2A module for our Electron/TypeScript stack.
  * Enables sub-agents to coordinate at machine speed without routing through the
  * main brain for every micro-decision.
  *
@@ -15,7 +15,7 @@
  * This is what makes true swarm intelligence possible.
  */
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export type AgentName =
   | 'orchestrator'
@@ -58,7 +58,7 @@ export interface A2AResult {
 
 export type AgentHandler = (msg: A2AMessage) => Promise<A2AResult>
 
-// ── A2AProtocol ────────────────────────────────────────────────────────────
+// â”€â”€ A2AProtocol â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class A2AProtocol {
   private agents = new Map<AgentName, AgentHandler>()
@@ -66,7 +66,7 @@ class A2AProtocol {
   private readonly MAX_LOG = 500
   private listeners = new Map<string, ((result: A2AResult) => void)[]>()
 
-  // ── Agent Registration ────────────────────────────────────────────────
+  // â”€â”€ Agent Registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /**
    * Register an agent so other agents can send it messages.
@@ -87,7 +87,7 @@ class A2AProtocol {
     return Array.from(this.agents.keys())
   }
 
-  // ── Message Sending ───────────────────────────────────────────────────
+  // â”€â”€ Message Sending â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /**
    * Send a message to a specific agent and await the result.
@@ -179,7 +179,7 @@ class A2AProtocol {
   }
 
   /**
-   * Parallel task dispatch — like Promise.all but A2A-aware.
+   * Parallel task dispatch â€” like Promise.all but A2A-aware.
    * Replaces the raw sub-agent-pool dispatch.
    */
   async parallel(
@@ -195,7 +195,7 @@ class A2AProtocol {
   }
 
   /**
-   * Race — send to multiple, return first success.
+   * Race â€” send to multiple, return first success.
    * Useful for redundant learning: web + book + video, whichever responds first.
    */
   async race(
@@ -228,14 +228,14 @@ class A2AProtocol {
     })
   }
 
-  // ── Subscriptions ─────────────────────────────────────────────────────
+  // â”€â”€ Subscriptions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   on(messageId: string, callback: (result: A2AResult) => void): void {
     if (!this.listeners.has(messageId)) this.listeners.set(messageId, [])
     this.listeners.get(messageId)!.push(callback)
   }
 
-  // ── Message Log ───────────────────────────────────────────────────────
+  // â”€â”€ Message Log â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   getLog(limit = 50): A2AMessage[] {
     return this.messageLog.slice(-limit)
@@ -245,7 +245,7 @@ class A2AProtocol {
     this.messageLog = []
   }
 
-  // ── Private ───────────────────────────────────────────────────────────
+  // â”€â”€ Private â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private log(msg: A2AMessage): void {
     this.messageLog.push(msg)
@@ -268,3 +268,4 @@ class A2AProtocol {
 }
 
 export const a2a = new A2AProtocol()
+

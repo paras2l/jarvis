@@ -1,4 +1,4 @@
-import { moodEngine } from './mood-engine'
+﻿import { moodEngine } from './mood-engine'
 import { notificationEngine } from '../notification-engine'
 import { localVoiceRuntime } from '../media-ml/runtimes/local-voice-runtime'
 import { intelligenceRouter } from '../intelligence-router'
@@ -8,9 +8,9 @@ import { brainDirector } from '../brain/brain-director'
 import { emotionCore } from '../emotion/emotion-core'
 
 /**
- * JARVIS Proactive Engine (ENHANCED - Protocol-Aware)
+ * Pixi Proactive Engine (ENHANCED - Protocol-Aware)
  * ======================================
- * The "Life Pulse" that makes JARVIS humanoid.
+ * The "Life Pulse" that makes Pixi humanoid.
  * It thinks, researches, and talks first.
  * NOW: Actively invokes Scholar, Persona, Legion, SixthSense, and Akasha protocols.
  */
@@ -24,7 +24,7 @@ class ProactiveEngine {
 
   start() {
     if (this.pulseInterval) return
-    console.log('🦾 [Proactive Engine] Life Pulse START (Phase 9 + Protocol Mesh)')
+    console.log('ðŸ¦¾ [Proactive Engine] Life Pulse START (Phase 9 + Protocol Mesh)')
 
     void this.bootstrapSettings()
     
@@ -199,7 +199,7 @@ class ProactiveEngine {
 
   private announceAutonomousThought(text: string) {
     if (!text) return
-    notificationEngine.notify('JARVIS Thought', text)
+    notificationEngine.notify('Pixi Thought', text)
     try {
       localVoiceRuntime.speak(text)
     } catch (err) {
@@ -209,3 +209,4 @@ class ProactiveEngine {
 }
 
 export const proactiveEngine = new ProactiveEngine()
+

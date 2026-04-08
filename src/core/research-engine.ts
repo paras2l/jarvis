@@ -1,4 +1,4 @@
-import { intelligenceRouter } from './intelligence-router'
+﻿import { intelligenceRouter } from './intelligence-router'
 import { memoryEngine } from './memory-engine'
 import { semanticSearchEngine } from './semantic-search'
 import { db } from '../lib/db'
@@ -84,7 +84,7 @@ class ResearchEngine {
     const routed = await intelligenceRouter.query(prompt, {
       urgency: 'background',
       taskType: 'analysis',
-      systemPrompt: 'You are JARVIS. Produce a concise, accurate summary with practical highlights.',
+      systemPrompt: 'You are Pixi. Produce a concise, accurate summary with practical highlights.',
     })
 
     const summary = routed.content?.trim() || highlights.join(' ')
@@ -120,7 +120,7 @@ class ResearchEngine {
     const results: ResearchSource[] = []
 
     try {
-      const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(topic)}&format=json&no_redirect=1&no_html=1&t=jarvis`
+      const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(topic)}&format=json&no_redirect=1&no_html=1&t=Pixi`
       const response = await fetch(ddgUrl)
       if (response.ok) {
         const data = await response.json() as Record<string, unknown>
@@ -163,7 +163,7 @@ class ResearchEngine {
     const result = await intelligenceRouter.query(prompt, {
       urgency: 'background',
       taskType: 'analysis',
-      systemPrompt: 'You are JARVIS. Synthesize research into a concise brief with practical takeaways.',
+      systemPrompt: 'You are Pixi. Synthesize research into a concise brief with practical takeaways.',
     })
 
     return result.content?.trim() || `Research collected for ${topic}.`
@@ -179,7 +179,7 @@ class ResearchEngine {
       {
         urgency: 'background',
         taskType: 'analysis',
-        systemPrompt: 'You are JARVIS. Summarize the local knowledge clearly and accurately.',
+        systemPrompt: 'You are Pixi. Summarize the local knowledge clearly and accurately.',
       }
     )
 
@@ -205,3 +205,4 @@ class ResearchEngine {
 }
 
 export const researchEngine = new ResearchEngine()
+

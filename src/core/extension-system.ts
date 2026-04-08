@@ -1,7 +1,7 @@
-/**
- * Extension System — Feature #4
+﻿/**
+ * Extension System â€” Feature #4
  *
- * Hot-loadable skill packs. Inspired by JARVIS-MARK5's extension architecture.
+ * Hot-loadable skill packs. Inspired by Pixi-MARK5's extension architecture.
  * Re-designed for our TypeScript/Electron app.
  *
  * How it works:
@@ -26,7 +26,7 @@ import { a2a } from './a2a-protocol'
 import { policyGateway } from './policy/PolicyGateway'
 import { hardcodeProtocol } from './protocols/HardcodeProtocol'
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface ExtensionManifest {
   id: string
@@ -54,14 +54,14 @@ export interface ExtensionResult {
   error?: string
 }
 
-// ── ExtensionSystem ───────────────────────────────────────────────────────
+// â”€â”€ ExtensionSystem â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class ExtensionSystem {
   private extensions = new Map<string, Extension>()
-  private commandIndex = new Map<string, string>()  // prefix → extension ID
-  private wakeWordIndex = new Map<string, string>()  // wake word → extension ID
+  private commandIndex = new Map<string, string>()  // prefix â†’ extension ID
+  private wakeWordIndex = new Map<string, string>()  // wake word â†’ extension ID
 
-  // ── Registration ─────────────────────────────────────────────────────
+  // â”€â”€ Registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /**
    * Register an extension programmatically (used internally for built-in features).
@@ -105,7 +105,7 @@ class ExtensionSystem {
       }
     })
 
-    console.log(`[Extensions] ✅ Loaded: ${manifest.name} (${manifest.commands.join(', ')})`)
+    console.log(`[Extensions] âœ… Loaded: ${manifest.name} (${manifest.commands.join(', ')})`)
   }
 
   /**
@@ -130,7 +130,7 @@ class ExtensionSystem {
     }
   }
 
-  // ── Command Routing ───────────────────────────────────────────────────
+  // â”€â”€ Command Routing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /**
    * Try to route a command to an extension. Returns handled=false if no match.
@@ -195,7 +195,7 @@ class ExtensionSystem {
     return { handled: false }
   }
 
-  // ── Management ────────────────────────────────────────────────────────
+  // â”€â”€ Management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   enable(id: string): void {
     const ext = this.extensions.get(id)
@@ -233,7 +233,7 @@ class ExtensionSystem {
     return this.extensions.get(id)
   }
 
-  // ── Private ───────────────────────────────────────────────────────────
+  // â”€â”€ Private â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private async loadExtensionFromPath(extPath: string): Promise<boolean> {
     try {
@@ -305,7 +305,7 @@ class ExtensionSystem {
 
 export const extensionSystem = new ExtensionSystem()
 
-// ── Built-in Extensions Auto-Registration ─────────────────────────────────
+// â”€â”€ Built-in Extensions Auto-Registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Register all 12 features as extensions so they appear in the extension list
 // and can be individually toggled/replaced by user-created extensions.
 
@@ -314,3 +314,4 @@ export function registerBuiltinExtensions(): void {
   // This function just signals registration is complete.
   console.log('[Extensions] Built-in extensions ready.')
 }
+

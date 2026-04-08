@@ -1,4 +1,4 @@
-# What's Next: 3 Options
+﻿# What's Next: 3 Options
 
 Pick one based on what you want to do now.
 
@@ -9,9 +9,9 @@ Pick one based on what you want to do now.
 
 ```
 START: Read STATUS.md (5 min)
-  ↓
+  â†“
 READ: FOUR_IMPROVEMENTS_GUIDE.md (20 min)
-  ↓
+  â†“
 RESULT: You understand all 4 layers inside and out
 ```
 
@@ -24,13 +24,13 @@ RESULT: You understand all 4 layers inside and out
 
 ```
 START: QUICK_REFERENCE.md (5 min)
-  ↓
+  â†“
 COPY: First example from each layer (10 min)
-  ↓
+  â†“
 PASTE: Into test file (5 min)
-  ↓
+  â†“
 RUN: npm run build (5 min)
-  ↓
+  â†“
 RESULT: All 4 layers working in your project
 ```
 
@@ -43,17 +43,17 @@ RESULT: All 4 layers working in your project
 
 ```
 START: INTEGRATION_ROADMAP.md Phase 2A (10 min)
-  ↓
+  â†“
 FIND: Your planning_engine.ts file (5 min)
-  ↓
+  â†“
 ADD: TaskQueue imports (5 min)
-  ↓
+  â†“
 REPLACE: One direct call with queue.enqueueTask() (15 min)
-  ↓
+  â†“
 TEST: npm run build (5 min)
-  ↓
+  â†“
 EXPAND: To all relevant task creation points (1-2 hours)
-  ↓
+  â†“
 RESULT: Task Queue is now live in your system
 ```
 
@@ -95,19 +95,19 @@ RESULT: Task Queue is now live in your system
 ## Current State
 
 ```
-✅ All 4 layers BUILT (1,524 lines of production code)
-✅ All 4 layers VALIDATED (0 compilation errors)
-✅ All 4 layers DOCUMENTED (3 complete guides + status + summary)
-✅ All 4 layers READY FOR USE
+âœ… All 4 layers BUILT (1,524 lines of production code)
+âœ… All 4 layers VALIDATED (0 compilation errors)
+âœ… All 4 layers DOCUMENTED (3 complete guides + status + summary)
+âœ… All 4 layers READY FOR USE
 
-⏳ Integration: NOT STARTED (you decide when)
+â³ Integration: NOT STARTED (you decide when)
 ```
 
 ---
 
 ## File Locations
 
-All new files in: `d:\Antigravity\patrich\jarvis\src\core\cognitive-workspace\`
+All new files in: `d:\Antigravity\Pixi\Pixi\src\core\cognitive-workspace\`
 
 **Code** (ready to use):
 - task_queue.ts
@@ -117,7 +117,7 @@ All new files in: `d:\Antigravity\patrich\jarvis\src\core\cognitive-workspace\`
 - index.ts (updated)
 
 **Documentation** (ready to read):
-- SUMMARY.md ← START HERE
+- SUMMARY.md â† START HERE
 - STATUS.md
 - FOUR_IMPROVEMENTS_GUIDE.md
 - INTEGRATION_ROADMAP.md
@@ -130,10 +130,10 @@ All new files in: `d:\Antigravity\patrich\jarvis\src\core\cognitive-workspace\`
 
 Nothing! All layers are ready to use independently:
 
-✅ Can use Task Queue without Confidence Gate
-✅ Can use Tool Registry without Task Queue
-✅ Can use Memory Ranking standalone
-✅ Can integrate in any order
+âœ… Can use Task Queue without Confidence Gate
+âœ… Can use Tool Registry without Task Queue
+âœ… Can use Memory Ranking standalone
+âœ… Can integrate in any order
 
 ---
 
@@ -159,6 +159,7 @@ If you get stuck:
 
 ## Your Move
 
-👉 **Pick one option above and start**
+ðŸ‘‰ **Pick one option above and start**
 
-The code is waiting for you! ✨
+The code is waiting for you! âœ¨
+

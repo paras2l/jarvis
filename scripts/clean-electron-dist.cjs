@@ -1,4 +1,4 @@
-const fs = require('fs')
+﻿const fs = require('fs')
 const path = require('path')
 
 const distDir = path.join(process.cwd(), 'dist')
@@ -8,7 +8,7 @@ if (!fs.existsSync(distDir)) {
 }
 
 const removableNames = new Set([
-  '__uninstaller-nsis-patrich.exe',
+  '__uninstaller-nsis-Pixi.exe',
   'builder-debug.yml',
   'builder-effective-config.yaml',
   'latest.yml',
@@ -30,3 +30,4 @@ for (const entry of fs.readdirSync(distDir)) {
     // Ignore deletion errors and continue; builder may still overwrite artifacts.
   }
 }
+

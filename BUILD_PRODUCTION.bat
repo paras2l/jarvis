@@ -1,6 +1,6 @@
-@echo off
+﻿@echo off
 REM ============================================================================
-REM Patrich Production Build Script
+REM Pixi Production Build Script
 REM Creates distributable Windows .exe file
 REM ============================================================================
 
@@ -10,10 +10,10 @@ cd /d "%~dp0"
 
 echo.
 echo ============================================================================
-echo   Building Patrich for Distribution...
+echo   Building Pixi for Distribution...
 echo ============================================================================
 echo.
-echo This will create: Patrich-portable-1.0.0.exe
+echo This will create: Pixi-portable-1.0.0.exe
 echo Location: dist/ folder
 echo.
 
@@ -46,7 +46,7 @@ echo BUILD COMPLETE!
 echo ============================================================================
 echo.
 echo Your executable is ready at:
-echo   dist\Patrich-portable-1.0.0.exe
+echo   dist\Pixi-portable-1.0.0.exe
 echo.
 echo You can now:
 echo 1. Test the executable
@@ -54,3 +54,4 @@ echo 2. Distribute it to users
 echo 3. Or continue developing with npm run dev + npm run electron-dev
 echo.
 pause
+

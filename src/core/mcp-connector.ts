@@ -1,16 +1,16 @@
-/**
- * MCP Connector — Feature J-R1 (OpenJarvis: Model Context Protocol)
+﻿/**
+ * MCP Connector â€” Feature J-R1 (OpenPixi: Model Context Protocol)
  *
  * Model Context Protocol (MCP) is like USB-C for AI tools.
  * Instead of building custom integrations for each tool, you implement ONE protocol
  * and instantly connect to ANY MCP-compatible server: Blender, VS Code, databases,
- * file systems, APIs, web browsers — anything.
+ * file systems, APIs, web browsers â€” anything.
  *
  * Why it's a game-changer:
- *   - 1 implementation → 1000+ compatible tools and data sources
- *   - MCP servers run locally — no API costs, no cloud dependency
+ *   - 1 implementation â†’ 1000+ compatible tools and data sources
+ *   - MCP servers run locally â€” no API costs, no cloud dependency
  *   - The agent can discover what tools a server supports at runtime
- *   - Used by Claude Desktop, OpenJarvis, and growing ecosystem
+ *   - Used by Claude Desktop, OpenPixi, and growing ecosystem
  *
  * This implementation:
  *   - Acts as an MCP CLIENT (connects to MCP servers)
@@ -19,17 +19,17 @@
  *   - Routes tool calls from the agent to the right MCP server
  *
  * Example MCP servers you can connect:
- *   - filesystem → read/write any file
- *   - github → full GitHub API via natural language
- *   - blender → control Blender 3D
- *   - sqlite → query any SQLite database
- *   - playwright → browser automation
- *   - fetch → web fetching with parsing
+ *   - filesystem â†’ read/write any file
+ *   - github â†’ full GitHub API via natural language
+ *   - blender â†’ control Blender 3D
+ *   - sqlite â†’ query any SQLite database
+ *   - playwright â†’ browser automation
+ *   - fetch â†’ web fetching with parsing
  *
- * Adapted from OpenJarvis MCP integration — rebuilt for our browser/Electron context.
+ * Adapted from OpenPixi MCP integration â€” rebuilt for our browser/Electron context.
  */
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface MCPServerConfig {
   id: string
@@ -67,7 +67,7 @@ export interface MCPCallResult {
   latencyMs: number
 }
 
-// ── Pre-configured popular MCP servers ────────────────────────────────────
+// â”€â”€ Pre-configured popular MCP servers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const POPULAR_SERVERS: Partial<MCPServerConfig>[] = [
   {
@@ -107,18 +107,18 @@ const POPULAR_SERVERS: Partial<MCPServerConfig>[] = [
   },
 ]
 
-// ── MCPConnector ───────────────────────────────────────────────────────────
+// â”€â”€ MCPConnector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class MCPConnector {
   private servers = new Map<string, MCPServerConfig>()
-  private toolRegistry = new Map<string, MCPTool>()      // toolName → MCPTool
+  private toolRegistry = new Map<string, MCPTool>()      // toolName â†’ MCPTool
   private readonly CONFIG_KEY = 'mcp-servers'
 
   constructor() {
     this.loadConfig()
   }
 
-  // ── Public API ──────────────────────────────────────────────────────────
+  // â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private abortError(toolName: string): MCPCallResult {
     return {
@@ -148,10 +148,10 @@ class MCPConnector {
 
     try {
       await this.discoverTools(config)
-      console.log(`[MCP] ✅ Connected: ${config.name} (${this.countServerTools(config.id)} tools)`)
+      console.log(`[MCP] âœ… Connected: ${config.name} (${this.countServerTools(config.id)} tools)`)
       return true
     } catch (e) {
-      console.warn(`[MCP] ⚠️ Could not connect to ${config.name}: ${e}`)
+      console.warn(`[MCP] âš ï¸ Could not connect to ${config.name}: ${e}`)
       return false
     }
   }
@@ -160,7 +160,7 @@ class MCPConnector {
    * Register all popular servers at once (for quick setup).
    */
   async registerPopularServers(): Promise<void> {
-    console.log('[MCP] 🔌 Registering popular MCP servers...')
+    console.log('[MCP] ðŸ”Œ Registering popular MCP servers...')
     for (const partial of POPULAR_SERVERS) {
       await this.registerServer({ ...partial, enabled: true } as MCPServerConfig)
     }
@@ -279,7 +279,7 @@ class MCPConnector {
     this.saveConfig()
   }
 
-  // ── Private: Discovery ────────────────────────────────────────────────
+  // â”€â”€ Private: Discovery â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private async discoverTools(server: MCPServerConfig): Promise<void> {
     // In a real implementation, this would:
@@ -458,10 +458,11 @@ class MCPConnector {
       if (stored) {
         const configs = JSON.parse(stored) as MCPServerConfig[]
         configs.forEach(c => this.servers.set(c.id, c))
-        console.log(`[MCP] 📋 Loaded ${configs.length} server configs`)
+        console.log(`[MCP] ðŸ“‹ Loaded ${configs.length} server configs`)
       }
     } catch { /* ignore */ }
   }
 }
 
 export const mcpConnector = new MCPConnector()
+

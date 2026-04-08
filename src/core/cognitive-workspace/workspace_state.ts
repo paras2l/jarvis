@@ -1,10 +1,10 @@
-/**
+﻿/**
  * Global Cognitive Workspace State
  * 
- * This is the central nervous system of the Jarvis architecture.
+ * This is the central nervous system of the Pixi architecture.
  * Every module reads from and writes to this single source of truth.
  * 
- * Flow: UI → Perception → Workspace → Consciousness → Planning → Action → Memory → Reflection → Learning
+ * Flow: UI â†’ Perception â†’ Workspace â†’ Consciousness â†’ Planning â†’ Action â†’ Memory â†’ Reflection â†’ Learning
  */
 
 export type EmotionalState = 'happy' | 'sad' | 'frustrated' | 'confused' | 'excited' | 'calm' | 'uncertain'
@@ -291,3 +291,4 @@ export const WORKSPACE_PATHS = {
   BLOCKERS: 'blockers',
   SELF_MODEL: 'selfModel',
 } as const
+

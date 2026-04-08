@@ -1,4 +1,4 @@
-import { valueRegistry } from '@/layers/value_alignment/value_registry'
+﻿import { valueRegistry } from '@/layers/value_alignment/value_registry'
 import { identityCore } from '@/layers/identity_continuity/identity_core'
 import { clamp01 } from './self_state_schema'
 
@@ -109,7 +109,7 @@ export interface GoalObservation {
   persistent?: boolean
 }
 
-const STORAGE_KEY = 'patrich.self_model.goal_compass.v1'
+const STORAGE_KEY = 'Pixi.self_model.goal_compass.v1'
 const MAX_GOALS = 120
 const MAX_ACTIVE_GOALS = 12
 
@@ -133,7 +133,7 @@ class SelfGoalCompass {
   constructor() {
     this.hydrate()
     this.seedDefaultGoals()
-    this.seedValueAxes({ agentName: 'Patrich', userTrust: 0.8, currentMood: 'neutral', runtimeMode: 'active' })
+    this.seedValueAxes({ agentName: 'Pixi', userTrust: 0.8, currentMood: 'neutral', runtimeMode: 'active' })
   }
 
   observe(input: GoalObservation): GoalNode {
@@ -687,7 +687,7 @@ class SelfGoalCompass {
     })
   }
 
-  private seedValueAxes(context: { agentName: string; userTrust?: number; currentMood?: string; runtimeMode?: string } = { agentName: 'Patrich' }): void {
+  private seedValueAxes(context: { agentName: string; userTrust?: number; currentMood?: string; runtimeMode?: string } = { agentName: 'Pixi' }): void {
     const registryValues = valueRegistry.getAllValues()
     const mapped = registryValues.map((value) => ({
       name: value.name,

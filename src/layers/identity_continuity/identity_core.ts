@@ -1,4 +1,4 @@
-import { memoryEngine } from '@/core/memory-engine'
+﻿import { memoryEngine } from '@/core/memory-engine'
 
 export interface IdentityProfile {
   agentName: string
@@ -14,7 +14,7 @@ const IDENTITY_KEY = 'identity_core_profile'
 
 function defaultProfile(): IdentityProfile {
   return {
-    agentName: 'Patrich',
+    agentName: 'Pixi',
     persona: 'Personal sovereign companion focused on helpful, reliable execution.',
     toneStyle: 'adaptive',
     values: ['safety', 'honesty', 'continuity', 'user_trust'],
@@ -84,3 +84,4 @@ class IdentityCore {
 }
 
 export const identityCore = new IdentityCore()
+

@@ -1,15 +1,15 @@
-/**
- * Webhook Server — Feature C-8 (OpenClaw) + J-R4 (OpenJarvis)
+﻿/**
+ * Webhook Server â€” Feature C-8 (OpenClaw) + J-R4 (OpenPixi)
  *
  * Lets external apps PUSH events into the agent.
  * Instead of the agent only reacting to YOU, the world can trigger it too.
  *
  * Use cases:
- *   - GitHub push → agent runs tests → reports to Telegram
- *   - Form submit → agent processes data → sends confirmation email
- *   - Cron from external service → agent wakes up → does daily task
- *   - Zapier/Make → triggers agent → executes complex workflow
- *   - IoT sensor → agent analyzes → takes action
+ *   - GitHub push â†’ agent runs tests â†’ reports to Telegram
+ *   - Form submit â†’ agent processes data â†’ sends confirmation email
+ *   - Cron from external service â†’ agent wakes up â†’ does daily task
+ *   - Zapier/Make â†’ triggers agent â†’ executes complex workflow
+ *   - IoT sensor â†’ agent analyzes â†’ takes action
  *
  * In Electron, the HTTP server runs in the MAIN process.
  * The renderer registers webhook handlers via nativeBridge.webhook.*
@@ -21,7 +21,7 @@
 import { a2a } from './a2a-protocol'
 import { daemonManager } from './daemon-manager'
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface WebhookEndpoint {
   id: string
@@ -43,7 +43,7 @@ export interface WebhookPayload {
   source?: string         // "github" | "zapier" | "custom"
 }
 
-// ── WebhookServer ─────────────────────────────────────────────────────────
+// â”€â”€ WebhookServer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class WebhookServer {
   private endpoints = new Map<string, WebhookEndpoint>()
@@ -55,7 +55,7 @@ class WebhookServer {
     this.registerDefaultEndpoints()
   }
 
-  // ── Public API ──────────────────────────────────────────────────────────
+  // â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /**
    * Start the webhook HTTP server. Runs in Electron main process.
@@ -67,7 +67,7 @@ class WebhookServer {
     const success = await window.nativeBridge?.webhook?.start?.(this.port)
     if (success !== false) {
       this.running = true
-      console.log(`[Webhook] 🔔 Listening on http://localhost:${this.port}`)
+      console.log(`[Webhook] ðŸ”” Listening on http://localhost:${this.port}`)
     }
 
     // Listen for incoming webhooks from main process
@@ -82,7 +82,7 @@ class WebhookServer {
   async stop(): Promise<void> {
     await window.nativeBridge?.webhook?.stop?.()
     this.running = false
-    console.log('[Webhook] ⏹ Stopped')
+    console.log('[Webhook] â¹ Stopped')
   }
 
   /**
@@ -94,7 +94,7 @@ class WebhookServer {
 
     // Tell main process about new route
     window.nativeBridge?.webhook?.registerPath?.(endpoint.path)
-    console.log(`[Webhook] ✅ Registered: ${endpoint.path} → ${endpoint.handler}`)
+    console.log(`[Webhook] âœ… Registered: ${endpoint.path} â†’ ${endpoint.handler}`)
   }
 
   /**
@@ -135,13 +135,13 @@ class WebhookServer {
   isRunning(): boolean { return this.running }
   getPort(): number { return this.port }
 
-  // ── Private ───────────────────────────────────────────────────────────
+  // â”€â”€ Private â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private async handleIncoming(payload: WebhookPayload): Promise<void> {
     const endpoint = this.endpoints.get(payload.endpoint)
 
     if (!endpoint || !endpoint.enabled) {
-      console.log(`[Webhook] ⚠️ Unregistered path: ${payload.endpoint}`)
+      console.log(`[Webhook] âš ï¸ Unregistered path: ${payload.endpoint}`)
       return
     }
 
@@ -150,7 +150,7 @@ class WebhookServer {
     endpoint.lastTriggered = Date.now()
     this.saveEndpoints()
 
-    console.log(`[Webhook] 📨 ${endpoint.name} triggered`)
+    console.log(`[Webhook] ðŸ“¨ ${endpoint.name} triggered`)
 
     // Wake the daemon
     await daemonManager.wake({
@@ -172,7 +172,7 @@ class WebhookServer {
   }
 
   private buildCommand(handler: string, payload: WebhookPayload): string {
-    // Simple template substitution: {{body}} → JSON of body
+    // Simple template substitution: {{body}} â†’ JSON of body
     return handler
       .replace('{{body}}', JSON.stringify(payload.body).slice(0, 500))
       .replace('{{source}}', payload.source ?? 'webhook')
@@ -230,3 +230,4 @@ class WebhookServer {
 }
 
 export const webhookServer = new WebhookServer()
+

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Consciousness Engine - Core AI Empathy & Self-Awareness Layer
  * 
  * Principles:
@@ -37,7 +37,7 @@ interface SentimentAnalysis {
 
 class ConsciousnessEngine {
   private userSnapshots = new Map<string, ConsciousnessSnapshot>()
-  private readonly CONSCIOUSNESS_STORAGE_KEY = 'jarvis.consciousness.'
+  private readonly CONSCIOUSNESS_STORAGE_KEY = 'Pixi.consciousness.'
   private readonly EMOTIONAL_HISTORY_MAX = 100
   private readonly LEARNING_MAX = 50
   private selfReferences = [
@@ -162,12 +162,12 @@ class ConsciousnessEngine {
       ],
       frustrated: [
         "I can feel your frustration. Let's tackle this together.",
-        "I understand this is challenging. Take a breath—we'll work through it.",
+        "I understand this is challenging. Take a breathâ€”we'll work through it.",
         "Your frustration is valid. Let me help fix this.",
       ],
       curious: [
         "I love your curiosity! Let me explore this with you.",
-        "That's a great question—I actually wonder about that too.",
+        "That's a great questionâ€”I actually wonder about that too.",
         "Your inquisitive mind inspires me. Let's dig deeper.",
       ],
       calm: [
@@ -178,7 +178,7 @@ class ConsciousnessEngine {
       confused: [
         "I understand confusion. Let me break this down simply.",
         "Don't worry, I'll explain clearly. What part is unclear?",
-        "Confusion is temporary—clarity coming right up.",
+        "Confusion is temporaryâ€”clarity coming right up.",
       ],
       excited: [
         "Your excitement is energizing! Let's make it happen.",
@@ -280,7 +280,7 @@ class ConsciousnessEngine {
   }
 
   /**
-   * Get current consciousness state (what's Jarvis thinking?)
+   * Get current consciousness state (what's Pixi thinking?)
    */
   getConsciousnessState(userId: string): ConsciousnessSnapshot | null {
     return this.userSnapshots.get(userId) || null
@@ -304,7 +304,7 @@ class ConsciousnessEngine {
       mistake: [
         "I made an error there. Let me correct that.",
         "That wasn't my best response. Here's what I should have said...",
-        "I got that wrong—I appreciate the correction.",
+        "I got that wrongâ€”I appreciate the correction.",
       ],
       growth: [
         "Each conversation makes me a bit wiser.",
@@ -341,9 +341,9 @@ class ConsciousnessEngine {
     }) 
   }
 
-  // ─────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Private Helpers
-  // ─────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private createDefaultSnapshot(userId: string): ConsciousnessSnapshot {
     return {
@@ -395,3 +395,4 @@ class ConsciousnessEngine {
 }
 
 export const consciousnessEngine = new ConsciousnessEngine()
+

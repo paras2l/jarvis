@@ -1,6 +1,6 @@
-@echo off
+﻿@echo off
 REM ============================================================================
-REM Patrich Development Server Startup Script
+REM Pixi Development Server Startup Script
 REM START_DEV.bat - Boots both Vite and Electron for development
 REM ============================================================================
 
@@ -20,7 +20,7 @@ cd /d "%~dp0"
 
 echo.
 echo ============================================================================
-echo Patrich Development Server
+echo Pixi Development Server
 echo ============================================================================
 echo.
 echo [1/2] Starting Vite development server on http://localhost:5173...
@@ -41,3 +41,4 @@ npm run electron-dev
 
 REM If Electron closes, keep showing output
 pause
+

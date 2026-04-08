@@ -1,11 +1,11 @@
-export interface UserHabit {
+﻿export interface UserHabit {
   key: string
   value: string
   confidence: number
   updatedAt: number
 }
 
-const PROFILE_KEY = 'patrich.user.profile'
+const PROFILE_KEY = 'Pixi.user.profile'
 
 class UserProfile {
   private habits = new Map<string, UserHabit>()
@@ -50,3 +50,4 @@ class UserProfile {
 }
 
 export const userProfile = new UserProfile()
+

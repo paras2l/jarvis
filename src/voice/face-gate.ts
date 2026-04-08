@@ -1,4 +1,4 @@
-const FACE_GATE_ENABLED_KEY = 'patrich.voice.face_gate.enabled'
+﻿const FACE_GATE_ENABLED_KEY = 'Pixi.voice.face_gate.enabled'
 const FACE_GATE_TTL_MS = 30_000
 
 export interface FaceGateDecision {
@@ -55,3 +55,4 @@ class FaceGate {
 }
 
 export const faceGate = new FaceGate()
+

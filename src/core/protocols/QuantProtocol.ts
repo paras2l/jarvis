@@ -1,11 +1,11 @@
-import { BaseProtocol, ProtocolAction, ActionResult, ProtocolStatus } from './types';
+﻿import { BaseProtocol, ProtocolAction, ActionResult, ProtocolStatus } from './types';
 import { auditLedger } from '../../lib/governance';
 import { db } from '../../lib/db';
 
 export class QuantProtocol implements BaseProtocol {
   id = 'finance.quant';
   name = "Quant Financial Intelligence";
-  description = "God-Tier economy: Analyzes market drift and performs strategic resource arbitrage for the JARVIS ecosystem.";
+  description = "God-Tier economy: Analyzes market drift and performs strategic resource arbitrage for the Pixi ecosystem.";
   status: ProtocolStatus = 'offline';
 
   private marketConfidence: number = 0.92;
@@ -80,3 +80,4 @@ export class QuantProtocol implements BaseProtocol {
 }
 
 export const quantProtocol = new QuantProtocol();
+

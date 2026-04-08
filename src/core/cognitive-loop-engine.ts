@@ -1,4 +1,4 @@
-import { contextAwarenessEngine } from '@/core/context-awareness-engine'
+﻿import { contextAwarenessEngine } from '@/core/context-awareness-engine'
 import { predictionEngine } from '@/core/prediction-engine'
 import { curiosityEngine } from '@/core/curiosity-engine'
 import { reflectionEngine } from '@/core/reflection-engine'
@@ -7,7 +7,7 @@ import taskExecutor from '@/core/task-executor'
 import { runtimePolicyStore } from '@/core/runtime-policy'
 import { multimodalVision } from '@/vision/multimodal-vision'
 import { Task, ExecutionContext } from '@/types'
-import { jarvisOS } from '@/core/jarvis3'
+import { PixiOS } from '@/core/Pixi3'
 
 const DEFAULT_LOOP_MS = 12_000
 
@@ -63,7 +63,7 @@ class CognitiveLoopEngine {
 
     // 2) Reasoning + prediction
     const predictions = await predictionEngine.infer(context)
-    const cycle = await jarvisOS.runCognitiveCycle(context, {
+    const cycle = await PixiOS.runCognitiveCycle(context, {
       allowAutonomousExecution: policy.autonomyMode === 'autonomous',
       maxAutoGoals: 1,
     })
@@ -132,3 +132,4 @@ class CognitiveLoopEngine {
 }
 
 export const cognitiveLoopEngine = new CognitiveLoopEngine()
+

@@ -1,11 +1,11 @@
-import { BaseProtocol, ProtocolAction, ActionResult, ProtocolStatus } from './types';
+﻿import { BaseProtocol, ProtocolAction, ActionResult, ProtocolStatus } from './types';
 import { auditLedger } from '../../lib/governance';
 import { db } from '../../lib/db';
 
 export class MimicProtocol implements BaseProtocol {
   id = 'intelligence.mimic';
   name = "Situational Tone (Mimic)";
-  description = "Mimic Mastery: Dynamically shifts JARVIS's situational persona between 5 modes (Witty, Professional, Tactical, Empathetic, Oracle) based on user and mission context.";
+  description = "Mimic Mastery: Dynamically shifts Pixi's situational persona between 5 modes (Witty, Professional, Tactical, Empathetic, Oracle) based on user and mission context.";
   status: ProtocolStatus = 'offline';
 
   private currentMode = 'Witty';
@@ -57,3 +57,4 @@ export class MimicProtocol implements BaseProtocol {
 }
 
 export const mimicProtocol = new MimicProtocol();
+

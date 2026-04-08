@@ -1,4 +1,4 @@
-/**
+﻿/**
  * APIExecutor - Parallel API execution with fallback chains
  * Executes multiple APIs concurrently, aggregates results, handles errors
  */
@@ -140,7 +140,7 @@ export class APIExecutor {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${config.apiKey}`,
-          'User-Agent': 'Patrich/v4.0'
+          'User-Agent': 'Pixi/v4.0'
         },
         body: JSON.stringify({ query, model: this.getDefaultModel(config.provider) }),
         signal: controller.signal
@@ -224,3 +224,4 @@ export class APIExecutor {
     }
   }
 }
+

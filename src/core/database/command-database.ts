@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Cross-Device Command Database - Extensible Command Storage
  * 
  * Abstraction layer over storage backends:
@@ -273,15 +273,15 @@ class CommandDatabase {
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Platform-Specific Implementations
-  // ─────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private async initWeb(): Promise<boolean> {
     try {
       // Initialize IndexedDB
       return new Promise((resolve) => {
-        const request = indexedDB.open(this.config?.dbName || 'jarvis-commands', 1)
+        const request = indexedDB.open(this.config?.dbName || 'Pixi-commands', 1)
 
         request.onerror = () => resolve(false)
 
@@ -419,3 +419,4 @@ class CommandDatabase {
 }
 
 export const commandDatabase = new CommandDatabase()
+

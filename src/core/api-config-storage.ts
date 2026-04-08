@@ -1,12 +1,12 @@
-/**
+﻿/**
  * APIConfigStorage - Secure localStorage persistence for API keys
  * Handles encryption, validation, and typed access to API credentials
  */
 
 import type { APIConfig, APIProvider } from '../types'
 
-const STORAGE_KEY = 'patrich_api_configs'
-const ENCRYPTION_SALT = 'patrich_v4_sentinel' // Simple XOR (TODO: use libsodium in prod)
+const STORAGE_KEY = 'Pixi_api_configs'
+const ENCRYPTION_SALT = 'Pixi_v4_sentinel' // Simple XOR (TODO: use libsodium in prod)
 
 export class APIConfigStorage {
   /**
@@ -161,3 +161,4 @@ export class APIConfigStorage {
     }
   }
 }
+

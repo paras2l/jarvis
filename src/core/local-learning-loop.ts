@@ -1,8 +1,8 @@
-/**
- * Local Learning Loop — Feature #3
+﻿/**
+ * Local Learning Loop â€” Feature #3
  *
- * The agent's self-improvement engine. Inspired by OpenJarvis's continuous learning
- * system — re-invented for our architecture without any fine-tuning infrastructure.
+ * The agent's self-improvement engine. Inspired by OpenPixi's continuous learning
+ * system â€” re-invented for our architecture without any fine-tuning infrastructure.
  *
  * How it works:
  *   1. Every successful agent interaction is recorded as a "trace"
@@ -20,7 +20,7 @@
 import { semanticSearch } from './semantic-search'
 import { intelligenceRouter } from './intelligence-router'
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface AgentTrace {
   id: string
@@ -44,7 +44,7 @@ export interface GoldenPattern {
   topic: string
 }
 
-// ── LocalLearningLoop ─────────────────────────────────────────────────────
+// â”€â”€ LocalLearningLoop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class LocalLearningLoop {
   private traces: AgentTrace[] = []
@@ -59,7 +59,7 @@ class LocalLearningLoop {
     this.loadFromStorage()
   }
 
-  // ── Public API ──────────────────────────────────────────────────────────
+  // â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /**
    * Record an agent interaction as a trace.
@@ -115,7 +115,7 @@ class LocalLearningLoop {
   }
 
   /**
-   * Get "primers" — examples of successful past interactions to include in LLM prompt.
+   * Get "primers" â€” examples of successful past interactions to include in LLM prompt.
    * This is what makes the local LLM act like it's been trained on your tasks.
    */
   getPrimers(query: string, count = 3): string {
@@ -174,10 +174,10 @@ class LocalLearningLoop {
     this.saveToStorage()
   }
 
-  // ── Private: Distillation ─────────────────────────────────────────────
+  // â”€â”€ Private: Distillation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private async distillAsync(): Promise<void> {
-    console.log('[LearningLoop] 🧬 Distilling new patterns...')
+    console.log('[LearningLoop] ðŸ§¬ Distilling new patterns...')
 
     // Take recent successful traces
     const recentSuccess = this.traces
@@ -202,7 +202,7 @@ class LocalLearningLoop {
     }
 
     this.saveToStorage()
-    console.log(`[LearningLoop] ✅ Distilled ${this.patterns.length} total patterns`)
+    console.log(`[LearningLoop] âœ… Distilled ${this.patterns.length} total patterns`)
   }
 
   private async createGoldenPattern(
@@ -216,7 +216,7 @@ class LocalLearningLoop {
     let pattern = ''
     const compress = await intelligenceRouter.query(
       `Summarize the common pattern in these successful AI interactions in 1-2 sentences:
-${examples.map(e => `- User said: "${e.input.slice(0, 80)}" → Agent did: "${e.output.slice(0, 80)}"`).join('\n')}`,
+${examples.map(e => `- User said: "${e.input.slice(0, 80)}" â†’ Agent did: "${e.output.slice(0, 80)}"`).join('\n')}`,
       { urgency: 'background' }
     )
     pattern = compress.content
@@ -292,7 +292,7 @@ ${examples.map(e => `- User said: "${e.input.slice(0, 80)}" → Agent did: "${e.
       const patterns = localStorage.getItem(this.PATTERN_KEY)
       if (traces) this.traces = JSON.parse(traces) as AgentTrace[]
       if (patterns) this.patterns = JSON.parse(patterns) as GoldenPattern[]
-      console.log(`[LearningLoop] 🧬 Loaded ${this.traces.length} traces, ${this.patterns.length} patterns`)
+      console.log(`[LearningLoop] ðŸ§¬ Loaded ${this.traces.length} traces, ${this.patterns.length} patterns`)
     } catch {
       this.traces = []
       this.patterns = []
@@ -301,3 +301,4 @@ ${examples.map(e => `- User said: "${e.input.slice(0, 80)}" → Agent did: "${e.
 }
 
 export const learningLoop = new LocalLearningLoop()
+

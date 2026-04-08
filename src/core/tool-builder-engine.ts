@@ -1,4 +1,4 @@
-import { mutationSandboxExecutor } from './mutation/sandbox-executor'
+﻿import { mutationSandboxExecutor } from './mutation/sandbox-executor'
 import { MutationManifest } from './mutation/types'
 import { researchEngine } from './research-engine'
 import { skillSandboxExecutor } from './skill-sandbox'
@@ -85,7 +85,7 @@ function inferBuildIntent(command: string): { category: SkillDefinition['categor
       sourceCode: [
         "const payload = typeof input === 'string' ? { message: input } : (input || {});",
         "const recipient = String(payload.to || payload.recipient || '').trim();",
-        "const subject = String(payload.subject || 'Message from Jarvis').trim();",
+        "const subject = String(payload.subject || 'Message from Pixi').trim();",
         "const body = String(payload.body || payload.message || '').trim();",
         "if (!recipient) return { success: false, message: 'No recipient provided.' };",
         "const url = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;",
@@ -143,7 +143,7 @@ class ToolBuilderEngine {
       title: `Generate skill: ${skill.name}`,
       createdAt: Date.now(),
       requestedBy: request.userTag || 'user',
-      ownerProtocol: 'jarvis.tool-builder',
+      ownerProtocol: 'Pixi.tool-builder',
       capabilities: [skill.name, skill.category, ...(skill.tags ?? [])],
       dataAccessScope: ['memory', 'task'],
       sideEffects: ['register-skill', 'persist-registry-entry'],
@@ -220,3 +220,4 @@ class ToolBuilderEngine {
 }
 
 export const toolBuilderEngine = new ToolBuilderEngine()
+

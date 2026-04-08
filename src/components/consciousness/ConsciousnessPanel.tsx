@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ConsciousnessPanel.tsx - UI for Consciousness Engine + Hotword + Sentiment + Commands
  * 
  * Displays:
@@ -59,7 +59,7 @@ export const ConsciousnessPanel: React.FC = () => {
         const initialized = await consciousnessAwareOrchestrator.initialize({
           userId: 'user_' + Date.now(),
           platform: detectedPlatform,
-          hotwordKeywords: ['jarvis', 'hey'],
+          hotwordKeywords: ['Pixi', 'hey'],
           enableConsciousnessMode: true,
         })
 
@@ -112,7 +112,7 @@ export const ConsciousnessPanel: React.FC = () => {
           // Could play audio here
           console.log(
             pickSituationAwareResponse([
-              'Jarvis:',
+              'Pixi:',
               'Consciousness response:',
               'Situation-aware reply:',
             ], [command, result.emotion, result.confidence]),
@@ -211,7 +211,7 @@ export const ConsciousnessPanel: React.FC = () => {
     <div className="space-y-6 p-6 bg-white rounded-lg border border-slate-200">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-slate-900">Jarvis Consciousness</h2>
+        <h2 className="text-2xl font-bold text-slate-900">Pixi Consciousness</h2>
         <div className={`px-3 py-1 rounded-full text-sm font-medium ${emotionColors[currentEmotion] || emotionColors.calm}`}>
           {currentEmotion}
         </div>
@@ -249,20 +249,20 @@ export const ConsciousnessPanel: React.FC = () => {
         >
           {isListening
             ? pickSituationAwareResponse([
-                '🔴 Listening for hotword...',
-                '🔴 I am listening for the wake word...',
-                '🔴 Hotword listening is active...',
+                'ðŸ”´ Listening for hotword...',
+                'ðŸ”´ I am listening for the wake word...',
+                'ðŸ”´ Hotword listening is active...',
               ], [platform, currentEmotion, 'listening'])
             : pickSituationAwareResponse([
-                '🎤 Start Hotword Detection',
-                '🎤 Enable wake word listening',
-                '🎤 Turn on hotword detection',
+                'ðŸŽ¤ Start Hotword Detection',
+                'ðŸŽ¤ Enable wake word listening',
+                'ðŸŽ¤ Turn on hotword detection',
               ], [platform, currentEmotion, 'start'])}
         </button>
         <p className="text-xs text-slate-600 mt-2">
           {isListening
             ? pickSituationAwareResponse([
-                'Say "Jarvis" or "Hey" to activate voice commands',
+                'Say "Pixi" or "Hey" to activate voice commands',
                 'Use the wake word to trigger the voice pipeline.',
                 'Say the hotword and I will wake up for action.',
               ], [platform, currentEmotion, 'wake'])
@@ -294,7 +294,7 @@ export const ConsciousnessPanel: React.FC = () => {
             disabled={isProcessing}
             className="absolute right-2 top-1/2 transform -translate-y-1/2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-slate-400"
           >
-            {isProcessing ? '⏳' : '▶'}
+            {isProcessing ? 'â³' : 'â–¶'}
           </button>
         </div>
 
@@ -375,7 +375,7 @@ export const ConsciousnessPanel: React.FC = () => {
             onClick={handleAddCustomCommand}
             className="w-full px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition font-medium"
           >
-            ✨ Add Custom Command
+            âœ¨ Add Custom Command
           </button>
         </div>
       </div>
@@ -444,3 +444,4 @@ export const ConsciousnessPanel: React.FC = () => {
     </div>
   )
 }
+

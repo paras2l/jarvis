@@ -1,4 +1,4 @@
-import type { BrainSituation } from './brain-director'
+﻿import type { BrainSituation } from './brain-director'
 
 export interface BrainPromptPack {
   name: string
@@ -102,7 +102,7 @@ export const BRAIN_PROMPT_PACKS: Record<BrainSituation | 'digest' | 'triage', Br
     instructions: [
       'Keep the reply natural and adaptive.',
       'Use memory and mood to shape tone.',
-      'Avoid repetitive assistant clichés.',
+      'Avoid repetitive assistant clichÃ©s.',
     ],
   },
   idle: {
@@ -116,7 +116,7 @@ export const BRAIN_PROMPT_PACKS: Record<BrainSituation | 'digest' | 'triage', Br
   },
   digest: {
     name: 'digest',
-    summary: 'Daily digest mode inspired by OpenJarvis morning briefings.',
+    summary: 'Daily digest mode inspired by OpenPixi morning briefings.',
     instructions: [
       'Prioritize urgent items, deadlines, and high-value commitments first.',
       'Group related items into a short, readable briefing.',

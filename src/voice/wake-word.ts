@@ -5,13 +5,12 @@ export interface WakeWordMatch {
 }
 
 const DEFAULT_TOKENS = [
-  'hey patrich',
-  'ok patrich',
-  'okay patrich',
-  'hey patrick',
-  'jarvis',
-  'hey jarvis',
-  'ok jarvis',
+  'hey pixi',
+  'ok pixi',
+  'okay pixi',
+  'pixi',
+  'hey pixie',
+  'ok pixie',
 ]
 
 export class WakeWordDetector {
@@ -28,7 +27,7 @@ export class WakeWordDetector {
   match(transcript: string): WakeWordMatch {
     const normalized = transcript.toLowerCase().trim()
 
-    const regex = /\b(?:hey|ok|okay)?\s*(?:patrich|patrick|jarvis)\b/i
+    const regex = /\b(?:hey|ok|okay)?\s*(?:pixi|pixie)\b/i
     const matched = normalized.match(regex)
     if (matched && matched.index !== undefined) {
       const suffixStart = matched.index + matched[0].length

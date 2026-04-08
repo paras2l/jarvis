@@ -1,6 +1,6 @@
-{
-  "name": "JARVIS — Autonomous AI Agent",
-  "short_name": "JARVIS",
+﻿{
+  "name": "Pixi â€” Autonomous AI Agent",
+  "short_name": "Pixi",
   "description": "Your personal AI agent. Learns, codes, controls apps, and works across all your devices.",
   "start_url": "/",
   "display": "standalone",
@@ -33,14 +33,14 @@
     {
       "name": "New Task",
       "short_name": "Task",
-      "description": "Give JARVIS a new task",
+      "description": "Give Pixi a new task",
       "url": "/?action=new-task",
       "icons": [{ "src": "/favicon.ico", "sizes": "48x48" }]
     },
     {
       "name": "Voice Mode",
       "short_name": "Voice",
-      "description": "Talk to JARVIS",
+      "description": "Talk to Pixi",
       "url": "/?action=voice",
       "icons": [{ "src": "/favicon.ico", "sizes": "48x48" }]
     }
@@ -57,9 +57,10 @@
   },
   "protocol_handlers": [
     {
-      "protocol": "web+jarvis",
+      "protocol": "web+Pixi",
       "url": "/?command=%s"
     }
   ],
   "prefer_related_applications": false
 }
+

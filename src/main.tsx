@@ -1,4 +1,4 @@
-import React from 'react'
+﻿import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import { installNativeBridgeShim } from './core/native-bridge-shim'
@@ -13,7 +13,7 @@ const showRendererError = (message: string) => {
   rootElement.innerHTML = `
     <div style="font-family: Segoe UI, Arial, sans-serif; min-height: 100vh; margin: 0; background: #0e1117; color: #e6edf3; display: flex; align-items: center; justify-content: center; padding: 24px; box-sizing: border-box;">
       <div style="max-width: 860px; background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 18px;">
-        <h1 style="margin: 0 0 12px; font-size: 22px;">Patrich renderer failed to start</h1>
+        <h1 style="margin: 0 0 12px; font-size: 22px;">Pixi renderer failed to start</h1>
         <p style="margin: 0 0 10px;">A runtime error was caught instead of showing a blank white screen.</p>
         <pre style="margin: 0; white-space: pre-wrap; word-break: break-word; background: #0d1117; border: 1px solid #30363d; padding: 10px; border-radius: 8px;">${message}</pre>
       </div>
@@ -45,3 +45,4 @@ ReactDOM.createRoot(rootElement).render(
     <App />
   </React.StrictMode>
 )
+

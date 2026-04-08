@@ -1,14 +1,14 @@
-/**
- * Intelligence Router — Feature #2
+﻿/**
+ * Intelligence Router â€” Feature #2
  *
- * The "Intelligence Per Watt" decision layer — inspired by OpenJarvis (Stanford).
+ * The "Intelligence Per Watt" decision layer â€” inspired by OpenPixi (Stanford).
  * Re-architected for our Electron stack.
  *
  * Every query gets scored on 4 axes:
- *   • Complexity   (simple question vs multi-step reasoning)
- *   • Privacy      (personal data should never leave the device)
- *   • Speed need   (real-time vs background)
- *   • Cost weight  (is saving API calls worth a slower response?)
+ *   â€¢ Complexity   (simple question vs multi-step reasoning)
+ *   â€¢ Privacy      (personal data should never leave the device)
+ *   â€¢ Speed need   (real-time vs background)
+ *   â€¢ Cost weight  (is saving API calls worth a slower response?)
  *
  * Result: The router automatically sends 80%+ of queries to the FREE local LLM.
  * Cloud is only called when local truly cannot handle it.
@@ -19,7 +19,7 @@
 import { localLLM, LocalLLMResponse } from './local-llm'
 import apiGateway from './api-gateway'
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export type RouteDecision = 'local' | 'cloud' | 'hybrid'
 
@@ -41,7 +41,7 @@ export interface RouterResult {
   apiCallsUsed: number
 }
 
-// ── Complexity signals ─────────────────────────────────────────────────────
+// â”€â”€ Complexity signals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const COMPLEX_SIGNALS = [
   'analyze', 'compare', 'synthesize', 'generate code', 'write a full',
@@ -61,19 +61,19 @@ const PRIVATE_SIGNALS = [
   'bank', 'account', 'credit card', 'salary',
 ]
 
-// ── Routing thresholds ─────────────────────────────────────────────────────
+// â”€â”€ Routing thresholds â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-const LOCAL_THRESHOLD = 0.45  // score < 0.45 → route local
-const CLOUD_THRESHOLD = 0.72  // score > 0.72 → route cloud
-// between → hybrid (local first, cloud polish if needed)
+const LOCAL_THRESHOLD = 0.45  // score < 0.45 â†’ route local
+const CLOUD_THRESHOLD = 0.72  // score > 0.72 â†’ route cloud
+// between â†’ hybrid (local first, cloud polish if needed)
 
-// ── IntelligenceRouter ─────────────────────────────────────────────────────
+// â”€â”€ IntelligenceRouter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class IntelligenceRouter {
   private stats = { local: 0, cloud: 0, hybrid: 0, totalSaved: 0 }
 
   /**
-   * MAIN ENTRY POINT — Use this instead of calling apiGateway or localLLM directly.
+   * MAIN ENTRY POINT â€” Use this instead of calling apiGateway or localLLM directly.
    *
    * The router decides whether to use the local LLM, cloud API, or both.
    * Returns a unified RouterResult regardless of which path was taken.
@@ -90,7 +90,7 @@ class IntelligenceRouter {
     const score = this.scoreQuery(prompt, context)
     const start = Date.now()
 
-    console.log(`[Router] "${prompt.slice(0, 40)}..." → ${score.decision} (score: ${score.total.toFixed(2)})`)
+    console.log(`[Router] "${prompt.slice(0, 40)}..." â†’ ${score.decision} (score: ${score.total.toFixed(2)})`)
 
     if (score.decision === 'local') {
       return await this.routeLocal(prompt, context?.systemPrompt, score, start)
@@ -114,7 +114,7 @@ class IntelligenceRouter {
     const result = await this.query(prompt, { 
       urgency: 'realtime', 
       taskType: 'analysis',
-      systemPrompt: 'You are JARVIS, a witty, proactive humanoid partner. Summarize concisely and naturally.' 
+      systemPrompt: 'You are Pixi, a witty, proactive humanoid partner. Summarize concisely and naturally.' 
     })
     
     return result.content || text.slice(0, maxLength * 5)
@@ -129,7 +129,7 @@ class IntelligenceRouter {
   ): QueryScore {
     const lower = prompt.toLowerCase()
 
-    // ── Complexity score ──────────────────────────────
+    // â”€â”€ Complexity score â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let complexity = 0.3  // baseline
     for (const sig of COMPLEX_SIGNALS) {
       if (lower.includes(sig)) complexity = Math.min(1, complexity + 0.15)
@@ -144,23 +144,23 @@ class IntelligenceRouter {
     // Code generation = always complex
     if (context?.taskType === 'code') complexity = Math.max(0.6, complexity)
 
-    // ── Privacy score ─────────────────────────────────
+    // â”€â”€ Privacy score â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let privacy = context?.isPrivate ? 0.9 : 0.1
     for (const sig of PRIVATE_SIGNALS) {
       if (lower.includes(sig)) privacy = Math.min(1, privacy + 0.2)
     }
 
-    // ── Speed need ────────────────────────────────────
+    // â”€â”€ Speed need â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const speedNeed =
       context?.urgency === 'realtime' ? 0.8 :
       context?.urgency === 'background' ? 0.1 : 0.4
 
-    // ── Cost weight ───────────────────────────────────
+    // â”€â”€ Cost weight â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Always try to save costs; only reduce if user has explicitly said speed > cost
     const costWeight = context?.urgency === 'realtime' ? 0.3 : 0.7
 
-    // ── Final score (weighted) ────────────────────────
-    // Higher score → more likely to need cloud
+    // â”€â”€ Final score (weighted) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // Higher score â†’ more likely to need cloud
     // Privacy pulls hard toward local (multiply: high privacy = low cloud score)
     const raw = (complexity * 0.5) + (speedNeed * 0.15) + (costWeight * 0.1)
     const privacyPenalty = privacy * 0.25  // privacy pushes toward local
@@ -171,9 +171,9 @@ class IntelligenceRouter {
       total > CLOUD_THRESHOLD ? 'cloud' : 'hybrid'
 
     const reasoning =
-      decision === 'local' ? `Simple/private query (score ${total.toFixed(2)}) — free local LLM` :
-      decision === 'cloud' ? `Complex query (score ${total.toFixed(2)}) — cloud AI needed` :
-      `Medium query (score ${total.toFixed(2)}) — local first, cloud polish if needed`
+      decision === 'local' ? `Simple/private query (score ${total.toFixed(2)}) â€” free local LLM` :
+      decision === 'cloud' ? `Complex query (score ${total.toFixed(2)}) â€” cloud AI needed` :
+      `Medium query (score ${total.toFixed(2)}) â€” local first, cloud polish if needed`
 
     return { complexity, privacy, speedNeed, costWeight, total, decision, reasoning }
   }
@@ -197,7 +197,7 @@ class IntelligenceRouter {
     this.stats = { local: 0, cloud: 0, hybrid: 0, totalSaved: 0 }
   }
 
-  // ── Private routing methods ────────────────────────────────────────────
+  // â”€â”€ Private routing methods â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private async routeLocal(
     prompt: string,
@@ -208,7 +208,7 @@ class IntelligenceRouter {
     const res: LocalLLMResponse = await localLLM.query(prompt, { system })
 
     if (res.source === 'unavailable') {
-      // Local LLM not running — fall through to cloud
+      // Local LLM not running â€” fall through to cloud
       console.log('[Router] Local unavailable, escalating to cloud')
       return this.routeCloud(prompt, system, score, start)
     }
@@ -253,7 +253,7 @@ class IntelligenceRouter {
     const localRes: LocalLLMResponse = await localLLM.query(prompt, { system })
 
     if (localRes.source === 'unavailable' || !localRes.content) {
-      // No local — go cloud
+      // No local â€” go cloud
       return this.routeCloud(prompt, system, score, start)
     }
 
@@ -269,7 +269,7 @@ class IntelligenceRouter {
       }
     }
 
-    // Local response too short/weak — use cloud to enhance it
+    // Local response too short/weak â€” use cloud to enhance it
     const enhancePrompt = `The following is a draft response. Please expand it into a complete, professional answer:\n\nDraft: ${localRes.content}\n\nOriginal question: ${prompt}`
     const cloudContent = this.extractContent(await apiGateway.queryKnowledge(enhancePrompt))
 
@@ -297,3 +297,4 @@ class IntelligenceRouter {
 }
 
 export const intelligenceRouter = new IntelligenceRouter()
+

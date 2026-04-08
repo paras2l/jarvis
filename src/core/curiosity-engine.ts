@@ -1,4 +1,4 @@
-import { intelligenceRouter } from '@/core/intelligence-router'
+﻿import { intelligenceRouter } from '@/core/intelligence-router'
 
 export interface CuriosityLearningArtifact {
   id: string
@@ -9,7 +9,7 @@ export interface CuriosityLearningArtifact {
   createdAt: number
 }
 
-const CURIOSITY_STORAGE_KEY = 'patrich.curiosity.artifacts'
+const CURIOSITY_STORAGE_KEY = 'Pixi.curiosity.artifacts'
 
 class CuriosityEngine {
   private enabled = true
@@ -86,3 +86,4 @@ class CuriosityEngine {
 }
 
 export const curiosityEngine = new CuriosityEngine()
+

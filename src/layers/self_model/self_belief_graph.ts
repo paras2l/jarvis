@@ -1,4 +1,4 @@
-import { clamp01, type SelfModelWorkspaceSnapshot } from './self_state_schema'
+﻿import { clamp01, type SelfModelWorkspaceSnapshot } from './self_state_schema'
 
 export type SelfBeliefDomain =
   | 'identity'
@@ -130,7 +130,7 @@ export interface SelfBeliefObservation {
   persistent?: boolean
 }
 
-const STORAGE_KEY = 'patrich.self_model.graph.v1'
+const STORAGE_KEY = 'Pixi.self_model.graph.v1'
 const MAX_BELIEFS = 300
 const MAX_REVISION_HISTORY = 600
 const MAX_CONTRADICTIONS = 300

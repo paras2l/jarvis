@@ -1,26 +1,26 @@
-/**
- * Channel Router — Feature C-1 (OpenClaw: Multi-Channel Inbox)
+﻿/**
+ * Channel Router â€” Feature C-1 (OpenClaw: Multi-Channel Inbox)
  *
  * The agent lives inside ALL your messaging apps simultaneously.
- * WhatsApp + Telegram + Discord + Slack + Signal → one unified inbox.
- * You talk to JARVIS from whichever app you prefer — it's always the same agent.
+ * WhatsApp + Telegram + Discord + Slack + Signal â†’ one unified inbox.
+ * You talk to Pixi from whichever app you prefer â€” it's always the same agent.
  *
  * How it works:
  *   - Each "channel" is an adapter that knows how to send/receive messages
  *   - The router normalizes them all to a common Message format
- *   - Outbound: agent writes ONE response → router fans it out to the right channel
- *   - Inbound: message arrives from any platform → normalized → agent processes it
+ *   - Outbound: agent writes ONE response â†’ router fans it out to the right channel
+ *   - Inbound: message arrives from any platform â†’ normalized â†’ agent processes it
  *
  * Platform support:
- *   ┌─────────────────────────────────────────────────────────────────┐
- *   │  WhatsApp    → via Baileys (unofficial WA Web API, local)       │
- *   │  Telegram    → via official Bot API (free, always works)        │
- *   │  Discord     → via discord.js Bot API (free)                    │
- *   │  Slack       → via Slack Bolt API                               │
- *   │  Signal      → via signal-cli (local, most private)            │
- *   │  WebChat     → built-in browser chat (no setup required)       │
- *   │  Email       → SMTP/IMAP bridge (any email provider)           │
- *   └─────────────────────────────────────────────────────────────────┘
+ *   â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+ *   â”‚  WhatsApp    â†’ via Baileys (unofficial WA Web API, local)       â”‚
+ *   â”‚  Telegram    â†’ via official Bot API (free, always works)        â”‚
+ *   â”‚  Discord     â†’ via discord.js Bot API (free)                    â”‚
+ *   â”‚  Slack       â†’ via Slack Bolt API                               â”‚
+ *   â”‚  Signal      â†’ via signal-cli (local, most private)            â”‚
+ *   â”‚  WebChat     â†’ built-in browser chat (no setup required)       â”‚
+ *   â”‚  Email       â†’ SMTP/IMAP bridge (any email provider)           â”‚
+ *   â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
  *
  * Architecture Decision:
  *   In this Electron app, all channel adapters that require a server
@@ -31,7 +31,7 @@
  *   For Android/iOS: WebChat + Telegram via Capacitor HTTP plugin.
  *
  * Inspired by OpenClaw's multi-channel architecture.
- * Rebuilt from scratch for our TypeScript/Electron stack — no direct code copy.
+ * Rebuilt from scratch for our TypeScript/Electron stack â€” no direct code copy.
  */
 
 import { intelligenceRouter } from './intelligence-router'
@@ -40,7 +40,7 @@ import { a2a } from './a2a-protocol'
 import { brainDirector } from './brain/brain-director'
 import { emotionCore } from './emotion/emotion-core'
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export type ChannelId =
   | 'whatsapp'
@@ -90,13 +90,13 @@ export interface ChannelStatus {
   error?: string
 }
 
-// ── Channel Adapters ───────────────────────────────────────────────────────
+// â”€â”€ Channel Adapters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * Each adapter knows how to:
- *   1. connect() — establish connection to the platform
- *   2. send()    — send a message to a specific recipient
- *   3. receive() — subscribe to incoming messages
+ *   1. connect() â€” establish connection to the platform
+ *   2. send()    â€” send a message to a specific recipient
+ *   3. receive() â€” subscribe to incoming messages
  */
 
 abstract class ChannelAdapter {
@@ -123,7 +123,7 @@ abstract class ChannelAdapter {
   }
 }
 
-// ── Telegram Adapter ───────────────────────────────────────────────────────
+// â”€â”€ Telegram Adapter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class TelegramAdapter extends ChannelAdapter {
   id: ChannelId = 'telegram'
@@ -145,7 +145,7 @@ class TelegramAdapter extends ChannelAdapter {
       const resp = await fetch(`https://api.telegram.org/bot${this.botToken}/getMe`)
       const data = await resp.json() as { ok: boolean; result: { first_name: string; username: string } }
       if (!data.ok) throw new Error('Invalid token')
-      console.log(`[Telegram] ✅ Connected as @${data.result.username}`)
+      console.log(`[Telegram] âœ… Connected as @${data.result.username}`)
       this.connected = true
       this.startPolling()
       return true
@@ -235,11 +235,11 @@ class TelegramAdapter extends ChannelAdapter {
         }
         this.onMessage?.(unified)
       }
-    } catch { /* network hiccup — keep trying */ }
+    } catch { /* network hiccup â€” keep trying */ }
   }
 }
 
-// ── Discord Adapter ────────────────────────────────────────────────────────
+// â”€â”€ Discord Adapter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class DiscordAdapter extends ChannelAdapter {
   id: ChannelId = 'discord'
@@ -325,7 +325,7 @@ class DiscordAdapter extends ChannelAdapter {
           d: {
             token: this.botToken,
             intents: 513, // GUILDS + GUILD_MESSAGES
-            properties: { os: 'linux', browser: 'jarvis', device: 'jarvis' },
+            properties: { os: 'linux', browser: 'Pixi', device: 'Pixi' },
           },
         }))
         break
@@ -333,7 +333,7 @@ class DiscordAdapter extends ChannelAdapter {
         if (payload.t === 'READY') {
           this.connected = true
           this.sessionId = String(payload.d.session_id ?? '')
-          console.log(`[Discord] ✅ Connected (session: ${this.sessionId.slice(0, 8)}...)`)
+          console.log(`[Discord] âœ… Connected (session: ${this.sessionId.slice(0, 8)}...)`)
         }
         if (payload.t === 'MESSAGE_CREATE') {
           const m = payload.d as {
@@ -359,7 +359,7 @@ class DiscordAdapter extends ChannelAdapter {
   }
 }
 
-// ── WebChat Adapter (built-in, zero setup) ─────────────────────────────────
+// â”€â”€ WebChat Adapter (built-in, zero setup) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class WebChatAdapter extends ChannelAdapter {
   id: ChannelId = 'webchat'
@@ -367,15 +367,15 @@ class WebChatAdapter extends ChannelAdapter {
   private messageCallback?: (msg: UnifiedMessage) => void
 
   async connect(_config: ChannelConfig): Promise<boolean> {
-    // WebChat is always available — it's the in-app chat
+    // WebChat is always available â€” it's the in-app chat
     this.connected = true
-    console.log('[WebChat] ✅ Ready (built-in)')
+    console.log('[WebChat] âœ… Ready (built-in)')
     return true
   }
 
   async send(_to: string, content: string): Promise<boolean> {
-    // Rendered directly in the UI — dispatch a custom event
-    window.dispatchEvent(new CustomEvent('jarvis:agent-message', { detail: { content } }))
+    // Rendered directly in the UI â€” dispatch a custom event
+    window.dispatchEvent(new CustomEvent('Pixi:agent-message', { detail: { content } }))
     return true
   }
 
@@ -384,7 +384,7 @@ class WebChatAdapter extends ChannelAdapter {
   setMessageCallback(cb: (msg: UnifiedMessage) => void): void {
     this.messageCallback = cb
     // Listen for user messages from the UI
-    window.addEventListener('jarvis:user-message', (e: Event) => {
+    window.addEventListener('Pixi:user-message', (e: Event) => {
       const detail = (e as CustomEvent<{ content: string; from: string }>).detail
       this.messageCount++
       this.lastMessage = Date.now()
@@ -400,7 +400,7 @@ class WebChatAdapter extends ChannelAdapter {
   }
 }
 
-// ── Email Adapter ──────────────────────────────────────────────────────────
+// â”€â”€ Email Adapter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class EmailAdapter extends ChannelAdapter {
   id: ChannelId = 'email'
@@ -412,7 +412,7 @@ class EmailAdapter extends ChannelAdapter {
       this.connected = ok
       return ok
     }
-    console.log('[Email] ℹ️ Email requires Electron main process (IMAP/SMTP)')
+    console.log('[Email] â„¹ï¸ Email requires Electron main process (IMAP/SMTP)')
     return false
   }
 
@@ -424,7 +424,7 @@ class EmailAdapter extends ChannelAdapter {
   async disconnect(): Promise<void> { this.connected = false }
 }
 
-// ── WhatsApp Adapter (Stub for Electron main delegation) ──────────────────
+// â”€â”€ WhatsApp Adapter (Stub for Electron main delegation) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class WhatsAppAdapter extends ChannelAdapter {
   id: ChannelId = 'whatsapp'
@@ -432,7 +432,7 @@ class WhatsAppAdapter extends ChannelAdapter {
   private onMessage?: (msg: UnifiedMessage) => void
 
   async connect(config: ChannelConfig): Promise<boolean> {
-    // WhatsApp (Baileys) MUST run in Electron main (Node.js) — delegate via bridge
+    // WhatsApp (Baileys) MUST run in Electron main (Node.js) â€” delegate via bridge
     if (window.nativeBridge?.channel?.connect) {
       const ok = await window.nativeBridge.channel.connect('whatsapp', config.credentials)
       this.connected = ok
@@ -455,7 +455,7 @@ class WhatsAppAdapter extends ChannelAdapter {
       }
       return ok
     }
-    console.log('[WhatsApp] ℹ️ WhatsApp requires Electron with Baileys in main process')
+    console.log('[WhatsApp] â„¹ï¸ WhatsApp requires Electron with Baileys in main process')
     return false
   }
 
@@ -474,14 +474,14 @@ class WhatsAppAdapter extends ChannelAdapter {
   }
 }
 
-// ── ChannelRouter — The Unified Inbox ─────────────────────────────────────
+// â”€â”€ ChannelRouter â€” The Unified Inbox â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class ChannelRouter {
   private adapters = new Map<ChannelId, ChannelAdapter>()
   private configs = new Map<ChannelId, ChannelConfig>()
   private messageHistory: UnifiedMessage[] = []
   private readonly MAX_HISTORY = 500
-  private replyContexts = new Map<string, string>()  // messageId → channelSender
+  private replyContexts = new Map<string, string>()  // messageId â†’ channelSender
 
   constructor() {
     // Register all adapters
@@ -494,7 +494,7 @@ class ChannelRouter {
     this.loadConfigs()
   }
 
-  // ── Public API ──────────────────────────────────────────────────────────
+  // â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /**
    * Connect a channel with its credentials.
@@ -518,7 +518,7 @@ class ChannelRouter {
     }
 
     const ok = await adapter.connect(config)
-    console.log(`[ChannelRouter] ${ok ? '✅' : '❌'} ${adapter.name}`)
+    console.log(`[ChannelRouter] ${ok ? 'âœ…' : 'âŒ'} ${adapter.name}`)
     return ok
   }
 
@@ -551,7 +551,7 @@ class ChannelRouter {
       this.logMessage({
         id: `out_${Date.now()}`,
         channelId,
-        from: 'jarvis',
+        from: 'Pixi',
         content,
         role: 'agent',
         timestamp: Date.now(),
@@ -666,7 +666,7 @@ class ChannelRouter {
     )
   }
 
-  // ── Private: Incoming Message Processing ─────────────────────────────
+  // â”€â”€ Private: Incoming Message Processing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private async handleIncoming(msg: UnifiedMessage): Promise<void> {
     this.logMessage(msg)
@@ -676,7 +676,7 @@ class ChannelRouter {
     // Expire old contexts after 30 minutes  
     setTimeout(() => this.replyContexts.delete(msg.id), 30 * 60 * 1000)
 
-    console.log(`[ChannelRouter] 📨 [${msg.channelId}] ${msg.fromName ?? msg.from}: ${msg.content.slice(0, 80)}`)
+    console.log(`[ChannelRouter] ðŸ“¨ [${msg.channelId}] ${msg.fromName ?? msg.from}: ${msg.content.slice(0, 80)}`)
 
     // Wake daemon
     await daemonManager.wake({ type: 'wake', timestamp: Date.now(), data: msg })
@@ -761,10 +761,11 @@ class ChannelRouter {
       if (stored) {
         const configs = JSON.parse(stored) as ChannelConfig[]
         configs.forEach(c => this.configs.set(c.id, c))
-        console.log(`[ChannelRouter] 📋 Loaded ${configs.length} channel configs`)
+        console.log(`[ChannelRouter] ðŸ“‹ Loaded ${configs.length} channel configs`)
       }
     } catch { /* ignore */ }
   }
 }
 
 export const channelRouter = new ChannelRouter()
+

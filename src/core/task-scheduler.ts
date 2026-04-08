@@ -1,8 +1,8 @@
-import { agentScheduler } from '@/core/scheduler'
+﻿import { agentScheduler } from '@/core/scheduler'
 import { runtimeEventBus } from '@/core/event-bus'
 
-const DAILY_BRIEF_TIME_KEY = 'patrich.brief.daily.time'
-const ONE_TIME_BRIEF_AT_KEY = 'patrich.brief.once.at'
+const DAILY_BRIEF_TIME_KEY = 'Pixi.brief.daily.time'
+const ONE_TIME_BRIEF_AT_KEY = 'Pixi.brief.once.at'
 
 export interface RuntimeScheduledTask {
   id: string
@@ -147,3 +147,4 @@ class TaskScheduler {
 }
 
 export const taskScheduler = new TaskScheduler()
+

@@ -1,4 +1,4 @@
-export type AutonomyMode = 'observe' | 'assist' | 'autonomous'
+﻿export type AutonomyMode = 'observe' | 'assist' | 'autonomous'
 export type VoiceBackend = 'native' | 'whisper'
 export type OrchestrationFramework = 'native' | 'langgraph' | 'autogen'
 
@@ -13,7 +13,7 @@ export interface RuntimePolicy {
   allowCuriosityLearning: boolean
 }
 
-const RUNTIME_POLICY_KEY = 'patrich.runtime.policy'
+const RUNTIME_POLICY_KEY = 'Pixi.runtime.policy'
 
 const DEFAULT_POLICY: RuntimePolicy = {
   autonomyMode: 'assist',
@@ -90,3 +90,4 @@ class RuntimePolicyStore {
 }
 
 export const runtimePolicyStore = new RuntimePolicyStore()
+

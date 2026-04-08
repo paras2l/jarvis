@@ -1,4 +1,4 @@
-import { eventSubscriber } from './event_subscriber'
+﻿import { eventSubscriber } from './event_subscriber'
 import { eventBus } from './event_bus'
 import type { EventEnvelope, EventHistoryEntry } from './event_types'
 
@@ -7,7 +7,7 @@ type LogSink = 'console' | 'memory' | 'storage'
 class EventLogger {
   private enabled = true
   private sinks: LogSink[] = ['console', 'storage']
-  private storageKey = 'jarvis.event.log'
+  private storageKey = 'Pixi.event.log'
   private logCount = 0
 
   constructor() {
@@ -107,3 +107,4 @@ class EventLogger {
 }
 
 export const eventLogger = new EventLogger()
+

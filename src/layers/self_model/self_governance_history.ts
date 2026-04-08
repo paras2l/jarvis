@@ -1,4 +1,4 @@
-import { clamp01 } from './self_state_schema'
+﻿import { clamp01 } from './self_state_schema'
 
 export interface GovernanceHistoryEntry {
   id: string
@@ -37,7 +37,7 @@ export interface GovernanceHistoryInput {
   tags?: string[]
 }
 
-const STORAGE_KEY = 'patrich.self_model.governance_history.v1'
+const STORAGE_KEY = 'Pixi.self_model.governance_history.v1'
 const MAX_HISTORY = 240
 
 function makeId(prefix: string): string {
@@ -138,3 +138,4 @@ class SelfGovernanceHistory {
 }
 
 export const selfGovernanceHistory = new SelfGovernanceHistory()
+

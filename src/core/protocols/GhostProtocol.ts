@@ -1,11 +1,11 @@
-import { BaseProtocol, ProtocolAction, ActionResult, ProtocolStatus } from './types';
+﻿import { BaseProtocol, ProtocolAction, ActionResult, ProtocolStatus } from './types';
 import { auditLedger } from '../../lib/governance';
 import { db } from '../../lib/db';
 
 export class GhostProtocol implements BaseProtocol {
   id = 'system.ghost';
   name = "Local-Only Offline Autonomy (The Ghost Protocol)";
-  description = "God-Tier autonomy: A 'Dark Mode' for JARVIS. If internet fails, a localized model manages your entire infrastructure.";
+  description = "God-Tier autonomy: A 'Dark Mode' for Pixi. If internet fails, a localized model manages your entire infrastructure.";
   status: ProtocolStatus = 'offline';
 
   private ghostActive: boolean = false;
@@ -121,3 +121,4 @@ export class GhostProtocol implements BaseProtocol {
 }
 
 export const ghostProtocol = new GhostProtocol();
+

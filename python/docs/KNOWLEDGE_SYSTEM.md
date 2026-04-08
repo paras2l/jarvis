@@ -1,8 +1,8 @@
-# Jarvis Knowledge System Documentation
+﻿# Pixi Knowledge System Documentation
 
 ## Overview
 
-The **Jarvis Knowledge System** is the central intelligence repository for the Jarvis AI architecture. It provides:
+The **Pixi Knowledge System** is the central intelligence repository for the Pixi AI architecture. It provides:
 
 - **Entity Management**: Extraction, storage, and organization of entities from various sources
 - **Relationship Management**: Building and inferring connections between entities
@@ -15,26 +15,26 @@ The **Jarvis Knowledge System** is the central intelligence repository for the J
 ### System Diagram
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                   JARVIS KNOWLEDGE SYSTEM                        │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                   │
-│  INPUT SOURCES          │  CORE COMPONENTS        │  OUTPUT      │
-│  ──────────────────     │  ──────────────────     │  OUTPUTS     │
-│                         │                        │                │
-│  • Text Documents   ────►  Entity Extractor  ────►  Reasoning    │
-│  • Observations     ────►  Relation Builder ─────►  Planning     │
-│  • Code Analysis    ────►  Knowledge Graph  ─────►  Memory       │
-│  • Research Data    ────►  Knowledge Core   ─────►  Feedback     │
-│                         │  (Orchestrator)        │                │
-│                         │                        │                │
-│                         │  Support Components    │                │
-│                         │  ─────────────────     │                │
-│                         │  • Retriever           │                │
-│                         │  • Updater             │                │
-│                         │  • Integration Bridges │                │
-│                         │                        │                │
-└─────────────────────────────────────────────────────────────────┘
+â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                   Pixi KNOWLEDGE SYSTEM                        â”‚
+â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
+â”‚                                                                   â”‚
+â”‚  INPUT SOURCES          â”‚  CORE COMPONENTS        â”‚  OUTPUT      â”‚
+â”‚  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€     â”‚  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€     â”‚  OUTPUTS     â”‚
+â”‚                         â”‚                        â”‚                â”‚
+â”‚  â€¢ Text Documents   â”€â”€â”€â”€â–º  Entity Extractor  â”€â”€â”€â”€â–º  Reasoning    â”‚
+â”‚  â€¢ Observations     â”€â”€â”€â”€â–º  Relation Builder â”€â”€â”€â”€â”€â–º  Planning     â”‚
+â”‚  â€¢ Code Analysis    â”€â”€â”€â”€â–º  Knowledge Graph  â”€â”€â”€â”€â”€â–º  Memory       â”‚
+â”‚  â€¢ Research Data    â”€â”€â”€â”€â–º  Knowledge Core   â”€â”€â”€â”€â”€â–º  Feedback     â”‚
+â”‚                         â”‚  (Orchestrator)        â”‚                â”‚
+â”‚                         â”‚                        â”‚                â”‚
+â”‚                         â”‚  Support Components    â”‚                â”‚
+â”‚                         â”‚  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€     â”‚                â”‚
+â”‚                         â”‚  â€¢ Retriever           â”‚                â”‚
+â”‚                         â”‚  â€¢ Updater             â”‚                â”‚
+â”‚                         â”‚  â€¢ Integration Bridges â”‚                â”‚
+â”‚                         â”‚                        â”‚                â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 ### Core Components
@@ -202,9 +202,9 @@ snapshot = bridge.export_knowledge_snapshot()
 
 ## Integration Points
 
-### 1. Perception Layer → Knowledge System
+### 1. Perception Layer â†’ Knowledge System
 
-**Flow**: Sensor observations → Knowledge System
+**Flow**: Sensor observations â†’ Knowledge System
 
 ```python
 # From perception/observation systems
@@ -225,9 +225,9 @@ observations = {
 result = knowledge.learn_from_observations(observations)
 ```
 
-### 2. Research Agent → Knowledge System
+### 2. Research Agent â†’ Knowledge System
 
-**Flow**: Research output → Knowledge System
+**Flow**: Research output â†’ Knowledge System
 
 ```python
 research_result = {
@@ -242,9 +242,9 @@ research_result = {
 result = knowledge.learn_from_research(research_result)
 ```
 
-### 3. Knowledge System → Reasoning Engine
+### 3. Knowledge System â†’ Reasoning Engine
 
-**Flow**: Knowledge queries ← Reasoning needs
+**Flow**: Knowledge queries â† Reasoning needs
 
 ```python
 # Reasoning engine asks for context
@@ -257,9 +257,9 @@ paths = knowledge.find_connections(entity1_id, entity2_id)
 entities = knowledge.query_entities("concept", limit=10)
 ```
 
-### 4. Knowledge System → Planning Engine
+### 4. Knowledge System â†’ Planning Engine
 
-**Flow**: Plan queries ← Planning needs
+**Flow**: Plan queries â† Planning needs
 
 ```python
 # Planning engine asks for task context
@@ -270,12 +270,12 @@ dependencies = bridge.analyze_task_dependencies(task_id)
 sequence = bridge.plan_task_sequence([task1, task2, task3])
 ```
 
-### 5. Knowledge System ↔ Memory System
+### 5. Knowledge System â†” Memory System
 
 **Bidirectional Flow**:
 
 ```python
-# Knowledge → Memory: Periodically export important insights
+# Knowledge â†’ Memory: Periodically export important insights
 important_entity = knowledge.find_entity("important_concept")
 memory.remember_long_term(
     key="knowledge:entity:important",
@@ -283,12 +283,12 @@ memory.remember_long_term(
     importance=0.9
 )
 
-# Memory → Knowledge: Recall and use previously learned facts
+# Memory â†’ Knowledge: Recall and use previously learned facts
 recalled = memory.recall_long_term("entity search")
 # Apply recalled knowledge to current reasoning
 ```
 
-### 6. Self-Improvement → Knowledge System
+### 6. Self-Improvement â†’ Knowledge System
 
 **Flow**: Consolidation and learning from experience
 
@@ -307,7 +307,7 @@ diagnostics = knowledge.get_diagnostics()
 ### Basic Learning and Querying
 
 ```python
-from jarvis.knowledge_system import KnowledgeCore
+from Pixi.knowledge_system import KnowledgeCore
 
 # Initialize
 knowledge = KnowledgeCore()
@@ -344,7 +344,7 @@ knowledge.learn_from_research({
 ### Reasoning Integration
 
 ```python
-from jarvis.knowledge_system import ReasoningKnowledgeBridge
+from Pixi.knowledge_system import ReasoningKnowledgeBridge
 
 bridge = ReasoningKnowledgeBridge(knowledge)
 
@@ -364,7 +364,7 @@ paths = bridge.find_relationship_between(entity1_id, entity2_id)
 ### Planning Integration
 
 ```python
-from jarvis.knowledge_system import PlanningKnowledgeBridge
+from Pixi.knowledge_system import PlanningKnowledgeBridge
 
 bridge = PlanningKnowledgeBridge(knowledge)
 
@@ -381,7 +381,7 @@ feasible = bridge.check_feasibility(task_id)
 ### Memory Integration
 
 ```python
-from jarvis.knowledge_system import MemoryKnowledgeBridge
+from Pixi.knowledge_system import MemoryKnowledgeBridge
 
 bridge = MemoryKnowledgeBridge(knowledge, memory_system)
 
@@ -488,14 +488,14 @@ result = knowledge.consolidate(
 ### Memory Usage
 - In-memory graph is suitable for ~100K entities
 - For larger knowledge bases, consider persistence layer
-- Relationship count grows as O(n²) in worst case
+- Relationship count grows as O(nÂ²) in worst case
 
 ## Extending the Knowledge System
 
 ### Custom Entity Extractors
 
 ```python
-from jarvis.knowledge_system.entity_extractor import EntityExtractor, ExtractedEntity
+from Pixi.knowledge_system.entity_extractor import EntityExtractor, ExtractedEntity
 
 class CustomExtractor(EntityExtractor):
     def extract_domain_specific(self, text: str) -> List[ExtractedEntity]:
@@ -611,4 +611,5 @@ python examples/knowledge_system_examples.py
 
 ## License
 
-Part of the Jarvis AI Architecture. See LICENSE file for details.
+Part of the Pixi AI Architecture. See LICENSE file for details.
+

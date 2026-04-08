@@ -1,4 +1,4 @@
-import { SkillDefinition } from '@/core/skills/types'
+﻿import { SkillDefinition } from '@/core/skills/types'
 
 function openMailto(to: string, subject = '', body = ''): string {
   const query = new URLSearchParams()
@@ -21,7 +21,7 @@ export const sendEmailSkill: SkillDefinition = {
   handler: async (input, _context, api) => {
     const payload = typeof input === 'string' ? { body: input } : (input as Record<string, unknown>)
     const recipient = String(payload?.to || payload?.recipient || '').trim()
-    const subject = String(payload?.subject || 'Message from Jarvis').trim()
+    const subject = String(payload?.subject || 'Message from Pixi').trim()
     const body = String(payload?.body || payload?.message || '').trim()
 
     if (!recipient) {
@@ -46,3 +46,4 @@ export const sendEmailSkill: SkillDefinition = {
     }
   },
 }
+

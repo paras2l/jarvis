@@ -1,38 +1,38 @@
-"""
+﻿"""
 KNOWLEDGE SYSTEM - QUICK REFERENCE & ARCHITECTURE SUMMARY
 =========================================================
 
 This document provides a quick overview of the Knowledge System architecture,
-key APIs, and integration points for the Jarvis AI system.
+key APIs, and integration points for the Pixi AI system.
 
-═══════════════════════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 CORE ENTRY POINT
-────────────────
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-from jarvis.knowledge_system import KnowledgeCore
+from Pixi.knowledge_system import KnowledgeCore
 
 knowledge = KnowledgeCore(memory_system=memory)
 
 MAIN OPERATIONS:
-  • knowledge.learn_from_text(text) → {"entities_added": N, "relations_added": N}
-  • knowledge.query_entities(query) → List[Entity]
-  • knowledge.get_reasoning_context(entity) → Dict with full context
-  • knowledge.find_connections(entity1, entity2) → List[paths]
-  • knowledge.get_task_knowledge(task_ids) → {entities, relationships}
-  • knowledge.consolidate() → {consolidated_count}
-  • knowledge.get_snapshot() → KnowledgeSnapshot
+  â€¢ knowledge.learn_from_text(text) â†’ {"entities_added": N, "relations_added": N}
+  â€¢ knowledge.query_entities(query) â†’ List[Entity]
+  â€¢ knowledge.get_reasoning_context(entity) â†’ Dict with full context
+  â€¢ knowledge.find_connections(entity1, entity2) â†’ List[paths]
+  â€¢ knowledge.get_task_knowledge(task_ids) â†’ {entities, relationships}
+  â€¢ knowledge.consolidate() â†’ {consolidated_count}
+  â€¢ knowledge.get_snapshot() â†’ KnowledgeSnapshot
 
-═══════════════════════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 LEARNING SOURCES
-────────────────
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 1. TEXT LEARNING
    knowledge.learn_from_text(
        "Alice Smith works at TechCorp using Python and machine learning"
    )
-   → Extracts: Entities (person, organization, tools)
+   â†’ Extracts: Entities (person, organization, tools)
               Relationships (works_at, uses)
 
 2. OBSERVATION LEARNING
@@ -41,7 +41,7 @@ LEARNING SOURCES
        "persons": [{"name": "Alice", "confidence": 0.98}],
        "events": [{"type": "code_editing", "confidence": 0.88}]
    })
-   → Extracts: Entities from perceived objects, people, and events
+   â†’ Extracts: Entities from perceived objects, people, and events
 
 3. RESEARCH LEARNING
    knowledge.learn_from_research({
@@ -49,109 +49,109 @@ LEARNING SOURCES
        "entities": ["deep learning", "transformers"],
        "relationships": [...]
    })
-   → Ingests: Structured research findings
+   â†’ Ingests: Structured research findings
 
-═══════════════════════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 ENTITY TYPES
-────────────
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 The system recognizes these built-in entity kinds:
 
-  • person              → Individual people (Alice, Bob)
-  • organization        → Companies, teams (TechCorp, DevOps Team)
-  • location            → Places (San Francisco, Office A)
-  • task                → Goals, work items (Implement Feature X)
-  • concept             → Ideas, domains (Machine Learning, Security)
-  • technology          → Tools, frameworks (Python, TensorFlow)
-  • process             → Actions, workflows (Code Review, Deployment)
-  • attribute           → Properties, values (complexity: high)
-  • data_point          → Numbers, facts (cost: $50000)
-  • system              → Software/hardware systems (Kubernetes)
+  â€¢ person              â†’ Individual people (Alice, Bob)
+  â€¢ organization        â†’ Companies, teams (TechCorp, DevOps Team)
+  â€¢ location            â†’ Places (San Francisco, Office A)
+  â€¢ task                â†’ Goals, work items (Implement Feature X)
+  â€¢ concept             â†’ Ideas, domains (Machine Learning, Security)
+  â€¢ technology          â†’ Tools, frameworks (Python, TensorFlow)
+  â€¢ process             â†’ Actions, workflows (Code Review, Deployment)
+  â€¢ attribute           â†’ Properties, values (complexity: high)
+  â€¢ data_point          â†’ Numbers, facts (cost: $50000)
+  â€¢ system              â†’ Software/hardware systems (Kubernetes)
 
-═══════════════════════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 RELATIONSHIP TYPES
-──────────────────
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 Common relationships include:
 
-  • works_at            → Person works at Organization
-  • depends_on          → X depends on Y (tasks, components)
-  • uses                → Person/System uses Technology
-  • creates             → Person creates Output
-  • part_of             → X is part of Y
-  • has_attribute       → X has attribute Y
-  • precedes            → X precedes Y (ordering)
-  • collaborates_with   → X collaborates with Y
+  â€¢ works_at            â†’ Person works at Organization
+  â€¢ depends_on          â†’ X depends on Y (tasks, components)
+  â€¢ uses                â†’ Person/System uses Technology
+  â€¢ creates             â†’ Person creates Output
+  â€¢ part_of             â†’ X is part of Y
+  â€¢ has_attribute       â†’ X has attribute Y
+  â€¢ precedes            â†’ X precedes Y (ordering)
+  â€¢ collaborates_with   â†’ X collaborates with Y
 
 See relation_builder.py for complete list.
 
-═══════════════════════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 INTEGRATION BRIDGES
-───────────────────
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 THREE specialized bridges for different system components:
 
-┌─ REASONING BRIDGE ─────────────────────────────────────────────────────────┐
-│                                                                               │
-│  from jarvis.knowledge_system import ReasoningKnowledgeBridge              │
-│                                                                               │
-│  bridge = ReasoningKnowledgeBridge(knowledge)                              │
-│                                                                               │
-│  KEY METHODS:                                                               │
-│    • bridge.search_knowledge_for_reasoning(query, filters)                 │
-│    • bridge.get_context_for_entity(entity_id, depth)                       │
-│    • bridge.find_relationship_between(entity1, entity2)                    │
-│    • bridge.get_task_context(task_ids)                                     │
-│    • bridge.learn_from_reasoning(result) [feedback loop]                   │
-│                                                                               │
-│  USE: When reasoning engine needs knowledge for logical inference          │
-│                                                                               │
-└─────────────────────────────────────────────────────────────────────────────┘
+â”Œâ”€ REASONING BRIDGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                                                                               â”‚
+â”‚  from Pixi.knowledge_system import ReasoningKnowledgeBridge              â”‚
+â”‚                                                                               â”‚
+â”‚  bridge = ReasoningKnowledgeBridge(knowledge)                              â”‚
+â”‚                                                                               â”‚
+â”‚  KEY METHODS:                                                               â”‚
+â”‚    â€¢ bridge.search_knowledge_for_reasoning(query, filters)                 â”‚
+â”‚    â€¢ bridge.get_context_for_entity(entity_id, depth)                       â”‚
+â”‚    â€¢ bridge.find_relationship_between(entity1, entity2)                    â”‚
+â”‚    â€¢ bridge.get_task_context(task_ids)                                     â”‚
+â”‚    â€¢ bridge.learn_from_reasoning(result) [feedback loop]                   â”‚
+â”‚                                                                               â”‚
+â”‚  USE: When reasoning engine needs knowledge for logical inference          â”‚
+â”‚                                                                               â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 
-┌─ PLANNING BRIDGE ──────────────────────────────────────────────────────────┐
-│                                                                               │
-│  from jarvis.knowledge_system import PlanningKnowledgeBridge               │
-│                                                                               │
-│  bridge = PlanningKnowledgeBridge(knowledge)                               │
-│                                                                               │
-│  KEY METHODS:                                                               │
-│    • bridge.analyze_task_dependencies(task_id)                             │
-│    • bridge.find_prerequisites(task_id)                                    │
-│    • bridge.find_resources(task_id)                                        │
-│    • bridge.check_feasibility(task_id, constraints)                        │
-│    • bridge.decompose_task(task_id)                                        │
-│    • bridge.estimate_effort(task_id)                                       │
-│    • bridge.plan_task_sequence(task_ids)                                   │
-│                                                                               │
-│  USE: When planning engine needs task analysis and sequencing              │
-│                                                                               │
-└─────────────────────────────────────────────────────────────────────────────┘
+â”Œâ”€ PLANNING BRIDGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                                                                               â”‚
+â”‚  from Pixi.knowledge_system import PlanningKnowledgeBridge               â”‚
+â”‚                                                                               â”‚
+â”‚  bridge = PlanningKnowledgeBridge(knowledge)                               â”‚
+â”‚                                                                               â”‚
+â”‚  KEY METHODS:                                                               â”‚
+â”‚    â€¢ bridge.analyze_task_dependencies(task_id)                             â”‚
+â”‚    â€¢ bridge.find_prerequisites(task_id)                                    â”‚
+â”‚    â€¢ bridge.find_resources(task_id)                                        â”‚
+â”‚    â€¢ bridge.check_feasibility(task_id, constraints)                        â”‚
+â”‚    â€¢ bridge.decompose_task(task_id)                                        â”‚
+â”‚    â€¢ bridge.estimate_effort(task_id)                                       â”‚
+â”‚    â€¢ bridge.plan_task_sequence(task_ids)                                   â”‚
+â”‚                                                                               â”‚
+â”‚  USE: When planning engine needs task analysis and sequencing              â”‚
+â”‚                                                                               â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 
-┌─ MEMORY BRIDGE ────────────────────────────────────────────────────────────┐
-│                                                                               │
-│  from jarvis.knowledge_system import MemoryKnowledgeBridge                 │
-│                                                                               │
-│  bridge = MemoryKnowledgeBridge(knowledge, memory_system)                  │
-│                                                                               │
-│  KEY METHODS:                                                               │
-│    • bridge.memorize_entity(entity_id, importance)                         │
-│    • bridge.memorize_relationships(entity_id)                              │
-│    • bridge.memorize_insights(insights_dict)                               │
-│    • bridge.recall_memories_as_knowledge(query)                            │
-│    • bridge.consolidate_knowledge_memories()                               │
-│    • bridge.export_knowledge_snapshot()                                    │
-│                                                                               │
-│  USE: For bidirectional knowledge flow between Knowledge and Memory        │
-│                                                                               │
-└─────────────────────────────────────────────────────────────────────────────┘
+â”Œâ”€ MEMORY BRIDGE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+â”‚                                                                               â”‚
+â”‚  from Pixi.knowledge_system import MemoryKnowledgeBridge                 â”‚
+â”‚                                                                               â”‚
+â”‚  bridge = MemoryKnowledgeBridge(knowledge, memory_system)                  â”‚
+â”‚                                                                               â”‚
+â”‚  KEY METHODS:                                                               â”‚
+â”‚    â€¢ bridge.memorize_entity(entity_id, importance)                         â”‚
+â”‚    â€¢ bridge.memorize_relationships(entity_id)                              â”‚
+â”‚    â€¢ bridge.memorize_insights(insights_dict)                               â”‚
+â”‚    â€¢ bridge.recall_memories_as_knowledge(query)                            â”‚
+â”‚    â€¢ bridge.consolidate_knowledge_memories()                               â”‚
+â”‚    â€¢ bridge.export_knowledge_snapshot()                                    â”‚
+â”‚                                                                               â”‚
+â”‚  USE: For bidirectional knowledge flow between Knowledge and Memory        â”‚
+â”‚                                                                               â”‚
+â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 
-═══════════════════════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 QUERYING PATTERNS
-─────────────────
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 Pattern 1: Simple Entity Search
   entities = knowledge.query_entities("Python")
@@ -176,10 +176,10 @@ Pattern 5: Task Knowledge Retrieval
   entities = task_knowledge["entities"]
   relationships = task_knowledge["relationships"]
 
-═══════════════════════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 DATA MODELS AT A GLANCE
-──────────────────────
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 ENTITY:
   Fields: entity_id, label, kind, confidence, properties
@@ -197,40 +197,40 @@ KNOWLEDGE_SNAPSHOT:
           relation_types, health_status
   Use: Track knowledge graph state over time
 
-═══════════════════════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 SYSTEM INTEGRATION POINTS
-────────────────────────
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-1. PERCEPTION → KNOWLEDGE SYSTEM
-   Sensors/Observations → learn_from_observations()
+1. PERCEPTION â†’ KNOWLEDGE SYSTEM
+   Sensors/Observations â†’ learn_from_observations()
    (Use MemoryKnowledgeBridge to also store in memory)
 
-2. RESEARCH AGENT → KNOWLEDGE SYSTEM  
-   Research results → learn_from_research()
+2. RESEARCH AGENT â†’ KNOWLEDGE SYSTEM  
+   Research results â†’ learn_from_research()
    (Structured findings, confidence scores)
 
-3. KNOWLEDGE SYSTEM ↔ REASONING ENGINE
-   ← ReasoningKnowledgeBridge for context
-   → learn_from_reasoning() for feedback
+3. KNOWLEDGE SYSTEM â†” REASONING ENGINE
+   â† ReasoningKnowledgeBridge for context
+   â†’ learn_from_reasoning() for feedback
 
-4. KNOWLEDGE SYSTEM ↔ PLANNING ENGINE
-   ← PlanningKnowledgeBridge for task analysis
-   → Updates from plan execution
+4. KNOWLEDGE SYSTEM â†” PLANNING ENGINE
+   â† PlanningKnowledgeBridge for task analysis
+   â†’ Updates from plan execution
 
-5. KNOWLEDGE SYSTEM ↔ MEMORY SYSTEM
-   ← memorize_*() to export to memory
-   ← recall_memories_as_knowledge() to import from memory
-   → Periodic snapshot exports via MemoryKnowledgeBridge
+5. KNOWLEDGE SYSTEM â†” MEMORY SYSTEM
+   â† memorize_*() to export to memory
+   â† recall_memories_as_knowledge() to import from memory
+   â†’ Periodic snapshot exports via MemoryKnowledgeBridge
 
-6. SELF-IMPROVEMENT → KNOWLEDGE SYSTEM
+6. SELF-IMPROVEMENT â†’ KNOWLEDGE SYSTEM
    Consolidate duplicates, infer relationships
    Check health with get_diagnostics()
 
-═══════════════════════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 COMMON WORKFLOWS
-────────────────
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 WORKFLOW 1: LEARN AND REASON
   1. knowledge.learn_from_text(input_text)
@@ -249,95 +249,95 @@ WORKFLOW 3: BIDIRECTIONAL MEMORY SYNC
   4. Recall on startup: recalled = bridge.recall_memories_as_knowledge(query)
 
 WORKFLOW 4: FULL SYSTEM LOOP
-  1. Perception → learn_from_observations()
-  2. Reasoning → ReasoningBridge.search_knowledge_for_reasoning()
-  3. Planning → PlanningBridge.plan_task_sequence()
-  4. Memory ← MemoryBridge.memorize_insights()
-  5. Self-Improve → knowledge.consolidate()
+  1. Perception â†’ learn_from_observations()
+  2. Reasoning â†’ ReasoningBridge.search_knowledge_for_reasoning()
+  3. Planning â†’ PlanningBridge.plan_task_sequence()
+  4. Memory â† MemoryBridge.memorize_insights()
+  5. Self-Improve â†’ knowledge.consolidate()
 
-═══════════════════════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 PERFORMANCE HINTS
-─────────────────
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 FAST OPERATIONS:
-  • find_entity(label) — Direct lookup, O(1)
-  • get_entity_info(id) — Direct lookup, O(1)
-  • get_snapshot() — Quick stats, O(1)
+  â€¢ find_entity(label) â€” Direct lookup, O(1)
+  â€¢ get_entity_info(id) â€” Direct lookup, O(1)
+  â€¢ get_snapshot() â€” Quick stats, O(1)
 
 MODERATE OPERATIONS:
-  • query_entities(query) — Index search, O(log n)
-  • get_reasoning_context(depth) — Graph traversal, O(n^depth)
+  â€¢ query_entities(query) â€” Index search, O(log n)
+  â€¢ get_reasoning_context(depth) â€” Graph traversal, O(n^depth)
 
 SLOWER OPERATIONS:
-  • consolidate() — Compares all entities, O(n²)
-  • find_connections() — Path finding, O(n³) worst case
+  â€¢ consolidate() â€” Compares all entities, O(nÂ²)
+  â€¢ find_connections() â€” Path finding, O(nÂ³) worst case
 
 OPTIMIZATION TIPS:
-  • Use kind filter to narrow queries: query_entities(q, kind="person")
-  • Use limit parameter: query_entities(q, limit=10)
-  • Run consolidate() periodically, not continuously
-  • Monitor with get_diagnostics() for large graphs
+  â€¢ Use kind filter to narrow queries: query_entities(q, kind="person")
+  â€¢ Use limit parameter: query_entities(q, limit=10)
+  â€¢ Run consolidate() periodically, not continuously
+  â€¢ Monitor with get_diagnostics() for large graphs
 
-═══════════════════════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 TROUBLESHOOTING
-───────────────
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 ISSUE: Entities not being found
-  → Check extraction confidence (may be too strict)
-  → Verify entity was actually extracted
-  → Lower confidence thresholds if needed
+  â†’ Check extraction confidence (may be too strict)
+  â†’ Verify entity was actually extracted
+  â†’ Lower confidence thresholds if needed
 
 ISSUE: Relationships missing
-  → Check RelationBuilder patterns
-  → May need to add domain-specific relationship types
-  → Run consolidate() to discover inferred relationships
+  â†’ Check RelationBuilder patterns
+  â†’ May need to add domain-specific relationship types
+  â†’ Run consolidate() to discover inferred relationships
 
 ISSUE: Slow queries
-  → Check graph size: get_snapshot()
-  → Use limit parameter to restrict results
-  → Use kind filter if possible
-  → Consider running consolidate() to merge duplicates
+  â†’ Check graph size: get_snapshot()
+  â†’ Use limit parameter to restrict results
+  â†’ Use kind filter if possible
+  â†’ Consider running consolidate() to merge duplicates
 
 ISSUE: Memory not integrating
-  → Verify memory_system passed to KnowledgeCore init
-  → Check integration status: bridge.get_memory_integrations_status()
-  → Ensure memory system implements required interface
+  â†’ Verify memory_system passed to KnowledgeCore init
+  â†’ Check integration status: bridge.get_memory_integrations_status()
+  â†’ Ensure memory system implements required interface
 
-═══════════════════════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 FILE STRUCTURE
-──────────────
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-jarvis/knowledge_system/
-  ├── __init__.py                      # Package exports
-  ├── knowledge_core.py               # Main orchestrator (★ START HERE)
-  ├── knowledge_graph.py              # Graph database
-  ├── entity_extractor.py             # Entity extraction
-  ├── relation_builder.py             # Relationship building
-  ├── knowledge_retriever.py          # Query interface
-  ├── knowledge_updater.py            # Graph updates
-  ├── reasoning_knowledge_bridge.py   # Reasoning integration
-  ├── memory_knowledge_bridge.py      # Memory integration
-  └── planning_knowledge_bridge.py    # Planning integration
+Pixi/knowledge_system/
+  â”œâ”€â”€ __init__.py                      # Package exports
+  â”œâ”€â”€ knowledge_core.py               # Main orchestrator (â˜… START HERE)
+  â”œâ”€â”€ knowledge_graph.py              # Graph database
+  â”œâ”€â”€ entity_extractor.py             # Entity extraction
+  â”œâ”€â”€ relation_builder.py             # Relationship building
+  â”œâ”€â”€ knowledge_retriever.py          # Query interface
+  â”œâ”€â”€ knowledge_updater.py            # Graph updates
+  â”œâ”€â”€ reasoning_knowledge_bridge.py   # Reasoning integration
+  â”œâ”€â”€ memory_knowledge_bridge.py      # Memory integration
+  â””â”€â”€ planning_knowledge_bridge.py    # Planning integration
 
 tests/
-  └── test_knowledge_system.py        # Comprehensive tests
+  â””â”€â”€ test_knowledge_system.py        # Comprehensive tests
 
 examples/
-  └── knowledge_system_examples.py    # 6 detailed examples
+  â””â”€â”€ knowledge_system_examples.py    # 6 detailed examples
 
 docs/
-  └── KNOWLEDGE_SYSTEM.md             # Full documentation
+  â””â”€â”€ KNOWLEDGE_SYSTEM.md             # Full documentation
 
-═══════════════════════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 GETTING STARTED (3 STEPS)
-────────────────────────
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 1. INITIALIZE
-   from jarvis.knowledge_system import KnowledgeCore
+   from Pixi.knowledge_system import KnowledgeCore
    knowledge = KnowledgeCore()
 
 2. LEARN
@@ -347,18 +347,19 @@ GETTING STARTED (3 STEPS)
    entities = knowledge.query_entities("search term")
    print([e.label for e in entities])
 
-═══════════════════════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 ADDITIONAL RESOURCES
-─────────────────────
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  • Full Docs: docs/KNOWLEDGE_SYSTEM.md
-  • Examples: examples/knowledge_system_examples.py
-  • Tests: tests/test_knowledge_system.py
-  • Integration: See parent system documentation
+  â€¢ Full Docs: docs/KNOWLEDGE_SYSTEM.md
+  â€¢ Examples: examples/knowledge_system_examples.py
+  â€¢ Tests: tests/test_knowledge_system.py
+  â€¢ Integration: See parent system documentation
 
-═══════════════════════════════════════════════════════════════════════════════
+â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 """
 
 # This file is for reference only - no code to execute
 print(__doc__)
+

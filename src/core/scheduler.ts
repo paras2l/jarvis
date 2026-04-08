@@ -1,9 +1,9 @@
-/**
- * Scheduler — Feature #12
+﻿/**
+ * Scheduler â€” Feature #12
  *
  * Cron-style scheduled operations + Morning Digest.
- * Inspired by OpenJarvis's morning-digest and scheduled-ops presets.
- * Re-built as a pure TypeScript/Electron service — zero dependencies.
+ * Inspired by OpenPixi's morning-digest and scheduled-ops presets.
+ * Re-built as a pure TypeScript/Electron service â€” zero dependencies.
  *
  * The agent can now:
  *   - Wake up every morning and brief you on the day's tasks
@@ -12,11 +12,11 @@
  *   - Spawn sub-agents via A2A to handle each scheduled job
  *
  * Schedule format (Simple cron-like):
- *   "@startup"           → runs once when app starts
- *   "@daily 08:00"       → every day at 8am
- *   "@hourly"            → every hour
- *   "@interval 30m"      → every 30 minutes
- *   "@interval 1h"       → every 1 hour
+ *   "@startup"           â†’ runs once when app starts
+ *   "@daily 08:00"       â†’ every day at 8am
+ *   "@hourly"            â†’ every hour
+ *   "@interval 30m"      â†’ every 30 minutes
+ *   "@interval 1h"       â†’ every 1 hour
  */
 
 import { a2a } from './a2a-protocol'
@@ -24,7 +24,7 @@ import { intelligenceRouter } from './intelligence-router'
 import { brainDirector } from './brain/brain-director'
 import { emotionCore } from './emotion/emotion-core'
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface ScheduledJob {
   id: string
@@ -46,7 +46,7 @@ export interface DigestConfig {
   speak: boolean         // use TTS to read aloud
 }
 
-// ── Scheduler ─────────────────────────────────────────────────────────────
+// â”€â”€ Scheduler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class AgentScheduler {
   private jobs = new Map<string, ScheduledJob>()
@@ -66,7 +66,7 @@ class AgentScheduler {
     this.loadFromStorage()
   }
 
-  // ── Public API ──────────────────────────────────────────────────────────
+  // â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /**
    * Register a scheduled job.
@@ -77,7 +77,7 @@ class AgentScheduler {
     this.jobs.set(id, full)
     this.schedule(full)
     this.save()
-    console.log(`[Scheduler] ✅ Added: ${job.name} (${job.schedule})`)
+    console.log(`[Scheduler] âœ… Added: ${job.name} (${job.schedule})`)
     return id
   }
 
@@ -141,11 +141,11 @@ class AgentScheduler {
    * Generate + deliver the morning digest NOW.
    */
   async deliverMorningDigest(): Promise<string> {
-    console.log('[Scheduler] 🌅 Generating Morning Digest...')
+    console.log('[Scheduler] ðŸŒ… Generating Morning Digest...')
 
     const sections: string[] = []
     const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-    sections.push(`🌅 Good morning! Today is ${today}.`)
+    sections.push(`ðŸŒ… Good morning! Today is ${today}.`)
 
     const pendingTasks = this.getPendingTasks()
     const digestSeed = `Morning digest for ${today}. Pending tasks: ${pendingTasks.length}.`
@@ -176,11 +176,11 @@ class AgentScheduler {
 
     if (pendingTasks.length > 0) {
       const prioritySummary = pendingTasks.slice(0, 5).map((task: string, index: number) => `${index + 1}. ${task}`).join(' ')
-      sections.push(`\n📋 Priority tasks: ${prioritySummary}`)
+      sections.push(`\nðŸ“‹ Priority tasks: ${prioritySummary}`)
     }
 
     // Current learning status
-    sections.push('\n🧠 Your agent is fully armed and ready. Say "Hey JARVIS" to begin.')
+    sections.push('\nðŸ§  Your agent is fully armed and ready. Say "Hey Pixi" to begin.')
 
     const digest = sections.join(' ')
 
@@ -193,7 +193,7 @@ class AgentScheduler {
   }
 
   /**
-   * Add a file watcher job — agent notifies when folder changes.
+   * Add a file watcher job â€” agent notifies when folder changes.
    */
   watchFolder(folderPath: string, intervalMinutes = 5): string {
     return this.add({
@@ -212,7 +212,7 @@ class AgentScheduler {
     this.onTaskCallback = cb
   }
 
-  // ── Private ──────────────────────────────────────────────────────────────
+  // â”€â”€ Private â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private schedule(job: ScheduledJob): void {
     if (!job.enabled) return
@@ -240,7 +240,7 @@ class AgentScheduler {
   }
 
   private async executeJob(job: ScheduledJob): Promise<void> {
-    console.log(`[Scheduler] ▶ Running: ${job.name}`)
+    console.log(`[Scheduler] â–¶ Running: ${job.name}`)
     job.lastRun = new Date()
     job.runCount++
 
@@ -330,3 +330,4 @@ class AgentScheduler {
 }
 
 export const agentScheduler = new AgentScheduler()
+

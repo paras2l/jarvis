@@ -1,5 +1,5 @@
--- ================================================================
--- PHASE 9: Humanoid Existence (Proactive JARVIS)
+﻿-- ================================================================
+-- PHASE 9: Humanoid Existence (Proactive Pixi)
 -- Supabase schema patch
 -- Safe to run multiple times (idempotent where possible)
 -- ================================================================
@@ -50,9 +50,9 @@ create index if not exists idx_quiet_apps_user
   on public.quiet_apps (user_tag, app_name);
 
 -- ----------------------------------------------------------------
--- JARVIS settings (behavioral profile + delivery preferences)
+-- Pixi settings (behavioral profile + delivery preferences)
 -- ----------------------------------------------------------------
-create table if not exists public.jarvis_settings (
+create table if not exists public.Pixi_settings (
   user_tag text primary key,
   sensitivity text not null default 'partner' check (sensitivity in ('shy', 'partner', 'chatty')),
   focus_filtering boolean not null default true,
@@ -101,9 +101,9 @@ before update on public.quiet_apps
 for each row
 execute function public.set_updated_at();
 
-drop trigger if exists trg_jarvis_settings_updated_at on public.jarvis_settings;
-create trigger trg_jarvis_settings_updated_at
-before update on public.jarvis_settings
+drop trigger if exists trg_Pixi_settings_updated_at on public.Pixi_settings;
+create trigger trg_Pixi_settings_updated_at
+before update on public.Pixi_settings
 for each row
 execute function public.set_updated_at();
 
@@ -141,7 +141,7 @@ $$;
 -- ----------------------------------------------------------------
 -- Seed sensible defaults for existing users
 -- ----------------------------------------------------------------
-insert into public.jarvis_settings (user_tag)
+insert into public.Pixi_settings (user_tag)
 select up.user_tag
 from public.user_profiles up
 on conflict (user_tag) do nothing;
@@ -152,3 +152,4 @@ on conflict (user_tag) do nothing;
 -- ----------------------------------------------------------------
 
 commit;
+

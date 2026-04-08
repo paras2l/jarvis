@@ -1,4 +1,4 @@
-export type AgentFramework = 'native' | 'langgraph' | 'autogen'
+﻿export type AgentFramework = 'native' | 'langgraph' | 'autogen'
 
 export interface FrameworkExecutionRequest {
   goal: string
@@ -12,7 +12,7 @@ export interface FrameworkExecutionResult {
   metadata?: Record<string, unknown>
 }
 
-const FRAMEWORK_CONFIG_KEY = 'patrich.framework.config'
+const FRAMEWORK_CONFIG_KEY = 'Pixi.framework.config'
 
 interface FrameworkConfig {
   selected: AgentFramework
@@ -125,3 +125,4 @@ class AgentFrameworkAdapters {
 }
 
 export const agentFrameworkAdapters = new AgentFrameworkAdapters()
+

@@ -1,4 +1,4 @@
-import { clamp01 } from './self_state_schema'
+﻿import { clamp01 } from './self_state_schema'
 import { selfGovernanceHistory } from './self_governance_history'
 
 export interface GovernancePolicyProposal {
@@ -98,7 +98,7 @@ export interface GovernanceDeploymentContext {
   rollbackPressure: number
 }
 
-const STORAGE_KEY = 'patrich.self_model.governance_deployment.v1'
+const STORAGE_KEY = 'Pixi.self_model.governance_deployment.v1'
 const MAX_PROPOSALS = 40
 const MAX_RECORDS = 120
 
@@ -526,3 +526,4 @@ class SelfGovernanceDeployment {
 type GovernanceGateLikeOutcome = 'allow' | 'clarify' | 'defer' | 'block'
 
 export const selfGovernanceDeployment = new SelfGovernanceDeployment()
+

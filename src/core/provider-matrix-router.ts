@@ -1,4 +1,4 @@
-import apiGateway from '@/core/api-gateway'
+﻿import apiGateway from '@/core/api-gateway'
 import { intelligenceRouter } from '@/core/intelligence-router'
 import { localLLM } from '@/core/local-llm'
 
@@ -11,7 +11,7 @@ export interface ProviderRouteDecision {
   reason: string
 }
 
-const PROVIDER_PREF_KEY = 'patrich.provider.pref'
+const PROVIDER_PREF_KEY = 'Pixi.provider.pref'
 
 interface ProviderPreference {
   chat: BrainProvider
@@ -143,3 +143,4 @@ class ProviderMatrixRouter {
 }
 
 export const providerMatrixRouter = new ProviderMatrixRouter()
+

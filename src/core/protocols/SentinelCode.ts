@@ -1,11 +1,11 @@
-import { BaseProtocol, ProtocolAction, ActionResult, ProtocolStatus } from './types';
+﻿import { BaseProtocol, ProtocolAction, ActionResult, ProtocolStatus } from './types';
 import { auditLedger } from '../../lib/governance';
 import { db } from '../../lib/db';
 
 export class SentinelCodeProtocol implements BaseProtocol {
   id = 'intelligence.recursive_improvement';
   name = "Sentinel Code Base (Self-Healing)";
-  description = "God-Tier research: JARVIS independently researches and implements more efficient AI architectures and self-heals security gaps.";
+  description = "God-Tier research: Pixi independently researches and implements more efficient AI architectures and self-heals security gaps.";
   status: ProtocolStatus = 'offline';
 
   private currentVersion: string = '1.0.0-SOVEREIGN';
@@ -101,3 +101,4 @@ export class SentinelCodeProtocol implements BaseProtocol {
 }
 
 export const sentinelCodeProtocol = new SentinelCodeProtocol();
+

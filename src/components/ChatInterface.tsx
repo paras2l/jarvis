@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+﻿import React, { useState, useRef, useEffect } from 'react'
 import MessageBubble from './MessageBubble.tsx'
 import TaskDisplay from './TaskDisplay.tsx'
 import VoiceButton from './VoiceButton.tsx'
@@ -29,13 +29,15 @@ interface ChatInterfaceProps {
   onThemeToggle: () => void
 }
 
+type MainTab = 'voice' | 'chat' | 'settings'
+
 type PendingExecution = {
   parsed: { intent: string; action: string; confidence: number; subAgentRequired: boolean; parameters: Record<string, unknown> }
   originalText: string
   fromVoice: boolean
 }
 
-const CHAT_ACTIVE_UNTIL_KEY = 'patrich.chat.activeUntil'
+const CHAT_ACTIVE_UNTIL_KEY = 'Pixi.chat.activeUntil'
 const CHAT_ACTIVE_WINDOW_MS = 45_000
 
 const pickSituationAwareCopy = (variants: string[], seedParts: Array<string | number | undefined>): string => {
@@ -61,9 +63,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     id: 'init-1',
     type: 'agent',
     content: pickSituationAwareCopy([
-      'Hey Paras! 👋 I\'m Patrich, your personal sovereign companion. How can I help you today?',
+      'Hey Paras! ðŸ’– I\'m Pixi, your pookie AI companion. What should we do first?',
       'Hello Paras. I\'m here and ready to help with whatever you need.',
-      'Hey Paras, I\'m online and ready. Tell me what situation you want me to handle.',
+      'Hey Paras, Pixi is online and ready. Tell me what situation you want me to handle.',
     ], [new Date().getHours(), 'init', 'greeting']),
     timestamp: new Date(),
   }
@@ -91,10 +93,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [pendingExecution, setPendingExecution] = useState<PendingExecution | null>(null)
   const [voiceDraft, setVoiceDraft] = useState('')
   const [voiceMode, setVoiceMode] = useState<'silent' | 'talking'>(() => {
-    const saved = localStorage.getItem('patrich.voiceMode')
+    const saved = localStorage.getItem('Pixi.voiceMode')
     return saved === 'silent' ? 'silent' : 'talking'
   })
   const [runtimeStatus, setRuntimeStatus] = useState<RuntimeStatusSnapshot>(runtimeStatusStore.get())
+  const [activeTab, setActiveTab] = useState<MainTab>('voice')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -143,7 +146,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         }
       }
 
-      const wakeListeningKey = 'patrich.voiceWakeEnabled'
+      const wakeListeningKey = 'Pixi.voiceWakeEnabled'
       if (localStorage.getItem(wakeListeningKey) === null) {
         localStorage.setItem(wakeListeningKey, '1')
       }
@@ -205,8 +208,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, [])
 
   useEffect(() => {
-    localStorage.setItem('patrich.voiceMode', voiceMode)
+    localStorage.setItem('Pixi.voiceMode', voiceMode)
   }, [voiceMode])
+
+  useEffect(() => {
+    if (activeTab === 'chat') {
+      if (voiceMode !== 'silent') {
+        setVoiceMode('silent')
+      }
+      return
+    }
+
+    if (activeTab === 'voice' && voiceMode === 'silent') {
+      setVoiceMode('talking')
+    }
+  }, [activeTab, voiceMode])
 
   useEffect(() => {
     return runtimeStatusStore.subscribe((status) => {
@@ -412,8 +428,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           id: `msg-${Date.now()}-complete`,
           type: 'agent',
           content: completedTask.status === 'completed'
-            ? `✅ Done. ${summarizeTaskOutcome(completedTask)}`
-            : `❌ Not done: ${summarizeTaskOutcome(completedTask)}`,
+            ? `âœ… Done. ${summarizeTaskOutcome(completedTask)}`
+            : `âŒ Not done: ${summarizeTaskOutcome(completedTask)}`,
           timestamp: new Date(),
           metadata: { taskId: completedTask.id },
         }
@@ -439,7 +455,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           {
             id: `msg-${Date.now()}-error`,
             type: 'agent',
-            content: `❌ ${failureMessage}`,
+            content: `âŒ ${failureMessage}`,
             timestamp: new Date(),
             metadata: { taskId: task.id },
           },
@@ -490,7 +506,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       return true
     }
 
-    // OpenJarvis-style fallback: unknown slash commands fall through to normal chat.
+    // OpenPixi-style fallback: unknown slash commands fall through to normal chat.
     return false
   }
 
@@ -567,7 +583,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     )
     consciousnessEngine.recordLearning('user-1', `Chat handled with mood ${consciousnessMood}`)
 
-    // 💾 Persist message to Supabase (async)
+    // ðŸ’¾ Persist message to Supabase (async)
     db.tasks.log({ command: text, intent: 'chat', status: 'sent' }).catch(() => {})
 
     const modeCommand = text.trim().toLowerCase()
@@ -727,7 +743,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       id: `msg-${Date.now()}-activation`,
       type: 'agent',
       content: pickSituationAwareCopy([
-        'Hey Paras! I\'m listening... 👂',
+        'Hey Paras! Pixi is listening... ðŸ‘‚ðŸ’—',
         'I\'m listening now. Tell me what you want me to do.',
         'I\'m awake and listening. Go ahead.',
       ], [voiceMode, currentMood, 'activation']),
@@ -749,12 +765,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }
 
   return (
-    <div className={`chat-app-layout mood-${currentMood} device-${deviceClass}`}>
+    <div className={`chat-app-layout pixi-theme mood-${currentMood} device-${deviceClass}`}>
       <div className="chat-container">
         {/* Header */}
         <div className="chat-header">
           <div className="chat-header-title">
-            <div className="main-title">Omni-Learning Assistant</div>
+            <div className="main-title">Pixi âœ¨</div>
             <div className="chat-header-subtitle">{activeAgentName} | Local Engine</div>
             <div className="chat-header-subtitle">
               Runtime: {runtimeStatus.running ? 'online' : 'offline'} | mode: {runtimeStatus.activeMode} | queue: {runtimeStatus.queuedMessages}
@@ -766,17 +782,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               title="Connect APIs"
               onClick={() => setIsAPIConfigOpen(true)}
             >
-              🔗 Connect
+              ðŸ”— Connect
             </button>
             <button className="btn-secondary" title="New Session" onClick={handleNewChat}>
-              ➕ New
+              âž• New
             </button>
             <button
               className="btn-secondary"
               title="Settings"
-              onClick={() => setIsSettingsOpen(true)}
+              onClick={() => {
+                setActiveTab('settings')
+                setIsSettingsOpen(true)
+              }}
             >
-              ⚙️
+              âš™ï¸
             </button>
             <VoiceButton
               onCommand={handleVoiceCommand}
@@ -790,7 +809,37 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           </div>
         </div>
 
-        <SettingsPanel open={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+        <div className="pixi-tabs">
+          <button
+            className={`pixi-tab ${activeTab === 'voice' ? 'active' : ''}`}
+            onClick={() => setActiveTab('voice')}
+          >
+            ðŸŽ§ Voice
+          </button>
+          <button
+            className={`pixi-tab ${activeTab === 'chat' ? 'active' : ''}`}
+            onClick={() => setActiveTab('chat')}
+          >
+            ðŸ’¬ Chat
+          </button>
+          <button
+            className={`pixi-tab ${activeTab === 'settings' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('settings')
+              setIsSettingsOpen(true)
+            }}
+          >
+            âš™ï¸ Settings
+          </button>
+        </div>
+
+        <SettingsPanel
+          open={isSettingsOpen || activeTab === 'settings'}
+          onClose={() => {
+            setIsSettingsOpen(false)
+            setActiveTab('voice')
+          }}
+        />
 
         {/* API Configuration Panel Modal */}
         {isAPIConfigOpen && (
@@ -801,41 +850,87 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           </div>
         )}
 
-        {/* Messages */}
-        <div className="messages-container">
-          {messages.map((message: Message) => (
-            <MessageBubble key={message.id} message={message} />
-          ))}
+        {activeTab === 'voice' && (
+          <div className="pixi-voice-panel">
+            <div className="pixi-voice-hero">
+              <div className="pixi-orb" aria-hidden="true">ðŸ’—</div>
+              <h2>Pixi Always Listening Mode</h2>
+              <p>
+                Wake phrase: <strong>Hey Pixi</strong>. Speak naturally and I will follow your command order step by step.
+              </p>
+              <div className="pixi-status-grid">
+                <div className="pixi-status-card">
+                  <span>Listening</span>
+                  <strong>{voiceDraft ? 'Active' : 'Standing by'}</strong>
+                </div>
+                <div className="pixi-status-card">
+                  <span>Voice mode</span>
+                  <strong>{voiceMode === 'talking' ? 'Full Voice' : 'Silent'}</strong>
+                </div>
+                <div className="pixi-status-card">
+                  <span>Current mood</span>
+                  <strong>{currentMood}</strong>
+                </div>
+              </div>
+              {voiceDraft && <div className="error-banner">Listening now: {voiceDraft}</div>}
+              {errorMessage && <div className="error-banner">{errorMessage}</div>}
+            </div>
 
-          {currentTask && <TaskDisplay task={currentTask as Task} />}
-
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Input */}
-        <div className="input-container">
-          <div className="input-stack">
-            {errorMessage && <div className="error-banner">{errorMessage}</div>}
-            {voiceDraft && <div className="error-banner">Listening: {voiceDraft}</div>}
-            <input
-              type="text"
-              className="input-field"
-              placeholder={pickSituationAwareCopy([
-                "Type your command... (e.g. 'Build a React dashboard', 'Make a video')",
-                "Tell me what you want... (for example: open settings or draft a plan)",
-                "Describe the situation or command you want me to handle.",
-              ], [currentMood, voiceMode, deviceClass, 'placeholder'])}
-              value={inputValue}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInputValue(e.target.value)}
-              onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                if (e.key === 'Enter' && !isProcessing) {
-                  handleSendMessage(inputValue)
-                }
-              }}
-              disabled={isProcessing}
-            />
+            <div className="messages-container pixi-voice-feed">
+              {messages.slice(-8).map((message: Message) => (
+                <MessageBubble key={message.id} message={message} />
+              ))}
+              {currentTask && <TaskDisplay task={currentTask as Task} />}
+              <div ref={messagesEndRef} />
+            </div>
           </div>
-        </div>
+        )}
+
+        {activeTab === 'chat' && (
+          <>
+            <div className="messages-container">
+              {messages.map((message: Message) => (
+                <MessageBubble key={message.id} message={message} />
+              ))}
+
+              {currentTask && <TaskDisplay task={currentTask as Task} />}
+
+              <div ref={messagesEndRef} />
+            </div>
+
+            <div className="input-container">
+              <div className="input-stack">
+                <div className="error-banner">Chat tab is auto-silent for quiet places. Voice replies are muted here.</div>
+                {errorMessage && <div className="error-banner">{errorMessage}</div>}
+                {voiceDraft && <div className="error-banner">Listening: {voiceDraft}</div>}
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder={pickSituationAwareCopy([
+                    'Type to chat with Pixi...',
+                    'Quiet mode chat is active. Type your message...',
+                    'Message Pixi here while voice output stays silent.',
+                  ], [currentMood, voiceMode, deviceClass, 'placeholder'])}
+                  value={inputValue}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInputValue(e.target.value)}
+                  onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                    if (e.key === 'Enter' && !isProcessing) {
+                      handleSendMessage(inputValue)
+                    }
+                  }}
+                  disabled={isProcessing}
+                />
+              </div>
+            </div>
+          </>
+        )}
+
+        {activeTab === 'settings' && (
+          <div className="pixi-settings-helper">
+            <h3>Permission + Runtime Settings</h3>
+            <p>Settings are open as a full panel. Close settings to return to Voice tab.</p>
+          </div>
+        )}
       </div>
 
     </div>
@@ -843,3 +938,4 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 }
 
 export default ChatInterface
+

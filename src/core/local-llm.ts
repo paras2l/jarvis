@@ -1,17 +1,17 @@
-/**
- * Local LLM Engine — Feature #1
+﻿/**
+ * Local LLM Engine â€” Feature #1
  *
  * Connects to Ollama running locally at http://localhost:11434
  * Runs models like Qwen3:8b, Llama3, Mistral, DeepSeek-Coder for FREE.
  *
  * This is the core that kills 80%+ of cloud API costs.
- * The agent thinks locally first — cloud is only the fallback.
+ * The agent thinks locally first â€” cloud is only the fallback.
  *
- * Inspired by OpenJarvis's local-first philosophy (Stanford).
+ * Inspired by OpenPixi's local-first philosophy (Stanford).
  * Re-architected from scratch for our Electron/TypeScript stack.
  */
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface LocalLLMMessage {
   role: 'system' | 'user' | 'assistant'
@@ -33,7 +33,7 @@ export interface OllamaModel {
   parameterSize?: string
 }
 
-// ── Supported Models (priority order) ────────────────────────────────────
+// â”€â”€ Supported Models (priority order) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const MODEL_PRIORITY = [
   'qwen3:8b',         // Best reasoning, relatively small
@@ -47,7 +47,7 @@ const MODEL_PRIORITY = [
 
 const OLLAMA_BASE = 'http://localhost:11434'
 
-// ── LocalLLMEngine ─────────────────────────────────────────────────────────
+// â”€â”€ LocalLLMEngine â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class LocalLLMEngine {
   private availableModels: string[] = []
@@ -56,7 +56,7 @@ class LocalLLMEngine {
   private lastHealthCheck = 0
   private readonly HEALTH_INTERVAL = 30_000  // recheck every 30s
 
-  // ── Public API ──────────────────────────────────────────────────────────
+  // â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /**
    * Query the local LLM. Falls back gracefully if Ollama is not running.
@@ -203,12 +203,12 @@ class LocalLLMEngine {
         this.activeModel = this.availableModels[0]
       }
 
-      console.log(`[LocalLLM] ✅ Online. Active: ${this.activeModel}. Available: ${this.availableModels.join(', ')}`)
+      console.log(`[LocalLLM] âœ… Online. Active: ${this.activeModel}. Available: ${this.availableModels.join(', ')}`)
       return { online: true, models: this.availableModels, activeModel: this.activeModel }
     } catch {
       this.isOnline = false
       this.activeModel = null
-      console.log('[LocalLLM] ⚡ Ollama not running — cloud fallback active')
+      console.log('[LocalLLM] âš¡ Ollama not running â€” cloud fallback active')
       return { online: false, models: [], activeModel: null }
     }
   }
@@ -276,7 +276,7 @@ class LocalLLMEngine {
     }
   }
 
-  // ── Private ──────────────────────────────────────────────────────────────
+  // â”€â”€ Private â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private async ensureHealthy(): Promise<void> {
     const now = Date.now()
@@ -290,3 +290,4 @@ export const localLLM = new LocalLLMEngine()
 
 // Auto health-check on load (non-blocking)
 localLLM.checkHealth().catch(() => { /* silent */ })
+

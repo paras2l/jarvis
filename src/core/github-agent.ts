@@ -1,7 +1,7 @@
-/**
- * GitHub Agent — Feature #10
+﻿/**
+ * GitHub Agent â€” Feature #10
  *
- * Natural language GitHub control. Inspired by JARVIS-MARK5's GitHub integration.
+ * Natural language GitHub control. Inspired by Pixi-MARK5's GitHub integration.
  * Re-built for our Electron stack using shell commands (no API required).
  *
  * The agent can now:
@@ -9,7 +9,7 @@
  *   - Commit, push, pull its own code changes
  *   - Create branches for new features
  *   - Read issues and PRs
- *   - The VIBE CODING loop is now complete: agent writes code → commits → pushes
+ *   - The VIBE CODING loop is now complete: agent writes code â†’ commits â†’ pushes
  *
  * Requires: git installed on system (standard on Windows/Mac/Linux).
  * For private repos: user's git credentials (already configured in system).
@@ -18,7 +18,7 @@
 import { codeExecutionEngine } from './code-execution-engine'
 import { intelligenceRouter } from './intelligence-router'
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface GitResult {
   success: boolean
@@ -34,12 +34,12 @@ export interface RepoInfo {
   remoteUrl?: string
 }
 
-// ── GitHubAgent ─────────────────────────────────────────────────────────────
+// â”€â”€ GitHubAgent â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class GitHubAgent {
   private currentRepoPath: string | null = null
 
-  // ── Natural Language Interface ────────────────────────────────────────
+  // â”€â”€ Natural Language Interface â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /**
    * Process a natural language GitHub request.
@@ -56,11 +56,11 @@ class GitHubAgent {
     if (this.matchesStatus(lower)) return this.handleStatus(repoPath)
     if (this.matchesInit(lower)) return this.handleInit(repoPath)
 
-    // Unknown — ask LLM to interpret
+    // Unknown â€” ask LLM to interpret
     return this.interpretAndExecute(userRequest, repoPath)
   }
 
-  // ── Core Git Operations ───────────────────────────────────────────────
+  // â”€â”€ Core Git Operations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /**
    * Clone a repository.
@@ -155,12 +155,12 @@ class GitHubAgent {
    */
   async vibeCommitPush(message: string, repoPath: string): Promise<string> {
     const commit = await this.commit(message, repoPath)
-    if (!commit.success) return `❌ Commit failed: ${commit.output}`
+    if (!commit.success) return `âŒ Commit failed: ${commit.output}`
 
     const push = await this.push(undefined, repoPath)
-    if (!push.success) return `✅ Committed but push failed: ${push.output}`
+    if (!push.success) return `âœ… Committed but push failed: ${push.output}`
 
-    return `✅ Code committed and pushed! Message: "${message}"`
+    return `âœ… Code committed and pushed! Message: "${message}"`
   }
 
   setCurrentRepo(path: string): void {
@@ -172,7 +172,7 @@ class GitHubAgent {
     return this.currentRepoPath
   }
 
-  // ── Private: NL Routing ───────────────────────────────────────────────
+  // â”€â”€ Private: NL Routing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private async handleClone(request: string): Promise<string> {
     // Extract URL or repo name from request
@@ -187,32 +187,32 @@ class GitHubAgent {
       url = r.content.trim()
     }
 
-    if (!url) return '❌ Could not determine repo URL. Try: "clone https://github.com/user/repo"'
+    if (!url) return 'âŒ Could not determine repo URL. Try: "clone https://github.com/user/repo"'
     const result = await this.clone(url)
     return result.success
-      ? `✅ Cloned ${url} — opened in VS Code`
-      : `❌ Clone failed: ${result.output}`
+      ? `âœ… Cloned ${url} â€” opened in VS Code`
+      : `âŒ Clone failed: ${result.output}`
   }
 
   private async handleCommit(request: string, repoPath?: string): Promise<string> {
     // Extract commit message
     const msgMatch = request.match(/(?:message|msg|with)\s+"([^"]+)"/i)
       ?? request.match(/commit\s+(.+)/i)
-    const message = msgMatch?.[1]?.trim() ?? 'Auto-commit by JARVIS agent'
+    const message = msgMatch?.[1]?.trim() ?? 'Auto-commit by Pixi agent'
     const result = await this.commit(message, repoPath)
     return result.success
-      ? `✅ Committed: "${message}"`
-      : `❌ Commit failed: ${result.output}`
+      ? `âœ… Committed: "${message}"`
+      : `âŒ Commit failed: ${result.output}`
   }
 
   private async handlePush(repoPath?: string): Promise<string> {
     const result = await this.push(undefined, repoPath)
-    return result.success ? '✅ Pushed to remote' : `❌ Push failed: ${result.output}`
+    return result.success ? 'âœ… Pushed to remote' : `âŒ Push failed: ${result.output}`
   }
 
   private async handlePull(repoPath?: string): Promise<string> {
     const result = await this.pull(repoPath)
-    return result.success ? '✅ Pulled latest changes' : `❌ Pull failed: ${result.output}`
+    return result.success ? 'âœ… Pulled latest changes' : `âŒ Pull failed: ${result.output}`
   }
 
   private async handleBranch(request: string, repoPath?: string): Promise<string> {
@@ -220,21 +220,21 @@ class GitHubAgent {
     const name = nameMatch?.[1]?.trim() ?? `feature-${Date.now()}`
     const result = await this.createBranch(name, repoPath)
     return result.success
-      ? `✅ Created and switched to branch: ${name}`
-      : `❌ Branch creation failed: ${result.output}`
+      ? `âœ… Created and switched to branch: ${name}`
+      : `âŒ Branch creation failed: ${result.output}`
   }
 
   private async handleStatus(repoPath?: string): Promise<string> {
     const status = await this.getStatus(repoPath)
-    return `📋 Git status:\n${status}`
+    return `ðŸ“‹ Git status:\n${status}`
   }
 
   private async handleInit(repoPath?: string): Promise<string> {
     const path = repoPath || (await codeExecutionEngine.runCommand('cd'))
     const result = await this.init(path)
     return result.success
-      ? `✅ Git initialized at ${path}`
-      : `❌ Init failed: ${result.output}`
+      ? `âœ… Git initialized at ${path}`
+      : `âŒ Init failed: ${result.output}`
   }
 
   private async interpretAndExecute(request: string, repoPath?: string): Promise<string> {
@@ -246,12 +246,12 @@ Return ONLY the git command, nothing else.`
     const r = await intelligenceRouter.query(prompt, { taskType: 'code' })
     const cmd = r.content.trim()
 
-    if (!cmd.startsWith('git ')) return `❌ Could not interpret git request: "${request}"`
+    if (!cmd.startsWith('git ')) return `âŒ Could not interpret git request: "${request}"`
     const result = await this.run(cmd, repoPath || undefined)
-    return result.success ? `✅ ${result.output}` : `❌ ${result.output}`
+    return result.success ? `âœ… ${result.output}` : `âŒ ${result.output}`
   }
 
-  // ── Shell Execution ───────────────────────────────────────────────────
+  // â”€â”€ Shell Execution â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private async run(command: string, cwd?: string): Promise<GitResult> {
     const output = await codeExecutionEngine.runCommand(command, cwd)
@@ -259,7 +259,7 @@ Return ONLY the git command, nothing else.`
     return { success, output: output.trim(), command }
   }
 
-  // ── Pattern Matchers ──────────────────────────────────────────────────
+  // â”€â”€ Pattern Matchers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private matchesClone = (s: string) => s.includes('clone') || s.includes('download repo')
   private matchesCommit = (s: string) => s.includes('commit')
@@ -276,3 +276,4 @@ Return ONLY the git command, nothing else.`
 }
 
 export const githubAgent = new GitHubAgent()
+

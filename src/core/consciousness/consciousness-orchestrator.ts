@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Consciousness-Aware Voice Orchestrator v2
  * 
  * Integrates:
@@ -85,31 +85,31 @@ class ConsciousnessAwareOrchestrator {
 
       // Initialize consciousness engine
       await consciousnessEngine.initializeUser(this.userId)
-      console.log('[ConsciousnessOrch] ✅ Consciousness initialized')
+      console.log('[ConsciousnessOrch] âœ… Consciousness initialized')
 
       // Initialize command database
       await commandDatabase.initialize({
         userId: this.userId,
         platform: this.platform,
-        dbName: `jarvis-commands-${this.userId}`,
+        dbName: `Pixi-commands-${this.userId}`,
       })
-      console.log('[ConsciousnessOrch] ✅ Command database initialized')
+      console.log('[ConsciousnessOrch] âœ… Command database initialized')
 
       // Load default commands
       await this.loadDefaultCommands()
 
       // Initialize hotword detection
       const hotwordAvailable = await hotwordDetector.init({
-        keywords: config.hotwordKeywords || ['jarvis', 'hey'],
+        keywords: config.hotwordKeywords || ['pixi', 'hey pixi'],
         accessKey: 'demo-key', // In production, get from config
         sensitivities: [0.5, 0.5],
         platform: this.platform,
       })
 
       if (hotwordAvailable) {
-        console.log('[ConsciousnessOrch] ✅ Hotword detection available')
+        console.log('[ConsciousnessOrch] âœ… Hotword detection available')
       } else {
-        console.warn('[ConsciousnessOrch] ⚠️ Hotword detection unavailable, will use manual trigger')
+        console.warn('[ConsciousnessOrch] âš ï¸ Hotword detection unavailable, will use manual trigger')
       }
 
       this.isInitialized = true
@@ -129,9 +129,9 @@ class ConsciousnessAwareOrchestrator {
     try {
       this.isListeningForHotword = await hotwordDetector.startListening((result) => {
         if (result.detected) {
-          console.log(`[ConsciousnessOrch] 🎤 Hotword detected: "${result.keyword}"`)
+          console.log(`[ConsciousnessOrch] ðŸŽ¤ Hotword detected: "${result.keyword}"`)
           // Emit event that UI can listen to
-          this.onHotwordDetected(result.keyword || 'jarvis')
+          this.onHotwordDetected(result.keyword || 'pixi')
         }
       })
 
@@ -148,7 +148,7 @@ class ConsciousnessAwareOrchestrator {
   stopListeningForHotword(): void {
     hotwordDetector.stopListening()
     this.isListeningForHotword = false
-    console.log('[ConsciousnessOrch] 🔇 Stopped listening for hotword')
+    console.log('[ConsciousnessOrch] ðŸ”‡ Stopped listening for hotword')
   }
 
   /**
@@ -236,9 +236,9 @@ class ConsciousnessAwareOrchestrator {
 
       // Record learning from API result
       if (apiResult.success) {
-        consciousnessEngine.recordLearning(this.userId, `Learned: ${command} → success`)
+        consciousnessEngine.recordLearning(this.userId, `Learned: ${command} â†’ success`)
       } else {
-        consciousnessEngine.recordLearning(this.userId, `Failed: ${command} → needs improvement`)
+        consciousnessEngine.recordLearning(this.userId, `Failed: ${command} â†’ needs improvement`)
       }
 
       // 7. Generate consciousness-aware response
@@ -289,7 +289,7 @@ class ConsciousnessAwareOrchestrator {
         metadata: { source: 'user', createdAt: new Date().toISOString() },
       })
 
-      console.log(`[ConsciousnessOrch] ✅ Added custom command: "${name}"`)
+      console.log(`[ConsciousnessOrch] âœ… Added custom command: "${name}"`)
 
       // Persist to Supabase
       await memoryEngine.rememberFact(
@@ -367,7 +367,7 @@ class ConsciousnessAwareOrchestrator {
     try {
       const data = JSON.parse(jsonData)
       const commandCount = await commandDatabase.import(JSON.stringify(data.commands || []))
-      console.log(`[ConsciousnessOrch] ✅ Imported ${commandCount} commands`)
+      console.log(`[ConsciousnessOrch] âœ… Imported ${commandCount} commands`)
       return true
     } catch (error) {
       console.error('[ConsciousnessOrch] Import failed:', error)
@@ -394,9 +394,9 @@ class ConsciousnessAwareOrchestrator {
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Private Helpers
-  // ─────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private async loadDefaultCommands(): Promise<void> {
     const defaultCommands = [
@@ -440,7 +440,7 @@ class ConsciousnessAwareOrchestrator {
         name: 'status',
         pattern: 'system status|how are you|status report',
         action: 'consciousness_status',
-        description: 'Get Jarvis consciousness status',
+        description: 'Get Pixi consciousness status',
       },
     ]
 
@@ -456,7 +456,7 @@ class ConsciousnessAwareOrchestrator {
   }
 
   private onHotwordDetected(keyword: string): void {
-    console.log(`[ConsciousnessOrch] 🔊 Ready for voice input after hotword: "${keyword}"`)
+    console.log(`[ConsciousnessOrch] ðŸ”Š Ready for voice input after hotword: "${keyword}"`)
 
     // Emit event that UI listens to
     void eventPublisher.hotwordDetected?.({
@@ -470,3 +470,4 @@ class ConsciousnessAwareOrchestrator {
 }
 
 export const consciousnessAwareOrchestrator = new ConsciousnessAwareOrchestrator()
+

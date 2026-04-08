@@ -1,4 +1,4 @@
-import { clamp01 } from './self_state_schema'
+﻿import { clamp01 } from './self_state_schema'
 
 export interface ExecutionAdvisory {
   decision: 'execute' | 'clarify' | 'defer' | 'block'
@@ -76,7 +76,7 @@ export interface ExecutionAdvisorSnapshot {
   version: number
 }
 
-const STORAGE_KEY = 'patrich.self_model.execution_advisor.v1'
+const STORAGE_KEY = 'Pixi.self_model.execution_advisor.v1'
 const MAX_OUTCOMES = 180
 const MAX_PATTERNS = 220
 
@@ -345,3 +345,4 @@ class SelfExecutionAdvisor {
 }
 
 export const selfExecutionAdvisor = new SelfExecutionAdvisor()
+

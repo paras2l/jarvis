@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+﻿import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { hybridBackendCoordinator, type WebDashboardSnapshot } from '@/core/hybrid-backend'
 
 const POLL_MS = 7000
@@ -57,7 +57,7 @@ export default function WebControlDashboard() {
 
   return (
     <div style={{ padding: 20, maxWidth: 1100, margin: '0 auto' }}>
-      <h2 style={{ marginTop: 0 }}>Jarvis Web Control Dashboard</h2>
+      <h2 style={{ marginTop: 0 }}>Pixi Web Control Dashboard</h2>
       <p style={{ opacity: 0.8, marginBottom: 18 }}>
         Shared Supabase backend view for devices, tasks, and memory logs.
       </p>
@@ -142,3 +142,4 @@ const cardStyle: CSSProperties = {
   padding: 12,
   background: 'rgba(8, 14, 24, 0.85)',
 }
+

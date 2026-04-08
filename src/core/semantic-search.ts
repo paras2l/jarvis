@@ -1,7 +1,7 @@
-/**
- * Semantic Search Engine — Feature #6
+﻿/**
+ * Semantic Search Engine â€” Feature #6
  *
- * Perplexica-style local semantic search. Inspired by JARVIS-MARK5's Perplexica module.
+ * Perplexica-style local semantic search. Inspired by Pixi-MARK5's Perplexica module.
  * Re-built for our stack WITHOUT requiring a Docker container or external service.
  *
  * How it works:
@@ -16,7 +16,7 @@
 
 import { intelligenceRouter } from './intelligence-router'
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface KnowledgeEntry {
   id: string
@@ -43,19 +43,19 @@ export interface SearchResponse {
   latencyMs: number
 }
 
-// ── SemanticSearchEngine ───────────────────────────────────────────────────
+// â”€â”€ SemanticSearchEngine â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class SemanticSearchEngine {
   private index: KnowledgeEntry[] = []
   private readonly STORAGE_KEY = 'semantic-index'
-  private readonly MIN_CONFIDENCE = 0.62   // below this → go to web
+  private readonly MIN_CONFIDENCE = 0.62   // below this â†’ go to web
   private readonly MAX_ENTRIES = 5_000
 
   constructor() {
     this.loadIndex()
   }
 
-  // ── Public API ──────────────────────────────────────────────────────────
+  // â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /**
    * Search local knowledge. Returns results with confidence score.
@@ -106,7 +106,7 @@ class SemanticSearchEngine {
     this.pruneIfNeeded()
     this.saveIndex()
 
-    console.log(`[SemanticSearch] 💾 Added: "${entry.topic}" (${entry.source}) — Index: ${this.index.length}`)
+    console.log(`[SemanticSearch] ðŸ’¾ Added: "${entry.topic}" (${entry.source}) â€” Index: ${this.index.length}`)
     return id
   }
 
@@ -123,14 +123,14 @@ class SemanticSearchEngine {
   }
 
   /**
-   * Ask a question — returns a synthesized answer from local knowledge.
+   * Ask a question â€” returns a synthesized answer from local knowledge.
    * Returns null if confidence is too low (agent should then search the web).
    */
   async answer(question: string): Promise<{ answer: string; confidence: number } | null> {
     const results = await this.search(question, 3)
 
     if (results.confidence < this.MIN_CONFIDENCE || results.results.length === 0) {
-      return null  // Low confidence → caller should search web
+      return null  // Low confidence â†’ caller should search web
     }
 
     // Synthesize answer from top results using local LLM
@@ -189,7 +189,7 @@ Answer:`
     return [...this.index]
   }
 
-  // ── Private ───────────────────────────────────────────────────────────
+  // â”€â”€ Private â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private keywordRank(query: string, topK: number): SearchResult[] {
     const queryWords = new Set(
@@ -254,7 +254,7 @@ Answer:`
     try {
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.index))
     } catch {
-      // Storage full — prune and retry
+      // Storage full â€” prune and retry
       this.pruneIfNeeded()
       try { localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.index)) } catch { /* give up */ }
     }
@@ -265,7 +265,7 @@ Answer:`
       const stored = localStorage.getItem(this.STORAGE_KEY)
       if (stored) {
         this.index = JSON.parse(stored) as KnowledgeEntry[]
-        console.log(`[SemanticSearch] 📚 Loaded ${this.index.length} knowledge entries`)
+        console.log(`[SemanticSearch] ðŸ“š Loaded ${this.index.length} knowledge entries`)
       }
     } catch { this.index = [] }
   }
@@ -273,3 +273,4 @@ Answer:`
 
 export const semanticSearch = new SemanticSearchEngine()
 export const semanticSearchEngine = semanticSearch
+

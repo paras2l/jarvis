@@ -1,15 +1,15 @@
-{
-  "name": "patrich",
+﻿{
+  "name": "Pixi",
   "version": "1.0.0",
-  "description": "Patrich - Personal AI Agent with voice control and task automation",
-  "author": "Patrich",
+  "description": "Pixi - Personal AI Agent with voice control and task automation",
+  "author": "Pixi",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
-    "dev:next-ui": "npm --prefix next-jarvis-ui run dev",
+    "dev:next-ui": "npm --prefix next-Pixi-ui run dev",
     "build": "tsc && vite build",
-    "build:next-ui": "npm --prefix next-jarvis-ui run build",
+    "build:next-ui": "npm --prefix next-Pixi-ui run build",
     "preview": "vite preview",
     "electron-run": "electron electron/main.cjs",
     "electron-dev": "electron electron/main.cjs",
@@ -47,8 +47,8 @@
     "capacitor": "^5.0.0"
   },
   "build": {
-    "appId": "com.patrich.app",
-    "productName": "Patrich",
+    "appId": "com.Pixi.app",
+    "productName": "Pixi",
     "icon": "icon",
     "files": [
       "dist/**/*",
@@ -74,10 +74,11 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
-      "shortcutName": "Patrich"
+      "shortcutName": "Pixi"
     },
     "portable": {
       "artifactName": "${productName}-portable-${version}.exe"
     }
   }
 }
+

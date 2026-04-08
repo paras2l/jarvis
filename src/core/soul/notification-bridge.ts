@@ -1,4 +1,4 @@
-import { intelligenceRouter } from '../intelligence-router'
+﻿import { intelligenceRouter } from '../intelligence-router'
 import { localVoiceRuntime } from '../media-ml/runtimes/local-voice-runtime'
 import { notificationEngine } from '../notification-engine'
 import { moodEngine } from './mood-engine'
@@ -6,7 +6,7 @@ import { db, NotificationRecord } from '../../lib/db'
 import { protocolRegistry } from '../protocols/ProtocolRegistry'
 
 /**
- * JARVIS Notification Bridge (Phase 9)
+ * Pixi Notification Bridge (Phase 9)
  * ============================================
  * Translates raw, boring device alerts into
  * witty, humanoid partner updates.
@@ -18,7 +18,7 @@ class NotificationBridge {
   start() {
     if (this.isListening) return
     this.isListening = true
-    console.log('📬 [Notification Bridge] Listening for global alerts (Phase 9)')
+    console.log('ðŸ“¬ [Notification Bridge] Listening for global alerts (Phase 9)')
     void this.bootstrapSettings()
     
     // In a real device environment, this would hook into:
@@ -120,7 +120,7 @@ class NotificationBridge {
       console.log('[Bridge] Mimic protocol skipped, using original tone')
     }
     
-    notificationEngine.notify(`JARVIS: Notification from ${sender}`, announcement)
+    notificationEngine.notify(`Pixi: Notification from ${sender}`, announcement)
     if (this.allowVoiceAnnouncements) {
       localVoiceRuntime.speak(announcement)
     }
@@ -158,3 +158,4 @@ class NotificationBridge {
 }
 
 export const notificationBridge = new NotificationBridge()
+

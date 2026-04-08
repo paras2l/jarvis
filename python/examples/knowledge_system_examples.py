@@ -1,4 +1,4 @@
-"""Examples of using Jarvis Knowledge System with various integrations.
+﻿"""Examples of using Pixi Knowledge System with various integrations.
 
 Demonstrates:
 - Learning from various sources
@@ -9,7 +9,7 @@ Demonstrates:
 
 from __future__ import annotations
 
-from jarvis.knowledge_system import (
+from Pixi.knowledge_system import (
     KnowledgeCore,
     ReasoningKnowledgeBridge,
     MemoryKnowledgeBridge,
@@ -231,14 +231,14 @@ def example_memory_integration() -> None:
     memory_bridge = MemoryKnowledgeBridge(knowledge, memory)
 
     # Learn something
-    knowledge.learn_from_text("The Jarvis system is an AI assistant for automation")
+    knowledge.learn_from_text("The Pixi system is an AI assistant for automation")
 
     print("\nMemorizing insights:")
 
     # Create and memorize an insight
     insight = {
-        "text": "Jarvis provides intelligent task automation capabilities",
-        "entities": ["Jarvis", "Task Automation"],
+        "text": "Pixi provides intelligent task automation capabilities",
+        "entities": ["Pixi", "Task Automation"],
         "confidence": 0.85,
         "source": "knowledge_reasoning",
     }
@@ -284,12 +284,12 @@ def example_consolidated_workflow() -> None:
     text = """
     The Acme Company has Development, QA, and DevOps teams.
     The Development team is led by Alice and includes Bob.
-    They are working on the Project Jarvis initiative.
-    Project Jarvis requires Python, machine learning, and cloud infrastructure.
+    They are working on the Project Pixi initiative.
+    Project Pixi requires Python, machine learning, and cloud infrastructure.
     """
 
     knowledge.learn_from_text(text)
-    print("✓ Learned from organizational text")
+    print("âœ“ Learned from organizational text")
 
     observations = {
         "objects": [
@@ -302,17 +302,17 @@ def example_consolidated_workflow() -> None:
     }
 
     knowledge.learn_from_observations(observations)
-    print("✓ Learned from observations")
+    print("âœ“ Learned from observations")
 
     print("\nStep 2: Reasoning phase")
     print("-" * 40)
 
     # Search for entities relevant to reasoning
     entities = reasoning_bridge.search_knowledge_for_reasoning(
-        "Project Jarvis", filters={"limit": 10}
+        "Project Pixi", filters={"limit": 10}
     )
 
-    print(f"✓ Found {len(entities)} entities related to Project Jarvis")
+    print(f"âœ“ Found {len(entities)} entities related to Project Pixi")
 
     for entity in entities[:3]:
         print(f"  - {entity.label}")
@@ -321,22 +321,22 @@ def example_consolidated_workflow() -> None:
     print("-" * 40)
 
     # Create a hypothetical task for the project
-    task_id = "implement_jarvis"
+    task_id = "implement_Pixi"
 
     prereqs = planning_bridge.find_prerequisites(task_id)
     effort = planning_bridge.estimate_effort(task_id)
 
-    print(f"✓ Task prerequisites: {len(prereqs.get('prerequisites', []))}")
+    print(f"âœ“ Task prerequisites: {len(prereqs.get('prerequisites', []))}")
 
     if effort.get("success"):
-        print(f"✓ Estimated effort: {effort.get('estimated_effort', 0):.2f}")
+        print(f"âœ“ Estimated effort: {effort.get('estimated_effort', 0):.2f}")
 
     print("\nStep 4: Knowledge summary")
     print("-" * 40)
 
     snapshot = knowledge.get_snapshot()
 
-    print(f"✓ Knowledge graph state:")
+    print(f"âœ“ Knowledge graph state:")
     print(f"  - Entities: {snapshot.entity_count}")
     print(f"  - Relationships: {snapshot.relationship_count}")
     print(f"  - Health: {snapshot.health_status}")
@@ -345,11 +345,11 @@ def example_consolidated_workflow() -> None:
 def main() -> None:
     """Run all examples."""
     print("\n")
-    print("╔" + "=" * 58 + "╗")
-    print("║" + " " * 58 + "║")
-    print("║" + "  JARVIS KNOWLEDGE SYSTEM EXAMPLES".center(58) + "║")
-    print("║" + " " * 58 + "║")
-    print("╚" + "=" * 58 + "╝")
+    print("â•”" + "=" * 58 + "â•—")
+    print("â•‘" + " " * 58 + "â•‘")
+    print("â•‘" + "  Pixi KNOWLEDGE SYSTEM EXAMPLES".center(58) + "â•‘")
+    print("â•‘" + " " * 58 + "â•‘")
+    print("â•š" + "=" * 58 + "â•")
 
     try:
         example_basic_learning()
@@ -364,7 +364,7 @@ def main() -> None:
         print("=" * 60 + "\n")
 
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\nâŒ Error: {e}")
         import traceback
 
         traceback.print_exc()
@@ -372,3 +372,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

@@ -1,4 +1,4 @@
-import { db } from '../lib/db'
+﻿import { db } from '../lib/db'
 import { builtinSkills } from '../skills'
 import { skillSandboxExecutor } from './skill-sandbox'
 import {
@@ -14,7 +14,7 @@ import { researchEngine } from './research-engine'
 import { semanticSearchEngine } from './semantic-search'
 import { launchOrchestrator } from './platform/launch-orchestrator'
 
-const STORAGE_KEY = 'jarvis.skill-registry.v1'
+const STORAGE_KEY = 'Pixi.skill-registry.v1'
 
 function slugify(value: string): string {
   return value
@@ -343,3 +343,4 @@ class SkillEngine {
 }
 
 export const skillEngine = new SkillEngine()
+

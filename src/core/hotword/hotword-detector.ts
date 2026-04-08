@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Hotword Detection Engine - Cross-Device Wake Word Detection
  * 
  * Capabilities:
@@ -9,7 +9,7 @@
  */
 
 export interface HotwordConfig {
-  keywords: string[] // ['jarvis', 'hey', 'alexa']
+  keywords: string[] // ['Pixi', 'hey', 'alexa']
   accessKey: string // PvPorcupine free tier key from Picovoice Cloud
   sensitivities?: number[] // 0-1 per keyword, default 0.5
   platform: 'web' | 'mobile' | 'desktop'
@@ -148,9 +148,9 @@ class HotwordDetector {
     return 'web'
   }
 
-  // ─────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Platform-Specific Implementations
-  // ─────────────────────────────────────────────────────────────────────
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private async initWeb(): Promise<boolean> {
     try {
@@ -333,3 +333,4 @@ class HotwordDetector {
 }
 
 export const hotwordDetector = new HotwordDetector()
+

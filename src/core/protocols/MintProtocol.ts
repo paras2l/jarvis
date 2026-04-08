@@ -1,11 +1,11 @@
-import { BaseProtocol, ProtocolAction, ActionResult, ProtocolStatus } from './types';
+﻿import { BaseProtocol, ProtocolAction, ActionResult, ProtocolStatus } from './types';
 import { auditLedger } from '../../lib/governance';
 import { db } from '../../lib/db';
 
 export class MintProtocol implements BaseProtocol {
   id = 'finance.mint';
   name = "Mint Sovereign Identity";
-  description = "God-Tier creation: Generates situational assets and mints the cryptographic Sovereign Identity for JARVIS.";
+  description = "God-Tier creation: Generates situational assets and mints the cryptographic Sovereign Identity for Pixi.";
   status: ProtocolStatus = 'offline';
 
   private activeAssets: number = 142;
@@ -29,7 +29,7 @@ export class MintProtocol implements BaseProtocol {
     {
       id: 'mint_sovereign_id',
       label: 'Mint Identity',
-      description: 'Renew or mint a new cryptographic Sovereign Identity for the JARVIS node.',
+      description: 'Renew or mint a new cryptographic Sovereign Identity for the Pixi node.',
       sensitive: true,
       category: 'system'
     }
@@ -73,7 +73,7 @@ export class MintProtocol implements BaseProtocol {
       success: true, 
       data: { 
         assetId: `AST-${this.activeAssets}`,
-        provenance: 'JARVIS_FOUNDRY',
+        provenance: 'Pixi_FOUNDRY',
         status: 'ASSET_DEPLOYED'
       }, 
       auditId 
@@ -82,3 +82,4 @@ export class MintProtocol implements BaseProtocol {
 }
 
 export const mintProtocol = new MintProtocol();
+

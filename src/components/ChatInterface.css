@@ -201,3 +201,116 @@
   from { transform: translateY(20px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
+
+.pixi-theme {
+  --pixi-pink: #ff77b7;
+  --pixi-soft: #ffe6f5;
+  --pixi-violet: #8a64ff;
+  --pixi-mint: #9cf4d2;
+}
+
+.pixi-theme .chat-header {
+  background: linear-gradient(135deg, #fff6fc 0%, #ffeaf8 40%, #f7e9ff 100%);
+}
+
+.pixi-theme .main-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #cc2d7a;
+  letter-spacing: 0.3px;
+}
+
+.pixi-tabs {
+  display: flex;
+  gap: 0.65rem;
+  padding: 0.8rem 1rem 0.3rem;
+  background: linear-gradient(180deg, rgba(255, 246, 252, 0.92) 0%, rgba(255, 255, 255, 0.82) 100%);
+  border-bottom: 1px solid rgba(255, 119, 183, 0.28);
+}
+
+.pixi-tab {
+  border: 1px solid rgba(255, 119, 183, 0.35);
+  background: #fff;
+  color: #7b2b66;
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pixi-tab.active {
+  background: linear-gradient(135deg, #ffb0d6 0%, #ffa3df 45%, #c8b5ff 100%);
+  color: #4f1245;
+  box-shadow: 0 8px 20px rgba(255, 119, 183, 0.28);
+}
+
+.pixi-voice-panel {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 0;
+}
+
+.pixi-voice-hero {
+  margin: 0.8rem 1rem 0;
+  border-radius: 16px;
+  padding: 1rem;
+  background: radial-gradient(circle at 10% 10%, #fff 0%, #ffe8f6 45%, #f4e9ff 100%);
+  border: 1px solid rgba(255, 119, 183, 0.35);
+  box-shadow: 0 10px 24px rgba(203, 87, 170, 0.15);
+}
+
+.pixi-orb {
+  width: 62px;
+  height: 62px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 1.6rem;
+  background: linear-gradient(145deg, #ffb8e0, #e8d4ff);
+  box-shadow: 0 0 0 8px rgba(255, 203, 232, 0.45), 0 14px 34px rgba(178, 94, 171, 0.32);
+  animation: pixiPulse 2.1s ease-in-out infinite;
+}
+
+@keyframes pixiPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
+.pixi-status-grid {
+  margin-top: 0.9rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.55rem;
+}
+
+.pixi-status-card {
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid rgba(138, 100, 255, 0.22);
+  padding: 0.55rem 0.65rem;
+}
+
+.pixi-status-card span {
+  display: block;
+  font-size: 0.75rem;
+  color: #7a5f8d;
+}
+
+.pixi-status-card strong {
+  font-size: 0.95rem;
+  color: #5f2351;
+}
+
+.pixi-voice-feed {
+  margin-top: 0.5rem;
+}
+
+.pixi-settings-helper {
+  margin: 1rem;
+  border-radius: 14px;
+  border: 1px solid rgba(156, 244, 210, 0.7);
+  background: linear-gradient(135deg, #f5fff9 0%, #eefbff 100%);
+  padding: 0.9rem 1rem;
+  color: #244a44;
+}

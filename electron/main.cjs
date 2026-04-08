@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, desktopCapturer, screen } = require('electron')
+﻿const { app, BrowserWindow, ipcMain, shell, desktopCapturer, screen } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const { spawn, exec } = require('child_process')
@@ -18,7 +18,7 @@ const channelConnections = new Map()
 
 const assistantServiceState = {
   enabled: true,
-  wakeWord: 'hey patrich',
+  wakeWord: 'hey Pixi',
   listening: false,
   activatedUntilMs: 0,
   recognizerProcess: null,
@@ -75,11 +75,11 @@ function speakText(text) {
 }
 
 function containsWakePhrase(lowerText) {
-  return /(?:^|\b)(?:hey|ok|okay)\s+(?:patrich|patrick|patric|jarvis)\b|(?:^|\b)(?:patrich|patrick|patric|jarvis)\b/i.test(lowerText)
+  return /(?:^|\b)(?:hey|ok|okay)\s+(?:Pixi|patrick|patric|Pixi)\b|(?:^|\b)(?:Pixi|patrick|patric|Pixi)\b/i.test(lowerText)
 }
 
 function stripWakePhrase(text) {
-  return String(text || '').replace(/^(?:hey\s+(?:patrich|patrick|patric|jarvis)|(?:ok|okay)\s+(?:patrich|patrick|patric|jarvis)|(?:patrich|patrick|patric|jarvis))[\s,:-]*/i, '').trim()
+  return String(text || '').replace(/^(?:hey\s+(?:Pixi|patrick|patric|Pixi)|(?:ok|okay)\s+(?:Pixi|patrick|patric|Pixi)|(?:Pixi|patrick|patric|Pixi))[\s,:-]*/i, '').trim()
 }
 
 async function routeAssistantCommand(commandText) {
@@ -425,7 +425,7 @@ function showStartupError(win, reason) {
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Patrich Startup Error</title>
+    <title>Pixi Startup Error</title>
     <style>
       body { font-family: Segoe UI, Arial, sans-serif; margin: 0; background: #0e1117; color: #e6edf3; }
       .wrap { max-width: 860px; margin: 64px auto; padding: 24px; }
@@ -438,7 +438,7 @@ function showStartupError(win, reason) {
   <body>
     <div class="wrap">
       <div class="card">
-        <h1>Patrich could not load the app UI</h1>
+        <h1>Pixi could not load the app UI</h1>
         <p>Startup failed instead of showing a blank white screen.</p>
         <p>Please share this reason and the log file from userData/logs/main.log.</p>
         <code>${escapedReason}</code>
@@ -486,9 +486,9 @@ async function loadDevRenderer(win) {
   throw lastError || new Error('No Vite dev server URL could be reached.')
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Window
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -558,9 +558,9 @@ function createWindow() {
   mainWindow = win
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Helpers
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function sandboxedPath(filePath) {
   // All file I/O is restricted to a safe workspace under %APPDATA%
@@ -1241,9 +1241,9 @@ async function handleNativeLaunchApp(appInput) {
   return { success: false, message: `Could not launch ${raw}.` }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// IPC Handlers — App Launch
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// IPC Handlers â€” App Launch
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 ipcMain.handle('native:open-external', async (_ev, target) => {
   try {
@@ -1440,7 +1440,7 @@ ipcMain.handle('channel:connect', async (_ev, channelId, credentials = {}) => {
   if (id === 'whatsapp') {
     broadcastChannelMessage('whatsapp', {
       from: 'system',
-      fromName: 'Patrich',
+      fromName: 'Pixi',
       content: 'WhatsApp channel connected (send path active).',
     })
   }
@@ -1810,9 +1810,9 @@ ipcMain.handle('native:browser-open-current', async () => {
   }
 })
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helper Functions — Phase 5 (Bulk Automation & Content Processing)
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Helper Functions â€” Phase 5 (Bulk Automation & Content Processing)
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function calculateFileHash(filePath, algorithm = 'sha256') {
   try {
@@ -1958,9 +1958,9 @@ function extractArchive(archivePath, destinationPath) {
   })
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// IPC Handlers — Phase 5: Bulk Automation & Content Processing
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// IPC Handlers â€” Phase 5: Bulk Automation & Content Processing
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 ipcMain.handle('native:compress-path', async (_ev, sourcePath, destinationPath, format = 'zip') => {
   try {
@@ -2019,9 +2019,9 @@ ipcMain.handle('native:calculate-hash', async (_ev, filePath, algorithm = 'sha25
   }
 })
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helper Functions — Phase 6 (Advanced Automation & System Monitoring)
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Helper Functions â€” Phase 6 (Advanced Automation & System Monitoring)
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const scheduledTasks = new Map()
 let taskIdCounter = 0
@@ -2155,9 +2155,9 @@ function getDiskUsage(dirPath = '/') {
   })
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// IPC Handlers — Phase 6: Advanced Automation & System Monitoring
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// IPC Handlers â€” Phase 6: Advanced Automation & System Monitoring
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 ipcMain.handle('native:get-system-resources', async () => {
   try {
@@ -2244,9 +2244,9 @@ ipcMain.handle('native:get-system-info', async () => {
   }
 })
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helper Functions — Phase 7 (Advanced System Interaction & Utilities)
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Helper Functions â€” Phase 7 (Advanced System Interaction & Utilities)
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function getClipboardText() {
   try {
@@ -2360,13 +2360,13 @@ function sendMediaCommand(command) {
 
   if (process.platform === 'win32') {
     const commands: Record<string, string> = {
-      media_play_pause: 'powershell -Command "Add-Type –AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'% \'); Exit"',
-      media_next_track: 'powershell -Command "Add-Type –AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'{MEDIA_NEXT_TRACK}\'); Exit"',
-      media_prev_track: 'powershell -Command "Add-Type –AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'{MEDIA_PREV_TRACK}\'); Exit"',
-      media_stop: 'powershell -Command "Add-Type –AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'{MEDIA_STOP}\'); Exit"',
-      volume_up: 'powershell -Command "Add-Type –AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'{VOLUME_UP}\'); Exit"',
-      volume_down: 'powershell -Command "Add-Type –AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'{VOLUME_DOWN}\'); Exit"',
-      volume_mute: 'powershell -Command "Add-Type –AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'{VOLUME_MUTE}\'); Exit"',
+      media_play_pause: 'powershell -Command "Add-Type â€“AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'% \'); Exit"',
+      media_next_track: 'powershell -Command "Add-Type â€“AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'{MEDIA_NEXT_TRACK}\'); Exit"',
+      media_prev_track: 'powershell -Command "Add-Type â€“AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'{MEDIA_PREV_TRACK}\'); Exit"',
+      media_stop: 'powershell -Command "Add-Type â€“AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'{MEDIA_STOP}\'); Exit"',
+      volume_up: 'powershell -Command "Add-Type â€“AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'{VOLUME_UP}\'); Exit"',
+      volume_down: 'powershell -Command "Add-Type â€“AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'{VOLUME_DOWN}\'); Exit"',
+      volume_mute: 'powershell -Command "Add-Type â€“AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait(\'{VOLUME_MUTE}\'); Exit"',
     }
 
     const cmd = commands[keyName]
@@ -2412,9 +2412,9 @@ function showNotification(title, message, opts = {}) {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// IPC Handlers — Phase 7: Advanced System Interaction & Utilities
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// IPC Handlers â€” Phase 7: Advanced System Interaction & Utilities
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 ipcMain.handle('native:get-clipboard', async () => {
   try {
@@ -2473,8 +2473,8 @@ ipcMain.handle('native:show-notification', async (_ev, title, message, opts = {}
   return showNotification(title, message, opts)
 })
 
-// ─────────────────────────────────────────────────────────────────────────────
-// IPC Handlers — Shell Commands (for Python AI workers)
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// IPC Handlers â€” Shell Commands (for Python AI workers)
 
 ipcMain.handle('native:run-command', async (_ev, command, opts = {}) => {
   const timeoutMs = opts.timeoutMs ?? 300_000 // 5 minutes default for AI inference
@@ -2495,9 +2495,9 @@ ipcMain.handle('native:run-command', async (_ev, command, opts = {}) => {
   })
 })
 
-// ─────────────────────────────────────────────────────────────────────────────
-// IPC Handlers — File I/O (for Python script management and artifact storage)
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// IPC Handlers â€” File I/O (for Python script management and artifact storage)
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 ipcMain.handle('native:write-file', async (_ev, filePath, content) => {
   try {
@@ -2564,9 +2564,9 @@ ipcMain.handle('native:get-auth-context', async () => {
   }
 })
 
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // App lifecycle
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 app.whenReady().then(() => {
   setStartupBehavior()
@@ -2608,3 +2608,4 @@ if (!hasSingleLock) {
     mainWindow.focus()
   })
 }
+

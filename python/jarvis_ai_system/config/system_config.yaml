@@ -1,5 +1,0 @@
-system:
-  name: jarvis_ai_system
-  mode: compatibility
-  brain_loop: continuous
-  stability: enabled

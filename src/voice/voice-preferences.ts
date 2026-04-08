@@ -1,4 +1,4 @@
-import { speechSynthesisRuntime, type VoicePersonality } from '@/voice/speech-synthesis'
+﻿import { speechSynthesisRuntime, type VoicePersonality } from '@/voice/speech-synthesis'
 
 export interface VoicePreferences {
   personality: VoicePersonality
@@ -16,7 +16,7 @@ const DEFAULT_PREFERENCES: VoicePreferences = {
   enableAutoPersonality: true,
 }
 
-const VOICE_PREFS_KEY = 'jarvis:voice-preferences'
+const VOICE_PREFS_KEY = 'Pixi:voice-preferences'
 
 class VoicePreferencesManager {
   private prefs: VoicePreferences = { ...DEFAULT_PREFERENCES }
@@ -192,14 +192,15 @@ class VoicePreferencesManager {
   describe(): string {
     const personality = this.prefs.personality
     const descriptions: Record<VoicePersonality, string> = {
-      cute: '🎀 Sweet & Cute - Friendly, higher pitch, warm tone',
-      warm: '🌞 Warm & Friendly - Approachable, natural warmth',
-      professional: '💼 Professional - Clear, neutral, business-ready',
-      energetic: '⚡ Energetic & Dynamic - Fast-paced, exciting delivery',
-      calm: '🧘 Calm & Peaceful - Slow, soothing, relaxing',
+      cute: 'ðŸŽ€ Sweet & Cute - Friendly, higher pitch, warm tone',
+      warm: 'ðŸŒž Warm & Friendly - Approachable, natural warmth',
+      professional: 'ðŸ’¼ Professional - Clear, neutral, business-ready',
+      energetic: 'âš¡ Energetic & Dynamic - Fast-paced, exciting delivery',
+      calm: 'ðŸ§˜ Calm & Peaceful - Slow, soothing, relaxing',
     }
     return descriptions[personality]
   }
 }
 
 export const voicePreferencesManager = new VoicePreferencesManager()
+

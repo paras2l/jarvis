@@ -1,4 +1,4 @@
-import { naturalCommandLayer } from '@/core/natural-command-layer'
+﻿import { naturalCommandLayer } from '@/core/natural-command-layer'
 import { brainDirector } from '@/core/brain/brain-director'
 import { emotionCore, type EmotionSnapshot } from '@/core/emotion/emotion-core'
 import { intelligenceRouter } from '@/core/intelligence-router'
@@ -124,7 +124,7 @@ class ChatResponseEngine {
     })
 
     return [
-      'You are Patrich, a context-aware personal AI companion.',
+      'You are Pixi, a context-aware personal AI companion.',
       'Generate one high-quality response for the user message.',
       'Rules:',
       '- No canned or repetitive templates.',
@@ -211,3 +211,4 @@ class ChatResponseEngine {
 }
 
 export const chatResponseEngine = new ChatResponseEngine()
+

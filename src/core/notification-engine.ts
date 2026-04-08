@@ -1,5 +1,5 @@
-/**
- * JARVIS Notification Engine
+﻿/**
+ * Pixi Notification Engine
  * ======================================
  * This allows the agent to "tap the user on the shoulder"
  * while they are in another application.
@@ -25,9 +25,9 @@ class NotificationEngine {
   /**
    * Send a desktop notification
    */
-  notify(title: string, body: string, icon = '/jarvis-aura.png') {
+  notify(title: string, body: string, icon = '/Pixi-aura.png') {
     if (!this.hasPermission) {
-      console.warn('⚠️ JARVIS: Desktop notifications are disabled. Please enable them for background partnership.');
+      console.warn('âš ï¸ Pixi: Desktop notifications are disabled. Please enable them for background partnership.');
       return;
     }
 
@@ -36,7 +36,7 @@ class NotificationEngine {
         body,
         icon,
         silent: false,
-        tag: 'jarvis-update'
+        tag: 'Pixi-update'
       });
 
       notification.onclick = () => {
@@ -50,3 +50,4 @@ class NotificationEngine {
 }
 
 export const notificationEngine = new NotificationEngine();
+

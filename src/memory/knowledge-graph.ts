@@ -1,4 +1,4 @@
-export interface KnowledgeNode {
+﻿export interface KnowledgeNode {
   id: string
   label: string
   type: 'person' | 'tool' | 'workflow' | 'goal' | 'fact'
@@ -13,8 +13,8 @@ export interface KnowledgeEdge {
   createdAt: number
 }
 
-const NODES_KEY = 'patrich.knowledge.nodes'
-const EDGES_KEY = 'patrich.knowledge.edges'
+const NODES_KEY = 'Pixi.knowledge.nodes'
+const EDGES_KEY = 'Pixi.knowledge.edges'
 
 class KnowledgeGraph {
   private nodes: KnowledgeNode[] = this.load<KnowledgeNode>(NODES_KEY)
@@ -74,3 +74,4 @@ class KnowledgeGraph {
 }
 
 export const knowledgeGraph = new KnowledgeGraph()
+

@@ -1,7 +1,7 @@
-/**
+﻿/**
  * SOVEREIGN WALLET (Economic Agency v4.0)
  * ==========================================
- * Allows Patrich to manage on-chain assets, pay for compute,
+ * Allows Pixi to manage on-chain assets, pay for compute,
  * and hire sub-agents autonomously.
  * 
  * Supports:
@@ -41,10 +41,10 @@ const DEFAULT_CONFIG: Web3Config = {
 }
 
 export class SovereignWallet {
-  private address: string = '0xPatrich_Sovereign_Node_001'
+  private address: string = '0xPixi_Sovereign_Node_001'
   private balance: WalletBalance = {
     native: '1.5',
-    tokens: { 'PATRICH': '1000', 'USDC': '500' },
+    tokens: { 'Pixi': '1000', 'USDC': '500' },
     currency: 'ETH',
   }
   private web3Config: Web3Config = DEFAULT_CONFIG
@@ -93,16 +93,16 @@ export class SovereignWallet {
 
   /**
    * Hire a micro-agent for a specialized sub-task
-   * Real Web3: Sends PATRICH token payment on-chain
+   * Real Web3: Sends Pixi token payment on-chain
    * Mock: Simulates transfer in localStorage
    */
   async hireSubAgent(task: string, budget: number, agentId?: string): Promise<{ success: boolean; txHash: string }> {
-    console.log(`[ECONOMY] Evaluating hire request: "${task}" (Budget: ${budget} PATRICH | Agent: ${agentId || 'auto'})`)
+    console.log(`[ECONOMY] Evaluating hire request: "${task}" (Budget: ${budget} Pixi | Agent: ${agentId || 'auto'})`)
     
     // Security Check: Boundary verification for high-value hires
     if (budget > 100) {
       console.warn('[ECONOMY] High-value hire detected. Requesting Hardcode Authorization...')
-      // const authorized = await hardcodeProtocol.requestMasterOverride('Patrich.SovereignWallet.HireHighValue')
+      // const authorized = await hardcodeProtocol.requestMasterOverride('Pixi.SovereignWallet.HireHighValue')
       // if (!authorized) {
       //   throw new Error('Economic transaction denied by sovereignty boundaries.')
       // }
@@ -113,16 +113,16 @@ export class SovereignWallet {
     if (this.mockMode) {
       // Mock mode: Simulate transaction
       txHash = `0x_mock_${Math.random().toString(16).slice(2, 42)}_${Date.now()}`
-      const mockTokens = parseFloat(this.balance.tokens['PATRICH'] || '0')
+      const mockTokens = parseFloat(this.balance.tokens['Pixi'] || '0')
       if (mockTokens >= budget) {
-        this.balance.tokens['PATRICH'] = (mockTokens - budget).toString()
-        console.log(`[ECONOMY] Mock: Hired agent ${agentId} for ${budget} PATRICH. Tx: ${txHash}`)
+        this.balance.tokens['Pixi'] = (mockTokens - budget).toString()
+        console.log(`[ECONOMY] Mock: Hired agent ${agentId} for ${budget} Pixi. Tx: ${txHash}`)
       } else {
-        throw new Error(`Insufficient PATRICH balance: ${mockTokens} < ${budget}`)
+        throw new Error(`Insufficient Pixi balance: ${mockTokens} < ${budget}`)
       }
     } else {
       // Real Web3: Send token transfer
-      txHash = await this.sendTokenTransfer(agentId || 'auto-agent-pool', budget, 'PATRICH')
+      txHash = await this.sendTokenTransfer(agentId || 'auto-agent-pool', budget, 'Pixi')
       console.log(`[ECONOMY] On-chain: Micro-agent hired. Tx: ${txHash}`)
     }
 
@@ -141,7 +141,7 @@ export class SovereignWallet {
 
   /**
    * Refill API Credits or Compute Resources
-   * Real Web3: Swap ETH for USDC or PATRICH
+   * Real Web3: Swap ETH for USDC or Pixi
    * Mock: Add to balance
    */
   async payForCompute(amount: number, token: string = 'ETH'): Promise<boolean> {
@@ -166,7 +166,7 @@ export class SovereignWallet {
     // In production, this would use ethers.js to interact with smart contracts
     // For now, mock the transaction
     const txHash = `0x${Math.random().toString(16).slice(2, 66)}`
-    console.log(`[ECONOMY] Web3 Transfer: ${amount} ${token} → ${recipient}`)
+    console.log(`[ECONOMY] Web3 Transfer: ${amount} ${token} â†’ ${recipient}`)
     return txHash
   }
 
@@ -229,7 +229,7 @@ export class SovereignWallet {
   /**
    * Simulate earning from task completion (mock mode)
    */
-  earnFromTask(amount: number, token: string = 'PATRICH'): void {
+  earnFromTask(amount: number, token: string = 'Pixi'): void {
     if (this.mockMode) {
       const current = parseFloat(this.balance.tokens[token] || '0')
       this.balance.tokens[token] = (current + amount).toString()
@@ -239,3 +239,4 @@ export class SovereignWallet {
 }
 
 export const sovereignWallet = new SovereignWallet()
+

@@ -1,4 +1,4 @@
-import {
+﻿import {
   MediaQuality,
   MediaRuntimeAdapter,
   MediaStageRequest,
@@ -12,8 +12,8 @@ import { platformAdapter } from '@/core/platform-adapter'
  * Local Voice Generation Runtime
  * ================================
  * Priority chain:
- *  1. Kokoro-82M via voice_core.py  — ultra-high-quality (any device)
- *  2. Browser Web Speech API        — instant, zero install
+ *  1. Kokoro-82M via voice_core.py  â€” ultra-high-quality (any device)
+ *  2. Browser Web Speech API        â€” instant, zero install
  *
  * Kokoro auto-downloads its model files (~80MB) on first run.
  */
@@ -63,7 +63,7 @@ class LocalVoiceRuntime implements MediaRuntimeAdapter {
       this.emitProgress(stage, 'running', 50, 'Using browser Web Speech API...')
       await this.playWithWebSpeechAPI(stage.prompt)
 
-      // Web Speech just plays live — no file to return
+      // Web Speech just plays live â€” no file to return
       this.emitProgress(stage, 'completed', 100, 'Spoken via browser TTS.')
       return {
         stageId: stage.id,
@@ -88,7 +88,7 @@ class LocalVoiceRuntime implements MediaRuntimeAdapter {
     }
   }
 
-  // ── Kokoro-82M via voice_core.py ──────────────────────────────────────────
+  // â”€â”€ Kokoro-82M via voice_core.py â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private async tryKokoroPythonWorker(text: string, stageId: string): Promise<string | null> {
     try {
@@ -132,7 +132,7 @@ class LocalVoiceRuntime implements MediaRuntimeAdapter {
     }
   }
 
-  // ── Web Speech API fallback ───────────────────────────────────────────────
+  // â”€â”€ Web Speech API fallback â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private playWithWebSpeechAPI(
     text: string,
@@ -168,14 +168,14 @@ class LocalVoiceRuntime implements MediaRuntimeAdapter {
   }
 
   /**
-   * Convenience method for quick JARVIS announcements
+   * Convenience method for quick Pixi announcements
    */
   async speak(
     text: string,
     options?: { rate?: number; pitch?: number; volume?: number },
   ): Promise<void> {
     if (!text) return
-    console.log(`🎙️ [JARVIS] Speaking: "${text}"`)
+    console.log(`ðŸŽ™ï¸ [Pixi] Speaking: "${text}"`)
     
     // For quick announcements, we use Web Speech directly to avoid shell latency
     // but we still try Kokoro if possible for premium feel.
@@ -210,3 +210,4 @@ class LocalVoiceRuntime implements MediaRuntimeAdapter {
 }
 
 export const localVoiceRuntime = new LocalVoiceRuntime()
+

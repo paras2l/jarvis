@@ -1,4 +1,4 @@
-import { intelligenceRouter } from '@/core/intelligence-router'
+﻿import { intelligenceRouter } from '@/core/intelligence-router'
 import { memoryEngine } from '@/core/memory-engine'
 import { contextManager } from '@/layers/identity_continuity/context_manager'
 import { selfModelLayer } from '@/layers/self_model/self_model_layer'
@@ -101,7 +101,7 @@ class BrainDirector {
     const memoryHints = this.formatMemoryHits(context.text, 4)
     const soulPrefix = soulEngine.getSystemPrompt()
     const commonRules = getCommonBrainRules().map((line) => `- ${line}`).join('\n')
-    const scratchpad = this.buildOpenJarvisScratchpad(context, directive, recent, memoryHints)
+    const scratchpad = this.buildOpenPixiScratchpad(context, directive, recent, memoryHints)
 
     return [
       soulPrefix.trim(),
@@ -116,7 +116,7 @@ class BrainDirector {
       `Creativity: ${directive.creativity.toFixed(2)}`,
       `Novelty: ${directive.novelty.toFixed(2)}`,
       '',
-      `Prompt pack: ${pack.name} — ${pack.summary}`,
+      `Prompt pack: ${pack.name} â€” ${pack.summary}`,
       ...pack.instructions,
       '',
       'Common brain rules:',
@@ -154,7 +154,7 @@ class BrainDirector {
     const continuity = this.buildContinuitySnapshot(continuityContext)
     const recent = this.formatRecentTurns(context.recentTurns || memoryEngine.getConversationContext(8))
     const memoryHints = this.formatMemoryHits(context.text, 6)
-    const scratchpad = this.buildOpenJarvisScratchpad(context, directive, recent, memoryHints)
+    const scratchpad = this.buildOpenPixiScratchpad(context, directive, recent, memoryHints)
 
     await this.storeBrainSnapshot(context, directive, selfState, continuity)
 
@@ -203,7 +203,7 @@ class BrainDirector {
       selfState.goalCompass.valueNarrative ? `Value narrative: ${selfState.goalCompass.valueNarrative}` : 'Value narrative: none',
       selfState.goalCompass.lastAssessmentSummary ? `Last goal assessment: ${selfState.goalCompass.lastAssessmentSummary}` : 'Last goal assessment: none',
       selfState.goalCompass.goalRelationships.length
-        ? `Goal relationships: ${selfState.goalCompass.goalRelationships.slice(0, 4).map((relation) => `${relation.type}:${relation.fromGoalId.slice(0, 8)}→${relation.toGoalId.slice(0, 8)}@${relation.strength.toFixed(2)}`).join(' | ')}`
+        ? `Goal relationships: ${selfState.goalCompass.goalRelationships.slice(0, 4).map((relation) => `${relation.type}:${relation.fromGoalId.slice(0, 8)}â†’${relation.toGoalId.slice(0, 8)}@${relation.strength.toFixed(2)}`).join(' | ')}`
         : 'Goal relationships: none',
       selfState.goalCompass.recentAssessments.length
         ? `Recent goal assessments: ${selfState.goalCompass.recentAssessments.slice(0, 3).map((assessment) => `${assessment.recommendedPriority}/${Math.round(assessment.alignmentScore * 100)}%:${assessment.summary}`).join(' | ')}`
@@ -279,10 +279,10 @@ class BrainDirector {
     ].join('\n')
   }
 
-  buildOpenJarvisScratchpad(context: BrainContext, directive: BrainDirective, recentTurns = '', memoryHits = ''): string {
+  buildOpenPixiScratchpad(context: BrainContext, directive: BrainDirective, recentTurns = '', memoryHits = ''): string {
     const retrievalNeed = directive.shouldUseReasoning ? 'high' : 'moderate'
     return [
-      '# OpenJarvis Scratchpad',
+      '# OpenPixi Scratchpad',
       'This section is for internal reasoning only and must not be shown to the user.',
       `Task: understand the user request, retrieve relevant context, answer, then store a compact memory note.`,
       `Reasoning depth: ${retrievalNeed}.`,
@@ -566,13 +566,13 @@ ${brainEnvelope}`,
       greeting: [`Hey ${name}.`, `Good to see you, ${name}.`, `I'm here, ${name}.`],
       confirmation: ['Understood.', 'Got it.', 'That works.'],
       error: ['I hit a snag, but I can recover.', 'That did not land cleanly. Let me re-check.', 'I need one more pass on that.'],
-      retry: ['Try that again with a little more detail.', 'Give me one more clue and I will handle it.', 'I missed that—say it a different way.'],
+      retry: ['Try that again with a little more detail.', 'Give me one more clue and I will handle it.', 'I missed thatâ€”say it a different way.'],
       sensitive: ['That is sensitive. Say confirm to continue or cancel to stop.'],
       duplicate: ['I am already on it.', 'Still working through that request.', 'I have not forgotten it.'],
       completed: ['Done.', 'Finished.', 'Handled.'],
       blocked: ['I cannot do that as requested.', 'That path is blocked.', 'I need a different approach.'],
       clarify: ['I need a bit more detail.', 'Clarify the target and I will take it from there.', 'Tell me exactly what you want changed.'],
-      checkin: ['I am here and thinking with you.', 'Still with you—what is next?', 'I am listening and ready.'],
+      checkin: ['I am here and thinking with you.', 'Still with youâ€”what is next?', 'I am listening and ready.'],
     }
 
     const pool = lines[kind] || ['Okay.', 'Understood.', 'I am on it.']

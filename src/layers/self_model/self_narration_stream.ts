@@ -1,4 +1,4 @@
-export type SelfNarrationSource = 'bootstrap' | 'input' | 'outcome' | 'transition' | 'goal' | 'system' | 'reflection' | 'network'
+﻿export type SelfNarrationSource = 'bootstrap' | 'input' | 'outcome' | 'transition' | 'goal' | 'system' | 'reflection' | 'network'
 
 export interface SelfNarrationEntry {
   id: string
@@ -29,7 +29,7 @@ export interface SelfNarrationInput {
 
 export type SelfNarrationStateInput = any
 
-const STORAGE_KEY = 'patrich.self_model.narration_stream.v1'
+const STORAGE_KEY = 'Pixi.self_model.narration_stream.v1'
 const MAX_ENTRIES = 120
 
 function makeId(prefix: string): string {
@@ -145,3 +145,4 @@ class SelfNarrationStreamEngine {
 }
 
 export const selfNarrationStream = new SelfNarrationStreamEngine()
+

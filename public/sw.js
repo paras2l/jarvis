@@ -1,5 +1,5 @@
-/**
- * JARVIS Service Worker — PWA Offline Engine
+﻿/**
+ * Pixi Service Worker â€” PWA Offline Engine
  *
  * Makes the app:
  *   1. Installable on any device (Android, iOS, desktop)
@@ -8,19 +8,19 @@
  *   4. Update silently in the background
  *
  * Cache Strategy:
- *   - App Shell (HTML/JS/CSS): Cache First → instant loads
- *   - API calls to Gemini/OpenAI: Network First → fresh results
- *   - Static assets: Cache First → fast
+ *   - App Shell (HTML/JS/CSS): Cache First â†’ instant loads
+ *   - API calls to Gemini/OpenAI: Network First â†’ fresh results
+ *   - Static assets: Cache First â†’ fast
  */
 
-const CACHE_NAME = 'jarvis-v1'
+const CACHE_NAME = 'Pixi-v1'
 const APP_SHELL = [
   '/',
   '/index.html',
   '/favicon.ico',
 ]
 
-// ── Install: Cache the app shell ───────────────────────────────────────────
+// â”€â”€ Install: Cache the app shell â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL))
@@ -28,7 +28,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting()
 })
 
-// ── Activate: Clean old caches ─────────────────────────────────────────────
+// â”€â”€ Activate: Clean old caches â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then(keys =>
@@ -38,7 +38,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim()
 })
 
-// ── Fetch: Cache-first for shell, network-first for API ───────────────────
+// â”€â”€ Fetch: Cache-first for shell, network-first for API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url)
 
@@ -78,15 +78,15 @@ self.addEventListener('fetch', (event) => {
   )
 })
 
-// ── Push Notifications ─────────────────────────────────────────────────────
+// â”€â”€ Push Notifications â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 self.addEventListener('push', (event) => {
-  const data = event.data?.json() ?? { title: 'JARVIS', body: 'New message' }
+  const data = event.data?.json() ?? { title: 'Pixi', body: 'New message' }
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
       icon: '/favicon.ico',
       badge: '/favicon.ico',
-      tag: 'jarvis-notification',
+      tag: 'Pixi-notification',
       renotify: true,
       data: data.url,
     })
@@ -102,3 +102,4 @@ self.addEventListener('notificationclick', (event) => {
     })
   )
 })
+

@@ -1,4 +1,4 @@
-import { cognitiveLoopEngine } from '@/core/cognitive-loop-engine'
+﻿import { cognitiveLoopEngine } from '@/core/cognitive-loop-engine'
 import { runtimeEventBus } from '@/core/event-bus'
 import { taskScheduler } from '@/core/task-scheduler'
 import { getDeviceMesh } from '@/core/device-mesh'
@@ -11,7 +11,7 @@ import { providerMatrixRouter } from '@/core/provider-matrix-router'
 import { agentFrameworkAdapters } from '@/core/agent-framework-adapters'
 import { voiceSession } from '@/voice/voice-session'
 import { hybridBackendCoordinator } from '@/core/hybrid-backend'
-import { jarvisOS } from '@/core/jarvis3'
+import { PixiOS } from '@/core/Pixi3'
 import { mainLayerController } from '@/core/main-layer-controller'
 import { voiceAssistantOrchestrator } from '@/voice/voice-assistant-orchestrator'
 
@@ -22,7 +22,7 @@ class AutonomousRuntime {
   private unsubs: Array<() => void> = []
   private lastPredictionSpeechAt = 0
 
-  private readonly CHAT_ACTIVE_UNTIL_KEY = 'patrich.chat.activeUntil'
+  private readonly CHAT_ACTIVE_UNTIL_KEY = 'Pixi.chat.activeUntil'
   private readonly PREDICTION_SPEECH_COOLDOWN_MS = 20_000
 
   async start(): Promise<void> {
@@ -109,8 +109,8 @@ class AutonomousRuntime {
           return
         }
 
-        if (jarvisOS.shouldUseOrchestration(command)) {
-          const report = await jarvisOS.executeGoal(command)
+        if (PixiOS.shouldUseOrchestration(command)) {
+          const report = await PixiOS.executeGoal(command)
           await reflectionEngine.reflectTask(report.plan.id, {
             success: report.status !== 'failed',
             output: report.summary,
@@ -184,3 +184,4 @@ class AutonomousRuntime {
 }
 
 export const autonomousRuntime = new AutonomousRuntime()
+

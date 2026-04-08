@@ -1,4 +1,4 @@
-import { clamp01 } from './self_state_schema'
+﻿import { clamp01 } from './self_state_schema'
 import { selfGovernanceDeployment } from './self_governance_deployment'
 import { selfGovernanceHistory } from './self_governance_history'
 
@@ -89,7 +89,7 @@ export interface GovernanceSnapshot {
   version: number
 }
 
-const STORAGE_KEY = 'patrich.self_model.governance_engine.v1'
+const STORAGE_KEY = 'Pixi.self_model.governance_engine.v1'
 const MAX_OUTCOMES = 160
 const MAX_ROLLBACK_NOTES = 12
 
@@ -462,3 +462,4 @@ class SelfGovernanceEngine {
 }
 
 export const selfGovernanceEngine = new SelfGovernanceEngine()
+

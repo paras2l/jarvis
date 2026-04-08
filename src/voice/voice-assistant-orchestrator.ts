@@ -1,4 +1,4 @@
-import { detectPlatform } from '@/core/platform/platform-detection'
+﻿import { detectPlatform } from '@/core/platform/platform-detection'
 import { brainDirector } from '@/core/brain/brain-director'
 import { emotionCore } from '@/core/emotion/emotion-core'
 import { consciousnessEngine, type ConsciousnessLevel, type ConsciousnessSnapshot, type EmotionalState } from '@/core/consciousness/consciousness-engine'
@@ -143,10 +143,10 @@ class VoiceAssistantOrchestrator {
   private readonly MAX_SPOKEN_RESPONSE_CHARS = 420
   private readonly PERSONALITY_LOCK_MS = 14_000
   private readonly PERSONALITY_PERSIST_DEBOUNCE_MS = 2_000
-  private readonly VOICE_SAFETY_MODE_KEY = 'patrich.voice.safety_mode'
-  private readonly VOICE_STABILIZATION_MODE_KEY = 'patrich.voice.stabilization_mode'
-  private readonly VOICE_TUNING_KEY_PREFIX = 'patrich.voice.tuning.'
-  private readonly VOICE_SNAPSHOT_KEY_PREFIX = 'patrich.voice.snapshot.'
+  private readonly VOICE_SAFETY_MODE_KEY = 'Pixi.voice.safety_mode'
+  private readonly VOICE_STABILIZATION_MODE_KEY = 'Pixi.voice.stabilization_mode'
+  private readonly VOICE_TUNING_KEY_PREFIX = 'Pixi.voice.tuning.'
+  private readonly VOICE_SNAPSHOT_KEY_PREFIX = 'Pixi.voice.snapshot.'
   private readonly VOICE_TRACE_MAX_ITEMS = 120
   private readonly CHURN_LOOKBACK_MS = 60_000
   private readonly DEFAULT_CHURN_SWITCH_THRESHOLD = 5
@@ -1660,7 +1660,7 @@ class VoiceAssistantOrchestrator {
   private normalizeVoiceCommand(command: string): string {
     let normalized = command.trim().toLowerCase()
     normalized = normalized.replace(/[!?.,]+$/g, '').trim()
-    normalized = normalized.replace(/^(please|jarvis|patrich|patrick)\s+/i, '').trim()
+    normalized = normalized.replace(/^(please|Pixi|Pixi|patrick)\s+/i, '').trim()
     normalized = normalized.replace(/\s+/g, ' ')
     return normalized
   }
@@ -1853,3 +1853,4 @@ class VoiceAssistantOrchestrator {
 }
 
 export const voiceAssistantOrchestrator = new VoiceAssistantOrchestrator()
+

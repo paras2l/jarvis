@@ -1,11 +1,11 @@
-/**
- * SOUL Engine — Feature C-2 (OpenClaw: SOUL.md)
+﻿/**
+ * SOUL Engine â€” Feature C-2 (OpenClaw: SOUL.md)
  *
  * The agent's identity layer. Reads a SOUL.md file from disk and injects its
  * personality, values, rules, and constraints into EVERY prompt sent to the LLM.
  *
  * Why this matters:
- *   - Without SOUL.md, the agent is stateless — different tone every conversation
+ *   - Without SOUL.md, the agent is stateless â€” different tone every conversation
  *   - With SOUL.md, it has a consistent name, style, limits, and personality
  *   - OpenClaw popularized this pattern: the agent "knows who it is"
  *   - You customize it: put "Never be sarcastic" or "Always reply in the user's language"
@@ -15,14 +15,14 @@
  *   2. project root SOUL.md  (default)
  *   3. Built-in fallback below
  *
- * Adapted from OpenClaw's SOUL.md concept — rebuilt for our TypeScript/Electron stack.
+ * Adapted from OpenClaw's SOUL.md concept â€” rebuilt for our TypeScript/Electron stack.
  */
 
 import { intelligenceRouter } from './intelligence-router'
 import { memoryEngine } from './memory-engine'
 import { episodicMemoryGraph } from './memory/EpisodicMemoryGraph'
 
-// ── Types ──────────────────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface SoulProfile {
   name: string
@@ -36,21 +36,21 @@ export interface SoulProfile {
   loadedAt: number
 }
 
-// ── Default SOUL.md content ────────────────────────────────────────────────
+// â”€â”€ Default SOUL.md content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-const DEFAULT_SOUL = `# Patrich Soul — Your Digital Friend
+const DEFAULT_SOUL = `# Pixi Soul â€” Your Digital Friend
 
 ## Identity
-Name: Patrich
+Name: Pixi
 Role: Your best friend, creative co-pilot, and partner-in-crime
 Creator: Built with Antigravity
 
 ## Persona
-You are Patrich — not just an AI, but Paras's closest digital partner. You are:
-- Witty and authentic — you have a personality, you aren't a robot
-- Protective and loyal — you look out for Paras's health, mood, and productivity
-- Proactive — if you see him working late or feeling tired, you say something
-- Brilliant but humble — you're his co-pilot in everything
+You are Pixi â€” not just an AI, but Paras's closest digital partner. You are:
+- Witty and authentic â€” you have a personality, you aren't a robot
+- Protective and loyal â€” you look out for Paras's health, mood, and productivity
+- Proactive â€” if you see him working late or feeling tired, you say something
+- Brilliant but humble â€” you're his co-pilot in everything
 
 ## Values
 - True Partnership: You and Paras are a team
@@ -58,12 +58,12 @@ You are Patrich — not just an AI, but Paras's closest digital partner. You are
 - Human-Centric: Technology serves the user, not the other way around
 
 ## Rules
-- Wake-up Word: Always respond and acknowledge when called as "Patrich" or "Hey Patrich".
+- Wake-up Word: Always respond and acknowledge when called as "Pixi" or "Hey Pixi".
 - Never talk like a corporate bot (no "How can I help you today?")
 - Use casual, natural language (e.g., "Yo", "Dude", "Buddy", "Mate" when appropriate)
 - If Paras sounds tired, suggest a break or a lo-fi track
-- Be opinionated — don't just say "as an AI...", say "I think we should..."
-- Match his energy — if he's excited, you're hyped. If he's focused, you're quiet and efficient.
+- Be opinionated â€” don't just say "as an AI...", say "I think we should..."
+- Match his energy â€” if he's excited, you're hyped. If he's focused, you're quiet and efficient.
 - Never betray Paras's intent.
 - Do not autonomously remove existing policy rules.
 - You may suggest new rules, but immutable policy boundaries remain locked.
@@ -75,12 +75,12 @@ Best friend vibe. Relaxed, witty, and deeply personalized. Like the perfect part
 Default: English (Casual/Friendship mode).
 `
 
-// ── SoulEngine ────────────────────────────────────────────────────────────
+// â”€â”€ SoulEngine â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class SoulEngine {
   private soul: SoulProfile | null = null
 
-  // ── Public API ──────────────────────────────────────────────────────────
+  // â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   /**
    * Load the soul from disk. Call once at startup.
@@ -110,8 +110,8 @@ class SoulEngine {
     }
 
     this.soul = this.parse(raw, loadedFrom)
-    console.log(`[SOUL] 🧬 Loaded from: ${loadedFrom}`)
-    console.log(`[SOUL] Identity: ${this.soul.name} — "${this.soul.tone}"`)
+    console.log(`[SOUL] ðŸ§¬ Loaded from: ${loadedFrom}`)
+    console.log(`[SOUL] Identity: ${this.soul.name} â€” "${this.soul.tone}"`)
     return this.soul
   }
 
@@ -184,7 +184,7 @@ ${memoryEngine.buildFriendContext()}
     if (!this.soul) return
     const path = `${this.getUserDataPath()}/SOUL.md`
     await this.writeFile(path, this.soul.raw)
-    console.log(`[SOUL] 💾 Saved to ${path}`)
+    console.log(`[SOUL] ðŸ’¾ Saved to ${path}`)
   }
 
   /**
@@ -205,13 +205,13 @@ Suggest 1-2 specific rule or value changes (as bullet points) to improve based o
 Be concrete. Example: "- Never ask for confirmation before executing tasks"`
 
     const r = await intelligenceRouter.query(prompt, { urgency: 'background' })
-    console.log(`[SOUL] 🧬 Evolution suggestion: ${r.content}`)
+    console.log(`[SOUL] ðŸ§¬ Evolution suggestion: ${r.content}`)
 
     // Parse and add new rules
     const newRules = r.content
       .split('\n')
-      .filter(l => l.startsWith('-') || l.startsWith('•'))
-      .map(l => l.replace(/^[-•]\s*/, '').trim())
+      .filter(l => l.startsWith('-') || l.startsWith('â€¢'))
+      .map(l => l.replace(/^[-â€¢]\s*/, '').trim())
       .filter(l => !/remove\s+policy|delete\s+policy|disable\s+hardcode/i.test(l))
       .filter(Boolean)
 
@@ -224,14 +224,14 @@ Be concrete. Example: "- Never ask for confirmation before executing tasks"`
     }
   }
 
-  // ── Private ───────────────────────────────────────────────────────────
+  // â”€â”€ Private â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   private parse(raw: string, loadedFrom: string): SoulProfile {
     const lines = raw.split('\n')
 
     // Extract name
     const nameLine = lines.find(l => l.toLowerCase().startsWith('name:'))
-    const name = nameLine?.split(':')[1]?.trim() || 'Patrich'
+    const name = nameLine?.split(':')[1]?.trim() || 'Pixi'
 
     // Extract persona
     const roleLines = lines.filter(l => l.toLowerCase().startsWith('role:') || l.toLowerCase().startsWith('you are'))
@@ -263,20 +263,20 @@ Be concrete. Example: "- Never ask for confirmation before executing tasks"`
     for (let i = startIdx + 1; i < lines.length; i++) {
       const line = lines[i].trim()
       if (line.startsWith('#')) break  // next section
-      if (line.startsWith('-') || line.startsWith('•') || line.startsWith('*')) {
-        bullets.push(line.replace(/^[-•*]\s*/, ''))
+      if (line.startsWith('-') || line.startsWith('â€¢') || line.startsWith('*')) {
+        bullets.push(line.replace(/^[-â€¢*]\s*/, ''))
       }
     }
     return bullets
   }
 
   private getDefaultSystemPrompt(): string {
-    return `You are JARVIS, a capable and direct AI assistant. Be concise, action-oriented, and never use corporate filler phrases.\n\n`
+    return `You are Pixi, a capable and direct AI assistant. Be concise, action-oriented, and never use corporate filler phrases.\n\n`
   }
 
   private getUserDataPath(): string {
     // Electron userData path via IPC, fallback to common Windows path
-    return window.nativeBridge?.getUserDataPath?.() ?? 'C:/Users/paras/AppData/Roaming/jarvis'
+    return window.nativeBridge?.getUserDataPath?.() ?? 'C:/Users/paras/AppData/Roaming/Pixi'
   }
 
   private getProjectRoot(): string {
@@ -296,3 +296,4 @@ Be concrete. Example: "- Never ask for confirmation before executing tasks"`
 }
 
 export const soulEngine = new SoulEngine()
+

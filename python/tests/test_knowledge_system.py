@@ -1,4 +1,4 @@
-"""Tests for Jarvis Knowledge System.
+﻿"""Tests for Pixi Knowledge System.
 
 Tests core functionality, integration points, and component interactions.
 """
@@ -13,7 +13,7 @@ from unittest.mock import Mock, patch, MagicMock
 # Add the parent directory to path for imports
 sys.path.insert(0, str((__file__).replace("\\", "/").rsplit("/", 3)[0]))
 
-from jarvis.knowledge_system import (
+from Pixi.knowledge_system import (
     KnowledgeCore,
     KnowledgeGraph,
     EntityExtractor,
@@ -288,7 +288,7 @@ class TestKnowledgeIntegration(unittest.TestCase):
     def test_full_workflow(self) -> None:
         """Test a complete knowledge workflow."""
         # Step 1: Learn from text
-        text = "Alice and Bob are working on the Jarvis project at Acme Corp"
+        text = "Alice and Bob are working on the Pixi project at Acme Corp"
         learn_result = self.knowledge.learn_from_text(text)
 
         self.assertTrue(learn_result.get("success", False))
@@ -330,3 +330,4 @@ def run_tests() -> int:
 
 if __name__ == "__main__":
     exit(run_tests())
+

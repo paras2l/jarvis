@@ -1,4 +1,4 @@
-import { VoiceConfig } from '@/types'
+﻿import { VoiceConfig } from '@/types'
 import { localVoiceRuntime } from '@/core/media-ml/runtimes/local-voice-runtime'
 
 /**
@@ -31,10 +31,11 @@ class VoiceHandler {
     highFreq: 0,
     peakEnergy: 0,
   }
+  private readonly wakeAliases = ['pixi', 'pixie']
 
   constructor() {
     this.config = {
-      activationKeyword: 'hey patrich',
+      activationKeyword: 'hey pixi',
       sensitivity: 0.8,
       autoDetect: true,
       continuousMode: true, // v4.0 default for sentient listening
@@ -90,6 +91,11 @@ class VoiceHandler {
 
       if (interimTranscript && this.onTranscriptCallback) {
         this.onTranscriptCallback(interimTranscript.trim(), false)
+        if (!this.isActivated && this.containsWakePhrase(interimTranscript.toLowerCase().trim())) {
+          this.isActivated = true
+          this.activatedUntilMs = Date.now() + 30_000
+          this.onActivation()
+        }
       }
 
       if (finalTranscript) {
@@ -393,13 +399,13 @@ class VoiceHandler {
     
     // Blend spectrum-based sentiment with text-based sentiment
     const blendedSentiment = this.blendSentiments(sentimentFromText, this.currentSpectrumSentiment)
-    console.log(`[PATRICH] Voice detected: "${transcript}" (Tone: ${blendedSentiment} | Spectrum: ${this.currentSpectrumSentiment})`)
+    console.log(`[PIXI] Voice detected: "${transcript}" (Tone: ${blendedSentiment} | Spectrum: ${this.currentSpectrumSentiment})`)
 
     // Check for activation keyword
     if (!this.isActivated) {
       if (this.containsWakePhrase(lowerTranscript)) {
         this.isActivated = true
-        this.activatedUntilMs = Date.now() + 15000
+        this.activatedUntilMs = Date.now() + 30_000
         this.onActivation()
         
         // v4.0 Optimization: If there is more text after the keyword, process it as a command immediately.
@@ -416,7 +422,7 @@ class VoiceHandler {
         this.onCommandCallback(this.mapSpokenSystemCommand(transcript.trim()))
       }
     } else {
-      this.activatedUntilMs = Date.now() + 15000
+      this.activatedUntilMs = Date.now() + 30_000
       // Already activated, process command with blended sentiment
       if (this.onCommandCallback) {
         this.onCommandCallback(this.mapSpokenSystemCommand(transcript.trim()))
@@ -471,12 +477,74 @@ class VoiceHandler {
     }
   }
 
+  private normalizeTranscript(input: string): string {
+    return String(input || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  }
+
+  private levenshteinDistance(a: string, b: string): number {
+    const m = a.length
+    const n = b.length
+    if (m === 0) return n
+    if (n === 0) return m
+
+    const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0))
+    for (let i = 0; i <= m; i += 1) dp[i][0] = i
+    for (let j = 0; j <= n; j += 1) dp[0][j] = j
+
+    for (let i = 1; i <= m; i += 1) {
+      for (let j = 1; j <= n; j += 1) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1
+        dp[i][j] = Math.min(
+          dp[i - 1][j] + 1,
+          dp[i][j - 1] + 1,
+          dp[i - 1][j - 1] + cost,
+        )
+      }
+    }
+
+    return dp[m][n]
+  }
+
   private containsWakePhrase(lowerTranscript: string): boolean {
-    return /^(?:hey|ok|okay)\s+(?:patrich|patrick|patric|jarvis)\b|^(?:patrich|patrick|patric|jarvis)\b/i.test(lowerTranscript)
+    const normalized = this.normalizeTranscript(lowerTranscript)
+    if (!normalized) return false
+
+    // 1) Strong exact-style matches anywhere in utterance.
+    const exactPattern = /(?:^|\s)(?:hey|hi|ok|okay)?\s*(?:pixi|pixie)(?:\s|$)/i
+    if (exactPattern.test(normalized)) {
+      return true
+    }
+
+    // 2) Typo-tolerant detection in first tokens (common ASR drift).
+    const tokens = normalized.split(' ').filter(Boolean)
+    const firstWindow = tokens.slice(0, 4)
+    for (const token of firstWindow) {
+      for (const alias of this.wakeAliases) {
+        if (this.levenshteinDistance(token, alias) <= 1) {
+          return true
+        }
+      }
+    }
+
+    // 3) Dynamic activation keyword support from config with normalization.
+    const configured = this.normalizeTranscript(this.config.activationKeyword)
+    if (configured && normalized.includes(configured)) {
+      return true
+    }
+
+    return false
   }
 
   private removeWakePhrase(transcript: string): string {
-    return transcript.replace(/^(hey\s+(?:patrich|patrick|patric|jarvis)|(?:ok|okay)\s+(?:patrich|patrick|patric|jarvis)|(?:patrich|patrick|patric|jarvis))[\s,:-]*/i, '')
+    return transcript
+      .replace(/^(?:hey|hi|ok|okay)\s+(?:pixi|pixie)[\s,:-]*/i, '')
+      .replace(/^(?:pixi|pixie)[\s,:-]*/i, '')
+      .replace(/\b(?:hey|hi|ok|okay)\s+(?:pixi|pixie)\b[\s,:-]*/i, '')
+      .replace(/\b(?:pixi|pixie)\b[\s,:-]*/i, '')
   }
 
   private looksLikeDirectCommand(lowerTranscript: string): boolean {
@@ -552,7 +620,7 @@ class VoiceHandler {
   }
 
   private canSpeak(requiresAudioConfirmation: boolean): boolean {
-    const mode = localStorage.getItem('patrich.voiceMode')
+    const mode = localStorage.getItem('Pixi.voiceMode')
     if (mode === 'silent') {
       return false
     }
@@ -614,3 +682,4 @@ class VoiceHandler {
 }
 
 export default new VoiceHandler()
+

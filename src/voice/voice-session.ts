@@ -1,6 +1,7 @@
 import { speechRecognitionRuntime } from '@/voice/speech-recognition'
 import { speechSynthesisRuntime, type SpeechSynthesisOptions } from '@/voice/speech-synthesis'
 import { wakeWordDetector } from '@/voice/wake-word'
+import { faceGate } from '@/voice/face-gate'
 import { runtimeEventBus } from '@/core/event-bus'
 
 class VoiceSession {
@@ -53,6 +54,15 @@ class VoiceSession {
 
     if (matched.detected) {
       this.stopSpeechForUserTurn()
+      const gate = await faceGate.authorizeForVoiceCommand()
+      if (!gate.allowed) {
+        await runtimeEventBus.emit('voice.face_blocked', {
+          transcript: text,
+          reason: gate.reason || 'Face authentication required',
+          timestamp: now,
+        })
+        return
+      }
       this.activatedUntil = now + this.ACTIVATION_WINDOW_MS
       await runtimeEventBus.emit('voice.wake', { transcript: text, timestamp: now })
       if (matched.commandText.trim()) {
@@ -67,6 +77,15 @@ class VoiceSession {
 
     if (this.looksLikeDirectCommand(text)) {
       this.stopSpeechForUserTurn()
+      const gate = await faceGate.authorizeForVoiceCommand()
+      if (!gate.allowed) {
+        await runtimeEventBus.emit('voice.face_blocked', {
+          transcript: text,
+          reason: gate.reason || 'Face authentication required',
+          timestamp: now,
+        })
+        return
+      }
       await runtimeEventBus.emit('voice.command', {
         command: text,
         transcript: text,
@@ -77,6 +96,15 @@ class VoiceSession {
 
     if (now <= this.activatedUntil) {
       this.stopSpeechForUserTurn()
+      const gate = await faceGate.authorizeForVoiceCommand()
+      if (!gate.allowed) {
+        await runtimeEventBus.emit('voice.face_blocked', {
+          transcript: text,
+          reason: gate.reason || 'Face authentication required',
+          timestamp: now,
+        })
+        return
+      }
       this.activatedUntil = now + this.ACTIVATION_WINDOW_MS
       await runtimeEventBus.emit('voice.command', {
         command: text,

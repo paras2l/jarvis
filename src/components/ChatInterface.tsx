@@ -19,6 +19,7 @@ import { memoryTierService } from '@/core/memory/memory-tier-service'
 import { localVoiceRuntime } from '@/core/media-ml/runtimes/local-voice-runtime'
 import { chatResponseEngine } from '@/core/chat-response-engine'
 import { naturalCommandLayer } from '@/core/natural-command-layer'
+import { consciousnessEngine } from '@/core/consciousness/consciousness-engine'
 import voiceHandler from '@/core/voice-handler'
 import { runtimeStatusStore, RuntimeStatusSnapshot } from '@/core/runtime-status'
 import { db } from '@/lib/db'
@@ -37,6 +38,21 @@ type PendingExecution = {
 const CHAT_ACTIVE_UNTIL_KEY = 'patrich.chat.activeUntil'
 const CHAT_ACTIVE_WINDOW_MS = 45_000
 
+const pickSituationAwareCopy = (variants: string[], seedParts: Array<string | number | undefined>): string => {
+  if (!variants.length) return ''
+  const seed = seedParts.map((part) => String(part ?? '')).join('|')
+  let hash = 0
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = ((hash << 5) - hash) + seed.charCodeAt(index)
+    hash |= 0
+  }
+  const ordered = [...variants]
+  if (seed.length % 2 === 1) {
+    ordered.reverse()
+  }
+  return ordered[Math.abs(hash) % ordered.length]
+}
+
 const ChatInterface: React.FC<ChatInterfaceProps> = ({
   isDark,
   onThemeToggle,
@@ -44,7 +60,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const initialMessage: Message = {
     id: 'init-1',
     type: 'agent',
-    content: 'Hey Paras! 👋 I\'m Patrich, your personal sovereign companion. How can I help you today?',
+    content: pickSituationAwareCopy([
+      'Hey Paras! 👋 I\'m Patrich, your personal sovereign companion. How can I help you today?',
+      'Hello Paras. I\'m here and ready to help with whatever you need.',
+      'Hey Paras, I\'m online and ready. Tell me what situation you want me to handle.',
+    ], [new Date().getHours(), 'init', 'greeting']),
     timestamp: new Date(),
   }
   const latestHistoryRef = useRef(getLatestChatHistory())
@@ -83,6 +103,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     // Load long-term memories from Supabase on startup
     memoryEngine.loadMemories().catch(() => {})
     naturalCommandLayer.warmup().catch(() => {})
+    consciousnessEngine.initializeUser('user-1').catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -525,6 +546,27 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       setCurrentMood(mood)
     }).catch(() => {})
 
+    const consciousnessSentiment = consciousnessEngine.analyzeSentiment(text)
+    const consciousnessMood = consciousnessSentiment.emotion === 'curious'
+      ? 'curious'
+      : consciousnessSentiment.emotion === 'frustrated'
+        ? 'frustrated'
+        : consciousnessSentiment.emotion === 'confused'
+          ? 'confused'
+          : consciousnessSentiment.emotion === 'excited'
+            ? 'excited'
+            : consciousnessSentiment.emotion === 'sad'
+              ? 'sad'
+              : consciousnessSentiment.emotion === 'happy'
+                ? 'happy'
+                : 'calm'
+    consciousnessEngine.updateEmotionalContext('user-1', consciousnessMood, text)
+    consciousnessEngine.emitConsciousnessMetric(
+      'user-1',
+      consciousnessSentiment.confidence < 0.6 ? 'uncertainty_acknowledged' : 'emotion_shift',
+    )
+    consciousnessEngine.recordLearning('user-1', `Chat handled with mood ${consciousnessMood}`)
+
     // 💾 Persist message to Supabase (async)
     db.tasks.log({ command: text, intent: 'chat', status: 'sent' }).catch(() => {})
 
@@ -537,7 +579,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         {
           id: `msg-${Date.now()}-voice-mode-silent`,
           type: 'agent',
-          content: 'Silent mode enabled. I will keep listening, but I will not speak out loud.',
+          content: pickSituationAwareCopy([
+            'Silent mode enabled. I will keep listening, but I will not speak out loud.',
+            'Silent mode is active. I will stay aware and keep quiet.',
+            'Understood. I have switched to silent mode and will not speak aloud.',
+          ], [modeCommand, currentMood, 'silent']),
           timestamp: new Date(),
         },
       ])
@@ -548,7 +594,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (/^(talking\s*mode|speak\s*mode|talking|speak)$/.test(modeCommand)) {
       setVoiceMode('talking')
       memoryEngine.setUserPreference('silent_mode', 'off').catch(() => {})
-      const ack = 'Talking mode enabled. I will listen and reply with voice for voice commands.'
+      const ack = pickSituationAwareCopy([
+        'Talking mode enabled. I will listen and reply with voice for voice commands.',
+        'Talking mode is on. I will speak back when you need me to.',
+        'Understood. Voice replies are enabled again.',
+      ], [modeCommand, currentMood, 'talking'])
       setMessages((prev: Message[]) => [
         ...prev,
         {
@@ -581,7 +631,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           {
             id: `msg-${Date.now()}-cancelled` ,
             type: 'agent',
-            content: 'Okay, cancelled that action.',
+            content: pickSituationAwareCopy([
+              'Okay, cancelled that action.',
+              'Understood. I cancelled it.',
+              'Got it. The action has been stopped.',
+            ], [text, currentMood, 'cancelled']),
             timestamp: new Date(),
           },
         ])
@@ -647,7 +701,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           {
             id: `msg-${Date.now()}-voice-cancelled`,
             type: 'agent',
-            content: 'Cancelled the pending action.',
+            content: pickSituationAwareCopy([
+              'Cancelled the pending action.',
+              'Okay, I have stopped the pending action.',
+              'Understood. The pending action is cancelled.',
+            ], [command, currentMood, 'voice-cancel']),
             timestamp: new Date(),
           },
         ])
@@ -668,7 +726,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     const activationMessage: Message = {
       id: `msg-${Date.now()}-activation`,
       type: 'agent',
-      content: 'Hey Paras! I\'m listening... 👂',
+      content: pickSituationAwareCopy([
+        'Hey Paras! I\'m listening... 👂',
+        'I\'m listening now. Tell me what you want me to do.',
+        'I\'m awake and listening. Go ahead.',
+      ], [voiceMode, currentMood, 'activation']),
       timestamp: new Date(),
     }
     setMessages((prev: Message[]) => [...prev, activationMessage])
@@ -758,7 +820,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             <input
               type="text"
               className="input-field"
-              placeholder="Type your command... (e.g. 'Build a React dashboard', 'Make a video')"
+              placeholder={pickSituationAwareCopy([
+                "Type your command... (e.g. 'Build a React dashboard', 'Make a video')",
+                "Tell me what you want... (for example: open settings or draft a plan)",
+                "Describe the situation or command you want me to handle.",
+              ], [currentMood, voiceMode, deviceClass, 'placeholder'])}
               value={inputValue}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInputValue(e.target.value)}
               onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) => {

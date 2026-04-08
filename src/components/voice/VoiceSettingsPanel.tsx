@@ -1,10 +1,22 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { voicePreferencesManager, type VoicePreferences } from '@/voice/voice-preferences'
 import { speechSynthesisRuntime } from '@/voice/speech-synthesis'
+import { voiceAssistantOrchestrator, type VoicePersonalityStatus } from '@/voice/voice-assistant-orchestrator'
 
 export function VoiceSettingsPanel() {
   const [prefs, setPrefs] = useState<VoicePreferences>(voicePreferencesManager.getPreferences())
   const [testPlaying, setTestPlaying] = useState(false)
+  const [status, setStatus] = useState<VoicePersonalityStatus>(voiceAssistantOrchestrator.getVoicePersonalityStatus())
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setStatus(voiceAssistantOrchestrator.getVoicePersonalityStatus())
+    }, 1200)
+
+    return () => {
+      window.clearInterval(interval)
+    }
+  }, [])
 
   const updatePreferences = (newPrefs: Partial<VoicePreferences>) => {
     const updated = { ...prefs, ...newPrefs }
@@ -73,6 +85,27 @@ export function VoiceSettingsPanel() {
           ))}
         </div>
         <p className="personality-desc">{voicePreferencesManager.describe()}</p>
+        <div className="personality-status-card">
+          <div><strong>Active:</strong> {status.active}</div>
+          <div><strong>Preferred:</strong> {status.preferred}</div>
+          <div><strong>Auto:</strong> {status.autoPersonalityEnabled ? 'ON' : 'OFF'}</div>
+          <div><strong>Safety:</strong> {status.safetyModeEnabled ? 'ON' : 'OFF'}</div>
+          <div><strong>Stabilization:</strong> {status.stabilizationModeEnabled ? 'ON' : 'OFF'}</div>
+          <div><strong>Tone Signal:</strong> {status.spectrumSentiment}</div>
+          <div><strong>Reason:</strong> {status.decisionReason}</div>
+          <div><strong>Churn / min:</strong> {status.churnPerMinute.toFixed(2)}</div>
+          <div><strong>Tune Threshold:</strong> {status.tuningThreshold}</div>
+          <div><strong>Tune Window:</strong> {Math.round(status.tuningWindowMs / 1000)}s</div>
+          <div><strong>Readiness:</strong> {status.readinessGrade} ({status.readinessScore})</div>
+          <div><strong>Stability Lock:</strong> {status.lockRemainingMs > 0 ? `${Math.round(status.lockRemainingMs / 1000)}s` : 'none'}</div>
+          <div><strong>Stabilization Window:</strong> {status.stabilizationRemainingMs > 0 ? `${Math.round(status.stabilizationRemainingMs / 1000)}s` : 'none'}</div>
+          <div><strong>Manual Lock:</strong> {status.manualLockRemainingMs > 0 ? `${Math.round(status.manualLockRemainingMs / 1000)}s` : 'none'}</div>
+          <div><strong>Consciousness Mood:</strong> {status.consciousnessMood}</div>
+          <div><strong>Consciousness Awareness:</strong> {status.consciousnessAwareness}</div>
+          <div><strong>Consciousness Confidence:</strong> {(status.consciousnessConfidence * 100).toFixed(0)}%</div>
+          <div><strong>Recent Learnings:</strong> {status.recentLearnings}</div>
+          <div><strong>Emotion History:</strong> {status.emotionalHistoryCount}</div>
+        </div>
       </div>
 
       {/* Volume Control */}
@@ -158,7 +191,7 @@ export function VoiceSettingsPanel() {
         </button>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .voice-settings-panel {
           padding: 1.5rem;
           border-radius: 10px;
@@ -224,6 +257,19 @@ export function VoiceSettingsPanel() {
           font-size: 0.85rem;
           color: #b0b0b0;
           font-style: italic;
+        }
+
+        .personality-status-card {
+          margin-top: 0.75rem;
+          border: 1px solid rgba(138, 43, 226, 0.35);
+          background: rgba(138, 43, 226, 0.08);
+          border-radius: 8px;
+          padding: 0.7rem 0.8rem;
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 0.35rem 0.7rem;
+          font-size: 0.82rem;
+          color: #cfcfe6;
         }
 
         .slider {

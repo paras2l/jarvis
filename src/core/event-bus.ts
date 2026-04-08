@@ -13,6 +13,7 @@ export type RuntimeEventMap = {
   'reflection.ready': { reflection: ReflectionSummary }
   'voice.wake': { transcript: string; timestamp: number }
   'voice.command': { command: string; transcript: string; timestamp: number }
+  'voice.face_blocked': { transcript: string; reason: string; timestamp: number }
   'vision.snapshot': { text: string; confidence: number; timestamp: number }
 }
 

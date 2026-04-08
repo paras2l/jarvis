@@ -1,4 +1,6 @@
 import { appMatcher } from '@/core/app-matcher'
+import { brainDirector } from '@/core/brain/brain-director'
+import { emotionCore } from '@/core/emotion/emotion-core'
 import { memoryEngine } from '@/core/memory-engine'
 import { intelligenceRouter } from '@/core/intelligence-router'
 import { detectPlatform } from '@/core/platform/platform-detection'
@@ -194,6 +196,15 @@ class NaturalCommandLayer {
   ): Promise<string> {
     await memoryEngine.loadMemories()
     const normalized = this.normalizeInput(input)
+    const emotionSnapshot = emotionCore.analyzeText(normalized)
+    const brainEnvelope = await brainDirector.buildAdaptivePromptEnvelope({
+      text: normalized,
+      silentMode: context.silentMode,
+      mood: context.mood || emotionCore.toMoodLabel(emotionSnapshot.emotion),
+      emotionSnapshot,
+      userName: context.userName,
+      recentTurns: memoryEngine.getConversationContext(8),
+    })
 
     const recent = memoryEngine
       .getConversationContext(8)
@@ -224,6 +235,9 @@ class NaturalCommandLayer {
       '',
       'Preferences:',
       preferenceSummary,
+      '',
+      'Brain guidance:',
+      brainEnvelope,
     ].join('\n')
 
     const response = await intelligenceRouter.query(prompt, {
@@ -238,6 +252,15 @@ class NaturalCommandLayer {
       await memoryEngine.appendConversationContext('user', input)
       await memoryEngine.appendConversationContext('assistant', content)
     }
+
+    await brainDirector.storeResponseMemory({
+      text: input,
+      silentMode: context.silentMode,
+      mood: context.mood || emotionCore.toMoodLabel(emotionSnapshot.emotion),
+      emotionSnapshot,
+      userName: context.userName,
+      recentTurns: memoryEngine.getConversationContext(8),
+    }, content)
 
     return content
   }

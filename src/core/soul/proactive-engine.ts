@@ -4,6 +4,8 @@ import { localVoiceRuntime } from '../media-ml/runtimes/local-voice-runtime'
 import { intelligenceRouter } from '../intelligence-router'
 import { db } from '../../lib/db'
 import { protocolRegistry } from '../protocols/ProtocolRegistry'
+import { brainDirector } from '../brain/brain-director'
+import { emotionCore } from '../emotion/emotion-core'
 
 /**
  * JARVIS Proactive Engine (ENHANCED - Protocol-Aware)
@@ -113,8 +115,13 @@ class ProactiveEngine {
         timeContext: new Date().getHours()
       })
       if (result.success && result.data?.greeting) {
-        console.log('[ProactiveEngine] Persona greeting:', result.data.greeting)
-        this.announceAutonomousThought(result.data.greeting)
+        const refined = await brainDirector.generateSpokenLine('greeting', {
+          text: String(result.data.greeting || ''),
+          mood,
+          userName: 'Paras',
+        })
+        console.log('[ProactiveEngine] Persona greeting:', refined)
+        this.announceAutonomousThought(refined)
         this.lastPersonaGreetingAt = Date.now()
       }
     } catch (err) {
@@ -172,7 +179,14 @@ class ProactiveEngine {
 
   private async initiateRandomCheckin() {
     const mood = moodEngine.getMood()
-    const prompt = `User mood is currently "${mood}". I have been silent for ${this.MIN_TALK_GAP / 60000} mins. Give a 1-sentence witty humanoid check-in like a real friend.`
+    const checkinSeed = `User mood is currently "${mood}". I have been silent for ${this.MIN_TALK_GAP / 60000} mins.`
+    const emotionSnapshot = emotionCore.analyzeText(checkinSeed)
+    const prompt = await brainDirector.buildAdaptivePromptEnvelope({
+      text: checkinSeed,
+      mood: mood || emotionCore.toMoodLabel(emotionSnapshot.emotion),
+      emotionSnapshot,
+      userName: 'Paras',
+    })
     
     try {
       const response = await intelligenceRouter.query(prompt, { urgency: 'realtime' })

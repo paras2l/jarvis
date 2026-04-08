@@ -21,6 +21,8 @@
 
 import { a2a } from './a2a-protocol'
 import { intelligenceRouter } from './intelligence-router'
+import { brainDirector } from './brain/brain-director'
+import { emotionCore } from './emotion/emotion-core'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -145,17 +147,36 @@ class AgentScheduler {
     const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
     sections.push(`🌅 Good morning! Today is ${today}.`)
 
-    // Ask LLM for a motivational opening
-    const opening = await intelligenceRouter.query(
-      `Give a brief (1 sentence) energizing morning motivation for a productive AI-powered workday.`,
-      { urgency: 'background' }
-    )
-    sections.push(opening.content)
+    const pendingTasks = this.getPendingTasks()
+    const digestSeed = `Morning digest for ${today}. Pending tasks: ${pendingTasks.length}.`
+    const emotionSnapshot = emotionCore.analyzeText(digestSeed)
+    const brainEnvelope = await brainDirector.buildAdaptivePromptEnvelope({
+      text: digestSeed,
+      intent: 'digest',
+      mode: 'digest',
+      mood: emotionCore.toMoodLabel(emotionSnapshot.emotion),
+      emotionSnapshot,
+      userName: 'Paras',
+    })
 
-    // Pending tasks (from localStorage)
-    const tasks = this.getPendingTasks()
-    if (tasks.length > 0) {
-      sections.push(`\n📋 You have ${tasks.length} pending tasks today.`)
+    const opening = await intelligenceRouter.query(
+      [
+        'Write a concise morning digest opening and priority framing for the user.',
+        'Use the provided brain context to stay personal, practical, and brief.',
+        'Do not add filler or generic motivational talk.',
+      ].join('\n'),
+      {
+        urgency: 'background',
+        taskType: 'chat',
+        systemPrompt: brainEnvelope,
+        isPrivate: true,
+      }
+    )
+    sections.push(opening.content.trim())
+
+    if (pendingTasks.length > 0) {
+      const prioritySummary = pendingTasks.slice(0, 5).map((task: string, index: number) => `${index + 1}. ${task}`).join(' ')
+      sections.push(`\n📋 Priority tasks: ${prioritySummary}`)
     }
 
     // Current learning status

@@ -47,6 +47,16 @@ export type SystemEventName =
   | 'perception_confidence_low'
   | 'perception_verified'
   | 'action_feedback_logged'
+  | 'voice_personality_decided'
+  | 'voice_personality_anomaly'
+  | 'voice_personality_tuning_updated'
+  | 'consciousness_metric'
+  | 'consciousness_emotion_shift'
+  | 'consciousness_learning_recorded'
+  | 'hotword_detected'
+  | 'sentiment_analyzed'
+  | 'command_matched'
+  | 'custom_command_added'
 
 export interface OutcomeEvaluatedPayload {
   evaluationId: string
@@ -154,6 +164,103 @@ export interface ActionFeedbackLoggedPayload {
   summary: string
   source: string
 }
+
+export interface VoicePersonalityDecidedPayload {
+  userName: string
+  commandPreview: string
+  intent?: string
+  confidence?: number
+  activePersonality: string
+  preferredPersonality: string
+  autoPersonalityEnabled: boolean
+  safetyModeEnabled: boolean
+  reason: string
+  spectrumSentiment: 'tired' | 'excited' | 'focused' | 'neutral'
+  lockRemainingMs: number
+  manualLockRemainingMs: number
+  scores: Record<string, number>
+}
+
+export interface VoicePersonalityAnomalyPayload {
+  userName: string
+  anomalyType: 'high_churn' | 'rapid_switching'
+  switchCount: number
+  decisions: number
+  churnPerMinute: number
+  stabilizationWindowMs: number
+  recentReasons: string[]
+}
+
+export interface VoicePersonalityTuningUpdatedPayload {
+  userName: string
+  reason: 'anomaly_response' | 'stability_optimization' | 'manual_reset'
+  churnSwitchThreshold: number
+  stabilizationWindowMs: number
+  anomalyCount: number
+  recoveryCount: number
+  updatedAt: number
+}
+
+export interface ConsciousnessMetricPayload {
+  userId: string
+  metric: 'emotion_shift' | 'learning_recorded' | 'uncertainty_acknowledged'
+  consciousness: string
+  currentMood: string
+  timestamp: number
+}
+
+export interface ConsciousnessEmotionShiftPayload {
+  userId: string
+  fromMood: string
+  toMood: string
+  context: string
+  timestamp: number
+}
+
+export interface ConsciousnessLearningRecordedPayload {
+  userId: string
+  interaction: string
+  recentLearningCount: number
+  timestamp: number
+}
+
+export interface HotwordDetectedPayload {
+  keyword: string
+  userId: string
+  timestamp: number
+  confidence?: number
+}
+
+export interface SentimentAnalyzedPayload {
+  userId: string
+  text: string
+  emotion: string
+  sentiment: string
+  score: number
+  keywords: string[]
+  intensityLevel: string
+  explanation: string
+  timestamp: number
+}
+
+export interface CommandMatchedPayload {
+  userId: string
+  command: string
+  matchedCommand: string
+  confidence: number
+  source: 'local' | 'api' | 'hybrid'
+  timestamp: number
+}
+
+export interface CustomCommandAddedPayload {
+  userId: string
+  name: string
+  pattern: string
+  action: string
+  description: string
+  commandId?: string
+  timestamp: number
+}
 export interface EventEnvelope<T = unknown> {
   id: string
   name: SystemEventName
@@ -214,6 +321,25 @@ export interface ContextUpdatedPayload {
       activeDeviceCount: number
       totalDeviceCount: number
       capabilities: string[]
+    }
+    selfAwarenessReport?: {
+      overallScore: number
+      overallPercentage: number
+      phaseReports: Array<{
+        phase: 'belief' | 'goal' | 'execution' | 'reflection' | 'governance'
+        score: number
+        percentage: number
+        weight: number
+        summary: string
+      }>
+      completedPhases: number
+      phaseCount: number
+      strongestPhase: 'belief' | 'goal' | 'execution' | 'reflection' | 'governance'
+      weakestPhase: 'belief' | 'goal' | 'execution' | 'reflection' | 'governance'
+      gapPercentage: number
+      status: 'forming' | 'integrated' | 'strong' | 'mature'
+      narrative: string
+      updatedAt: number
     }
   }
 }
@@ -452,6 +578,16 @@ export interface EventPayloadMap {
   perception_confidence_low: PerceptionConfidenceLowPayload
   perception_verified: PerceptionVerifiedPayload
   action_feedback_logged: ActionFeedbackLoggedPayload
+  voice_personality_decided: VoicePersonalityDecidedPayload
+  voice_personality_anomaly: VoicePersonalityAnomalyPayload
+  voice_personality_tuning_updated: VoicePersonalityTuningUpdatedPayload
+  consciousness_metric: ConsciousnessMetricPayload
+  consciousness_emotion_shift: ConsciousnessEmotionShiftPayload
+  consciousness_learning_recorded: ConsciousnessLearningRecordedPayload
+  hotword_detected: HotwordDetectedPayload
+  sentiment_analyzed: SentimentAnalyzedPayload
+  command_matched: CommandMatchedPayload
+  custom_command_added: CustomCommandAddedPayload
 }
 
 export type EventListener<TName extends SystemEventName = SystemEventName> = (

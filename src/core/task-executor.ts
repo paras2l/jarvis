@@ -14,14 +14,27 @@ import { skillEngine } from '@/core/skill-engine'
 import { toolBuilderEngine } from '@/core/tool-builder-engine'
 import { routeIntentJSON } from '@/core/intent-json-router'
 import { eventPublisher } from '@/event_system/event_publisher'
+import { agentScheduler } from '@/core/scheduler'
 import { taskScheduler } from '@/core/task-scheduler'
+import { channelRouter } from '@/core/channel-router'
 import { naturalCommandLayer } from '@/core/natural-command-layer'
 import type { NCULTask } from '@/core/natural-command-layer'
 import { selfModelLayer } from '@/layers/self_model/self_model_layer'
+import { selfGoalCompass } from '@/layers/self_model/self_goal_compass'
+import { selfExecutionAdvisor } from '@/layers/self_model/self_execution_advisor'
+import { selfReflectionEngine } from '@/layers/self_model/self_reflection_engine'
+import { selfGovernanceEngine } from '@/layers/self_model/self_governance_engine'
 import { metacognitionLayer } from '@/layers/metacognition/metacognition_layer'
 import { narrativeMemory } from '@/layers/identity_continuity/narrative_memory'
 import { relationshipTracker } from '@/layers/identity_continuity/relationship_tracker'
 import { intentionalAgencyLayer } from '@/layers/intentional_agency/agency_core'
+import { multimodalVision } from '@/vision/multimodal-vision'
+import { uiDetector } from '@/vision/ui-detector'
+import {
+  getTaskQueue,
+  getToolRegistry,
+  type ToolCapability,
+} from '@/core/cognitive-workspace'
 
 /**
  * Task Executor
@@ -32,9 +45,17 @@ class TaskExecutor {
   private executionQueue: Task[] = []
   private executingTask: Task | null = null
   private appRegistry = getAppRegistry()
+  private taskQueue = getTaskQueue()
+  private toolRegistry = getToolRegistry()
   private loopGuardState: Map<string, { count: number; lastAt: number }> = new Map()
   private readonly loopGuardWindowMs = 45_000
   private readonly loopGuardMaxRepeats = 3
+
+  private throwIfAborted(signal?: AbortSignal): void {
+    if (signal?.aborted) {
+      throw new DOMException('Task execution cancelled.', 'AbortError')
+    }
+  }
 
   /**
    * Parse user command
@@ -162,6 +183,83 @@ class TaskExecutor {
         action: 'memory_list',
         parameters: {},
         confidence: 0.94,
+        subAgentRequired: false,
+        targetDevice,
+      }
+    }
+
+    if (/(weather\s+in|weather\s+for|show\s+weather|get\s+weather|forecast)/i.test(input)) {
+      return {
+        intent: 'query',
+        action: 'open_weather',
+        parameters: { query: input },
+        confidence: 0.93,
+        subAgentRequired: false,
+        targetDevice,
+      }
+    }
+
+    if (/(latest\s+news|news\s+update|open\s+news|show\s+news|world\s+news)/i.test(input)) {
+      return {
+        intent: 'query',
+        action: 'open_news',
+        parameters: { query: input },
+        confidence: 0.93,
+        subAgentRequired: false,
+        targetDevice,
+      }
+    }
+
+    if (/(youtube|open\s+youtube|play\s+on\s+youtube|search\s+youtube)/i.test(input)) {
+      return {
+        intent: 'query',
+        action: 'open_youtube',
+        parameters: { query: input },
+        confidence: 0.93,
+        subAgentRequired: false,
+        targetDevice,
+      }
+    }
+
+    if (/(send\s+email|compose\s+email|draft\s+email|write\s+email)/i.test(input)) {
+      return {
+        intent: 'query',
+        action: 'compose_email',
+        parameters: { query: input },
+        confidence: 0.93,
+        subAgentRequired: false,
+        targetDevice,
+      }
+    }
+
+    if (/(scan\s+screen|analyze\s+screen|read\s+screen|what\s+is\s+on\s+screen|ocr\s+screen)/i.test(input)) {
+      return {
+        intent: 'query',
+        action: 'analyze_screen_context',
+        parameters: { query: input },
+        confidence: 0.94,
+        subAgentRequired: false,
+        targetDevice,
+      }
+    }
+
+    if (/(run|generate|deliver|show|start).*(morning\s+)?digest|brief\s+me\s+now|daily\s+briefing\s+now/i.test(input)) {
+      return {
+        intent: 'query',
+        action: 'run_morning_digest',
+        parameters: {},
+        confidence: 0.95,
+        subAgentRequired: false,
+        targetDevice,
+      }
+    }
+
+    if (/(triage|sort|prioritize).*(inbox|messages|mail)|smart\s+inbox/i.test(input)) {
+      return {
+        intent: 'query',
+        action: 'triage_inbox',
+        parameters: {},
+        confidence: 0.95,
         subAgentRequired: false,
         targetDevice,
       }
@@ -338,22 +436,96 @@ class TaskExecutor {
    */
   async executeTask(
     task: Task,
-    context: ExecutionContext
+    context: ExecutionContext,
+    signal?: AbortSignal,
   ): Promise<Task> {
+    this.throwIfAborted(signal)
+
     const decoded = this.parseTaskCommand(task.command)
     const nculSource = String(
       decoded.originalCommand || decoded.query || decoded.instruction || decoded.app || decoded.action || task.command,
     ).trim()
     const nculTask = await naturalCommandLayer.interpret(nculSource || task.command)
+    this.throwIfAborted(signal)
     const calibratedConfidence = await metacognitionLayer.calibrateCommandConfidence(
       nculSource || task.command,
       nculTask.confidence,
     )
+    this.throwIfAborted(signal)
     const executionThreshold = metacognitionLayer.getExecutionThreshold()
+    const commandText = nculSource || task.command
+    const normalizedCommand = String(commandText).toLowerCase()
     const evaluatedTask: NCULTask = {
       ...nculTask,
       confidence: calibratedConfidence,
     }
+    const baseRiskScore = this.estimateTaskRisk(task.type, normalizedCommand)
+    const goalAlignment = selfGoalCompass.assessExecution({
+      description: commandText,
+      action: task.type,
+      confidence: evaluatedTask.confidence,
+      riskScore: baseRiskScore,
+      contextTags: [
+        task.type,
+        context.device,
+        decoded.intent,
+        String(decoded.action || ''),
+      ].filter((value): value is string => Boolean(value)),
+    })
+    const advisorDecision = selfExecutionAdvisor.assess({
+      taskType: task.type,
+      command: commandText,
+      confidence: evaluatedTask.confidence,
+      riskScore: baseRiskScore,
+      goalAlignmentScore: goalAlignment.alignmentScore,
+      goalDriftScore: goalAlignment.driftScore,
+      isCustom: task.type === 'custom',
+      hasSensitiveSignals: this.hasSensitiveSignals(commandText),
+    })
+    const reflectionGuardrails = selfReflectionEngine.getGuardrails({
+      taskType: task.type,
+      sensitive: this.hasSensitiveSignals(commandText),
+      goalDrift: goalAlignment.driftScore,
+      riskScore: baseRiskScore,
+    })
+    const reflectionSnapshot = selfReflectionEngine.getSnapshot()
+    const governanceDecision = selfGovernanceEngine.evaluateGate({
+      taskType: task.type,
+      command: commandText,
+      confidence: evaluatedTask.confidence,
+      riskScore: baseRiskScore,
+      sensitive: this.hasSensitiveSignals(commandText),
+      goalAlignmentScore: goalAlignment.alignmentScore,
+      goalDriftScore: goalAlignment.driftScore,
+      reflectionMinConfidence: reflectionGuardrails.minConfidence,
+      reflectionMaxRisk: reflectionGuardrails.maxRisk,
+      simulationConfidence: reflectionSnapshot.simulation.confidence,
+      policyGovernanceScore: reflectionSnapshot.policyController.governanceScore,
+    })
+    const executionStartAt = Date.now()
+    const recordGovernanceOutcome = (success: boolean, reason: string): void => {
+      selfGovernanceEngine.recordOutcome({
+        taskType: task.type,
+        command: commandText,
+        success,
+        reason,
+        durationMs: Date.now() - executionStartAt,
+        riskScore: baseRiskScore,
+        confidence: evaluatedTask.confidence,
+        sensitive: this.hasSensitiveSignals(commandText),
+      })
+    }
+    const effectiveConfidenceFloor = Math.max(
+      executionThreshold,
+      advisorDecision.adjustedConfidenceFloor,
+      reflectionGuardrails.minConfidence,
+      governanceDecision.adjustedConfidenceFloor,
+    )
+    const effectiveRiskCap = Math.min(
+      advisorDecision.adjustedRiskCap,
+      reflectionGuardrails.maxRisk,
+      governanceDecision.adjustedRiskCap,
+    )
 
     if (evaluatedTask.confidence < executionThreshold && task.type !== 'custom') {
       task.status = 'failed'
@@ -378,6 +550,186 @@ class TaskExecutor {
           threshold: executionThreshold,
         },
       })
+      recordGovernanceOutcome(false, task.error)
+      return task
+    }
+
+    if (governanceDecision.decision === 'block') {
+      task.status = 'failed'
+      task.error = `Phase 5 governance blocked task. ${governanceDecision.reason}`
+      task.result = { success: false, message: task.error }
+      task.completedAt = new Date()
+      await this.logCommandOutcome(commandText, false, task.error)
+      recordGovernanceOutcome(false, task.error)
+      selfExecutionAdvisor.recordOutcome({
+        taskType: task.type,
+        command: commandText,
+        success: false,
+        reason: task.error,
+        durationMs: Date.now() - executionStartAt,
+        riskScore: baseRiskScore,
+        confidence: evaluatedTask.confidence,
+        goalAlignmentScore: goalAlignment.alignmentScore,
+        goalDriftScore: goalAlignment.driftScore,
+        decision: 'block',
+      })
+      selfReflectionEngine.ingestOutcome({
+        taskId: task.id,
+        taskType: task.type,
+        command: commandText,
+        success: false,
+        reason: task.error,
+        durationMs: Date.now() - executionStartAt,
+        confidence: evaluatedTask.confidence,
+        riskScore: baseRiskScore,
+        alignmentScore: goalAlignment.alignmentScore,
+        driftScore: goalAlignment.driftScore,
+        decision: 'block',
+        sensitive: this.hasSensitiveSignals(commandText),
+      })
+      return task
+    }
+
+    if (
+      advisorDecision.decision === 'block' ||
+      (reflectionGuardrails.blockSensitiveWhenUncertain && this.hasSensitiveSignals(commandText) && evaluatedTask.confidence < effectiveConfidenceFloor)
+    ) {
+      task.status = 'failed'
+      task.error = `Execution advisor blocked task. ${advisorDecision.reason}`
+      task.result = { success: false, message: task.error }
+      task.completedAt = new Date()
+      await this.logCommandOutcome(commandText, false, task.error)
+      selfExecutionAdvisor.recordOutcome({
+        taskType: task.type,
+        command: commandText,
+        success: false,
+        reason: task.error,
+        durationMs: Date.now() - executionStartAt,
+        riskScore: baseRiskScore,
+        confidence: evaluatedTask.confidence,
+        goalAlignmentScore: goalAlignment.alignmentScore,
+        goalDriftScore: goalAlignment.driftScore,
+        decision: 'block',
+      })
+      selfReflectionEngine.ingestOutcome({
+        taskId: task.id,
+        taskType: task.type,
+        command: commandText,
+        success: false,
+        reason: task.error,
+        durationMs: Date.now() - executionStartAt,
+        confidence: evaluatedTask.confidence,
+        riskScore: baseRiskScore,
+        alignmentScore: goalAlignment.alignmentScore,
+        driftScore: goalAlignment.driftScore,
+        decision: 'block',
+        sensitive: this.hasSensitiveSignals(commandText),
+      })
+      recordGovernanceOutcome(false, task.error)
+      return task
+    }
+
+    if (governanceDecision.decision === 'defer' || advisorDecision.decision === 'defer' || baseRiskScore > effectiveRiskCap + 0.12) {
+      task.status = 'failed'
+      const cooldownMs = Math.max(advisorDecision.cooldownMs, governanceDecision.cooldownMs)
+      task.error = `Execution deferred for cooldown (${Math.round(cooldownMs / 1000)}s). advisor=${advisorDecision.reason} governance=${governanceDecision.reason}`
+      task.result = { success: false, message: task.error }
+      task.completedAt = new Date()
+      await this.logCommandOutcome(commandText, false, task.error)
+      selfExecutionAdvisor.recordOutcome({
+        taskType: task.type,
+        command: commandText,
+        success: false,
+        reason: task.error,
+        durationMs: Date.now() - executionStartAt,
+        riskScore: baseRiskScore,
+        confidence: evaluatedTask.confidence,
+        goalAlignmentScore: goalAlignment.alignmentScore,
+        goalDriftScore: goalAlignment.driftScore,
+        decision: 'defer',
+      })
+      selfReflectionEngine.ingestOutcome({
+        taskId: task.id,
+        taskType: task.type,
+        command: commandText,
+        success: false,
+        reason: task.error,
+        durationMs: Date.now() - executionStartAt,
+        confidence: evaluatedTask.confidence,
+        riskScore: baseRiskScore,
+        alignmentScore: goalAlignment.alignmentScore,
+        driftScore: goalAlignment.driftScore,
+        decision: 'defer',
+        sensitive: this.hasSensitiveSignals(commandText),
+      })
+      recordGovernanceOutcome(false, task.error)
+      return task
+    }
+
+    if (
+      (advisorDecision.decision === 'clarify' || governanceDecision.decision === 'clarify') &&
+      evaluatedTask.confidence < effectiveConfidenceFloor
+    ) {
+      task.status = 'failed'
+      task.error = `Clarification requested before execution. advisor=${advisorDecision.reason} governance=${governanceDecision.reason}`
+      task.result = { success: false, message: task.error }
+      task.completedAt = new Date()
+      await this.logCommandOutcome(commandText, false, task.error)
+      selfExecutionAdvisor.recordOutcome({
+        taskType: task.type,
+        command: commandText,
+        success: false,
+        reason: task.error,
+        durationMs: Date.now() - executionStartAt,
+        riskScore: baseRiskScore,
+        confidence: evaluatedTask.confidence,
+        goalAlignmentScore: goalAlignment.alignmentScore,
+        goalDriftScore: goalAlignment.driftScore,
+        decision: 'clarify',
+      })
+      selfReflectionEngine.ingestOutcome({
+        taskId: task.id,
+        taskType: task.type,
+        command: commandText,
+        success: false,
+        reason: task.error,
+        durationMs: Date.now() - executionStartAt,
+        confidence: evaluatedTask.confidence,
+        riskScore: baseRiskScore,
+        alignmentScore: goalAlignment.alignmentScore,
+        driftScore: goalAlignment.driftScore,
+        decision: 'clarify',
+        sensitive: this.hasSensitiveSignals(commandText),
+      })
+      recordGovernanceOutcome(false, task.error)
+      return task
+    }
+
+    if (goalAlignment.shouldClarify && task.type === 'custom' && evaluatedTask.confidence < 0.8) {
+      task.status = 'failed'
+      task.error = `Goal compass requested clarification before execution. ${goalAlignment.summary}`
+      task.result = { success: false, message: task.error }
+      task.completedAt = new Date()
+      await this.logCommandOutcome(nculSource || task.command, false, task.error)
+      await selfModelLayer.onActionOutcome({
+        taskId: task.id,
+        success: false,
+        summary: task.error,
+        confidenceHint: goalAlignment.alignmentScore,
+      })
+      await narrativeMemory.append({
+        type: 'task',
+        summary: `Task paused by goal compass: ${task.error}`,
+        source: 'task-executor',
+        importance: 0.82,
+        metadata: {
+          taskId: task.id,
+          goalAlignment: goalAlignment.alignmentScore,
+          matchedGoals: goalAlignment.matchedGoalTitles,
+          matchedValues: goalAlignment.matchedValues,
+        },
+      })
+      recordGovernanceOutcome(false, task.error)
       return task
     }
 
@@ -409,8 +761,17 @@ class TaskExecutor {
         importance: 0.75,
         metadata: { taskId: task.id },
       })
+      recordGovernanceOutcome(false, loopBlockedReason)
       return task
     }
+
+    const queuePriority = this.combineExecutionPriority(
+      evaluatedTask.confidence,
+      goalAlignment.recommendedPriority,
+      advisorDecision.recommendedPriority,
+      reflectionGuardrails,
+    )
+    const queueId = await this.enqueueForExecution(task, queuePriority, goalAlignment, [...advisorDecision.tags, ...governanceDecision.tags, 'reflection'])
 
     task.status = 'executing'
     this.executingTask = task
@@ -425,7 +786,9 @@ class TaskExecutor {
     )
 
     try {
+      this.throwIfAborted(signal)
       const policyDecision = await this.enforceCentralPolicy(task, context)
+      this.throwIfAborted(signal)
 
       switch (task.type) {
         case 'app_launch':
@@ -452,10 +815,13 @@ class TaskExecutor {
           task.result = { success: false, message: 'Unsupported task type.' }
       }
 
+      this.throwIfAborted(signal)
+
       const result = task.result as { success?: boolean; message?: string }
       if (result?.success) {
         task.status = 'completed'
         this.clearLoopGuard(task)
+        await this.taskQueue.completeTask(queueId, task.result)
         void eventPublisher.taskCompleted(
           {
             taskId: task.id,
@@ -490,9 +856,37 @@ class TaskExecutor {
             'completed',
           )
           .catch(() => false)
+        selfExecutionAdvisor.recordOutcome({
+          taskType: task.type,
+          command: commandText,
+          success: true,
+          reason: result?.message || 'Task completed',
+          durationMs: Date.now() - executionStartAt,
+          riskScore: baseRiskScore,
+          confidence: evaluatedTask.confidence,
+          goalAlignmentScore: goalAlignment.alignmentScore,
+          goalDriftScore: goalAlignment.driftScore,
+          decision: 'execute',
+        })
+        selfReflectionEngine.ingestOutcome({
+          taskId: task.id,
+          taskType: task.type,
+          command: commandText,
+          success: true,
+          reason: result?.message || 'Task completed',
+          durationMs: Date.now() - executionStartAt,
+          confidence: evaluatedTask.confidence,
+          riskScore: baseRiskScore,
+          alignmentScore: goalAlignment.alignmentScore,
+          driftScore: goalAlignment.driftScore,
+          decision: 'execute',
+          sensitive: this.hasSensitiveSignals(commandText),
+        })
+        recordGovernanceOutcome(true, result?.message || 'Task completed')
       } else {
         task.status = 'failed'
         task.error = result?.message || 'Task execution failed'
+        await this.taskQueue.failTask(queueId, task.error)
         void eventPublisher.taskFailed(
           {
             taskId: task.id,
@@ -527,12 +921,48 @@ class TaskExecutor {
             'broken',
           )
           .catch(() => false)
+        selfExecutionAdvisor.recordOutcome({
+          taskType: task.type,
+          command: commandText,
+          success: false,
+          reason: task.error || 'Task execution failed',
+          durationMs: Date.now() - executionStartAt,
+          riskScore: baseRiskScore,
+          confidence: evaluatedTask.confidence,
+          goalAlignmentScore: goalAlignment.alignmentScore,
+          goalDriftScore: goalAlignment.driftScore,
+          decision: 'execute',
+        })
+        selfReflectionEngine.ingestOutcome({
+          taskId: task.id,
+          taskType: task.type,
+          command: commandText,
+          success: false,
+          reason: task.error || 'Task execution failed',
+          durationMs: Date.now() - executionStartAt,
+          confidence: evaluatedTask.confidence,
+          riskScore: baseRiskScore,
+          alignmentScore: goalAlignment.alignmentScore,
+          driftScore: goalAlignment.driftScore,
+          decision: 'execute',
+          sensitive: this.hasSensitiveSignals(commandText),
+        })
+        recordGovernanceOutcome(false, task.error || 'Task execution failed')
       }
       task.completedAt = new Date()
       this.logReactiveActionToAgency(nculSource || task.command, result?.success ?? false)
     } catch (error) {
+      const isAbortError =
+        (error instanceof DOMException && error.name === 'AbortError') ||
+        (error instanceof Error && /aborted|cancelled/i.test(error.message))
+
       task.status = 'failed'
-      task.error = error instanceof Error ? error.message : 'Unknown error'
+      task.error = isAbortError
+        ? 'Task cancelled by user.'
+        : error instanceof Error
+          ? error.message
+          : 'Unknown error'
+      await this.taskQueue.failTask(queueId, task.error)
       task.completedAt = new Date()
       void eventPublisher.errorOccurred(
         {
@@ -562,6 +992,33 @@ class TaskExecutor {
         importance: 0.9,
         metadata: { taskId: task.id },
       })
+      selfExecutionAdvisor.recordOutcome({
+        taskType: task.type,
+        command: commandText,
+        success: false,
+        reason: task.error,
+        durationMs: Date.now() - executionStartAt,
+        riskScore: baseRiskScore,
+        confidence: evaluatedTask.confidence,
+        goalAlignmentScore: goalAlignment.alignmentScore,
+        goalDriftScore: goalAlignment.driftScore,
+        decision: 'execute',
+      })
+      selfReflectionEngine.ingestOutcome({
+        taskId: task.id,
+        taskType: task.type,
+        command: commandText,
+        success: false,
+        reason: task.error,
+        durationMs: Date.now() - executionStartAt,
+        confidence: evaluatedTask.confidence,
+        riskScore: baseRiskScore,
+        alignmentScore: goalAlignment.alignmentScore,
+        driftScore: goalAlignment.driftScore,
+        decision: 'execute',
+        sensitive: this.hasSensitiveSignals(commandText),
+      })
+      recordGovernanceOutcome(false, task.error)
     }
 
     this.executingTask = null
@@ -618,7 +1075,7 @@ class TaskExecutor {
     return task
   }
 
-  async executeNaturalTask(nculTask: NCULTask, context: ExecutionContext): Promise<Task> {
+  async executeNaturalTask(nculTask: NCULTask, context: ExecutionContext, signal?: AbortSignal): Promise<Task> {
     const actionMap: Record<string, { intent: string; action: string; subAgentRequired: boolean }> = {
       open_app: { intent: 'app_launch', action: 'launch_app', subAgentRequired: false },
       web_search: { intent: 'query', action: 'web_search', subAgentRequired: false },
@@ -650,7 +1107,7 @@ class TaskExecutor {
     }
 
     const task = this.createTask(parsed)
-    return this.executeTask(task, context)
+    return this.executeTask(task, context, signal)
   }
 
   /**
@@ -665,6 +1122,123 @@ class TaskExecutor {
    */
   getCurrentTask(): Task | null {
     return this.executingTask
+  }
+
+  private combineExecutionPriority(
+    confidence: number,
+    goalPriority: 'urgent' | 'high' | 'medium' | 'low',
+    advisorPriority: 'urgent' | 'high' | 'medium' | 'low',
+    reflectionGuardrails?: { clarifyBias: number },
+  ): 'urgent' | 'high' | 'medium' | 'low' {
+    const confidencePriority = this.mapConfidenceToPriority(confidence)
+    const ordered: Array<'urgent' | 'high' | 'medium' | 'low'> = ['low', 'medium', 'high', 'urgent']
+    const combinedIndex = Math.max(
+      ordered.indexOf(confidencePriority),
+      ordered.indexOf(goalPriority),
+      ordered.indexOf(advisorPriority),
+    )
+    const biasOffset = reflectionGuardrails && reflectionGuardrails.clarifyBias > 0.45 ? -1 : 0
+    return ordered[Math.max(0, Math.min(ordered.length - 1, combinedIndex + biasOffset))]
+  }
+
+  private async enqueueForExecution(
+    task: Task,
+    priority: 'urgent' | 'high' | 'medium' | 'low',
+    goalAlignment?: ReturnType<typeof selfGoalCompass.assessExecution>,
+    advisorTags: string[] = [],
+  ): Promise<string> {
+    const queueId = await this.taskQueue.enqueueTask({
+      taskId: task.id,
+      name: task.type,
+      state: 'planning',
+      progress: 0,
+      startTime: Date.now(),
+      currentAction: task.command,
+      inputContext: { command: task.command, taskType: task.type },
+      canBeInterrupted: true,
+      priority,
+      queueStatus: 'queued',
+      retryStrategy: 'exponential',
+      maxRetries: 3,
+      retryCount: 0,
+      retryDelay: 1000,
+      attemptNumber: 1,
+      tags: [
+        task.type,
+        'task-executor',
+        ...(goalAlignment?.matchedGoalTitles ?? []).slice(0, 2),
+        ...advisorTags.slice(0, 3),
+      ],
+    })
+
+    await this.taskQueue.startExecution(queueId)
+    return queueId
+  }
+
+  private mapConfidenceToPriority(confidence: number): 'urgent' | 'high' | 'medium' | 'low' {
+    if (confidence >= 0.9) return 'urgent'
+    if (confidence >= 0.75) return 'high'
+    if (confidence >= 0.5) return 'medium'
+    return 'low'
+  }
+
+  private inferCapabilitiesForAction(action: string): ToolCapability[] {
+    const normalized = action.toLowerCase()
+
+    if (normalized.includes('open') || normalized.includes('launch')) return ['open']
+    if (normalized.includes('close')) return ['close']
+    if (normalized.includes('search') || normalized.includes('query')) return ['search']
+    if (normalized.includes('read')) return ['read']
+    if (normalized.includes('write') || normalized.includes('save')) return ['write']
+    if (normalized.includes('run') || normalized.includes('execute')) return ['execute']
+    if (normalized.includes('control') || normalized.includes('delete')) return ['control']
+
+    return []
+  }
+
+  private buildToolParams(
+    toolName: string,
+    params: Record<string, unknown>,
+    command: string,
+  ): Record<string, unknown> | null {
+    switch (toolName) {
+      case 'open_app': {
+        const appName = String(params.app || params.app_name || params.target || '').trim()
+        return appName ? { app_name: appName } : null
+      }
+      case 'close_app': {
+        const appName = String(params.app || params.app_name || params.target || '').trim()
+        return appName ? { app_name: appName } : null
+      }
+      case 'write_file': {
+        const path = String(params.path || params.file || params.target || '').trim()
+        const content = String(params.content || params.text || params.entry || '').trim()
+        return path && content ? { path, content } : null
+      }
+      case 'read_file': {
+        const path = String(params.path || params.file || params.target || '').trim()
+        return path ? { path } : null
+      }
+      case 'delete_file': {
+        const path = String(params.path || params.file || params.target || '').trim()
+        return path ? { path } : null
+      }
+      case 'search_web': {
+        const query = String(params.query || params.target || command).trim()
+        return query ? { query } : null
+      }
+      case 'run_script': {
+        const script = String(params.script || params.command || command).trim()
+        return script ? { script } : null
+      }
+      case 'control_os': {
+        const action = String(params.action || 'status').trim()
+        const target = String(params.target || '').trim()
+        return target ? { action, target } : { action }
+      }
+      default:
+        return null
+    }
   }
 
   // Helper methods for parameter extraction
@@ -962,6 +1536,24 @@ class TaskExecutor {
     if (normalizedInput.includes('remote')) privileges.push('cross_device')
     if (normalizedInput.includes('camera') || normalizedInput.includes('screen')) privileges.push('screen_capture')
     return privileges
+  }
+
+  private hasSensitiveSignals(text: string): boolean {
+    const normalized = text.toLowerCase()
+    return [
+      'password',
+      'passcode',
+      'pin',
+      'otp',
+      'token',
+      'secret',
+      'delete',
+      'wipe',
+      'payment',
+      'bank',
+      'credential',
+      'remote',
+    ].some((keyword) => normalized.includes(keyword))
   }
 
   private openTarget(target: string): boolean {
@@ -1438,7 +2030,8 @@ class TaskExecutor {
       return { success: false, message: 'Compression bridge unavailable.' }
     }
 
-    return window.nativeBridge.bulk.compressPath(source, destination, format as 'zip' | 'tar.gz' | 'gzip')
+    const result = await window.nativeBridge.bulk.compressPath(source, destination, format as 'zip' | 'tar.gz' | 'gzip')
+    return { success: result.success, message: result.message || 'Compression complete.' }
   }
 
   private async extractArchive(command: string): Promise<{ success: boolean; message: string }> {
@@ -1454,7 +2047,8 @@ class TaskExecutor {
       return { success: false, message: 'Extraction bridge unavailable.' }
     }
 
-    return window.nativeBridge.bulk.extractArchive(archivePath, destinationPath)
+    const result = await window.nativeBridge.bulk.extractArchive(archivePath, destinationPath)
+    return { success: result.success, message: result.message || 'Extraction complete.' }
   }
 
   private async bulkMoveByPattern(command: string): Promise<{ success: boolean; message: string }> {
@@ -1472,7 +2066,8 @@ class TaskExecutor {
       return { success: false, message: 'Bulk move bridge unavailable.' }
     }
 
-    return window.nativeBridge.bulk.bulkMoveByPattern(sourceDir, pattern, destinationDir, useRegex)
+    const result = await window.nativeBridge.bulk.bulkMoveByPattern(sourceDir, pattern, destinationDir, useRegex)
+    return { success: result.success, message: result.message || 'Bulk move complete.' }
   }
 
   private async searchFileContent(command: string): Promise<{ success: boolean; message: string }> {
@@ -1489,7 +2084,8 @@ class TaskExecutor {
       return { success: false, message: 'Search bridge unavailable.' }
     }
 
-    return window.nativeBridge.bulk.searchFileContent(searchDir, textPattern, fileExtPattern || '.*')
+    const result = await window.nativeBridge.bulk.searchFileContent(searchDir, textPattern, fileExtPattern || '.*')
+    return { success: result.success, message: result.message || 'Search complete.' }
   }
 
   private async getFileStats(command: string): Promise<{ success: boolean; message: string }> {
@@ -1512,7 +2108,7 @@ class TaskExecutor {
         message: `File stats: size=${s.size} bytes, modified=${s.modified}, hash=${s.sha256.substring(0, 16)}...`,
       }
     }
-    return result
+    return { success: result.success, message: result.message || 'File stats retrieved.' }
   }
 
   private async calculateHash(command: string): Promise<{ success: boolean; message: string }> {
@@ -1528,7 +2124,8 @@ class TaskExecutor {
       return { success: false, message: 'Hash calculation bridge unavailable.' }
     }
 
-    return window.nativeBridge.bulk.calculateHash(filePath, algorithm as 'sha256' | 'sha512' | 'md5')
+    const result = await window.nativeBridge.bulk.calculateHash(filePath, algorithm as 'sha256' | 'sha512' | 'md5')
+    return { success: result.success, message: result.message || 'Hash calculated.' }
   }
 
   // ── Phase 6: Advanced Automation & System Monitoring Methods ────────────────
@@ -1617,7 +2214,8 @@ class TaskExecutor {
       return { success: false, message: 'Environment bridge unavailable.' }
     }
 
-    return window.nativeBridge.environment.setEnvVar(varName, value)
+    const result = await window.nativeBridge.environment.setEnvVar(varName, value)
+    return { success: result.success, message: result.message || `Set ${varName}.` }
   }
 
   private async listEnvVars(command: string): Promise<{ success: boolean; message: string }> {
@@ -1686,7 +2284,8 @@ class TaskExecutor {
       return { success: false, message: 'Task cancellation bridge unavailable.' }
     }
 
-    return window.nativeBridge.automation.cancelTask(taskId)
+    const result = await window.nativeBridge.automation.cancelTask(taskId)
+    return { success: result.success, message: result.message || `Cancelled task ${taskId}.` }
   }
 
   private async listScheduledTasks(): Promise<{ success: boolean; message: string }> {
@@ -1801,7 +2400,8 @@ class TaskExecutor {
       return { success: false, message: 'Clipboard bridge unavailable.' }
     }
 
-    return window.nativeBridge.clipboard.setClipboard(text)
+    const result = await window.nativeBridge.clipboard.setClipboard(text)
+    return { success: result.success, message: result.message || 'Clipboard updated.' }
   }
 
   private async clearClipboard(): Promise<{ success: boolean; message: string }> {
@@ -1809,7 +2409,8 @@ class TaskExecutor {
       return { success: false, message: 'Clipboard bridge unavailable.' }
     }
 
-    return window.nativeBridge.clipboard.clearClipboard()
+    const result = await window.nativeBridge.clipboard.clearClipboard()
+    return { success: result.success, message: result.message || 'Clipboard cleared.' }
   }
 
   private async moveWindow(command: string): Promise<{ success: boolean; message: string }> {
@@ -1857,7 +2458,8 @@ class TaskExecutor {
       return { success: false, message: 'Media control bridge unavailable.' }
     }
 
-    return window.nativeBridge.media.control(mediaCmd as any)
+    const result = await window.nativeBridge.media.control(mediaCmd as any)
+    return { success: result.success, message: result.message || `Media command ${mediaCmd} sent.` }
   }
 
   private async checkConnectivity(command: string): Promise<{ success: boolean; message: string }> {
@@ -1887,7 +2489,8 @@ class TaskExecutor {
       return { success: false, message: 'Notifications bridge unavailable.' }
     }
 
-    return window.nativeBridge.notifications.show(title, message)
+    const result = await window.nativeBridge.notifications.show(title, message)
+    return { success: result.success, message: result.message || 'Notification shown.' }
   }
 
   private async handleNativeSystemFallback(command: string, action: string): Promise<{ success: boolean; message: string } | null> {
@@ -2426,6 +3029,36 @@ class TaskExecutor {
       return taskScheduler.clearOneTimeBriefing()
     }
 
+    if (action === 'run_morning_digest') {
+      const digest = await agentScheduler.deliverMorningDigest()
+      return { success: true, message: digest }
+    }
+
+    if (action === 'triage_inbox') {
+      const summary = await channelRouter.triageInbox()
+      return { success: true, message: summary }
+    }
+
+    if (action === 'open_weather') {
+      return this.openWeather(command)
+    }
+
+    if (action === 'open_news') {
+      return this.openNews(command)
+    }
+
+    if (action === 'open_youtube') {
+      return this.openYouTube(command)
+    }
+
+    if (action === 'compose_email') {
+      return this.composeEmail(command)
+    }
+
+    if (action === 'analyze_screen_context') {
+      return this.analyzeScreenContext(command)
+    }
+
     if (action === 'desktop_ref_click') {
       return this.performRefClick(command)
     }
@@ -2542,6 +3175,28 @@ class TaskExecutor {
 
     if (skillResult?.success) {
       return skillResult
+    }
+
+    const requiredCapabilities = this.inferCapabilitiesForAction(action)
+    const toolMatches = this.toolRegistry.matchToolsForIntent(action || command, requiredCapabilities)
+    const bestTool = toolMatches[0]
+
+    if (bestTool && bestTool.score >= 25) {
+      const toolParams = this.buildToolParams(bestTool.tool.name, params, command)
+      if (toolParams) {
+        try {
+          const toolResult = await this.toolRegistry.executeTool(bestTool.tool.name, toolParams)
+          const success = typeof toolResult?.success === 'boolean' ? toolResult.success : true
+          return {
+            success,
+            message: success
+              ? `Executed via ${bestTool.tool.name}.`
+              : `Tool ${bestTool.tool.name} reported failure.`,
+          }
+        } catch {
+          // Ignore registry fallback failures and continue with existing fallback chain.
+        }
+      }
     }
 
     const builtResult = await toolBuilderEngine.buildAndExecute(command, {
@@ -2815,6 +3470,88 @@ class TaskExecutor {
     return opened
       ? { success: true, message: `Opened search for: ${query}\n\n${research.summary}` }
       : { success: true, message: research.summary }
+  }
+
+  private async openWeather(command: string): Promise<{ success: boolean; message: string }> {
+    const locationMatch = command.match(/(?:weather|forecast)\s+(?:in|for)\s+(.+)/i)
+    const location = (locationMatch?.[1] || '').trim()
+    const target = location
+      ? `https://www.weather.com/weather/today/l/${encodeURIComponent(location)}`
+      : 'https://www.weather.com/'
+
+    const opened = await this.openTargetNativeFirst(target)
+    if (opened) {
+      return { success: true, message: location ? `Opened weather for ${location}.` : 'Opened weather dashboard.' }
+    }
+
+    return { success: false, message: 'Unable to open weather view.' }
+  }
+
+  private async openNews(command: string): Promise<{ success: boolean; message: string }> {
+    const topicMatch = command.match(/news\s+(?:about|on)\s+(.+)/i)
+    const topic = (topicMatch?.[1] || '').trim()
+    const target = topic
+      ? `https://news.google.com/search?q=${encodeURIComponent(topic)}`
+      : 'https://news.google.com/'
+
+    const opened = await this.openTargetNativeFirst(target)
+    if (opened) {
+      return { success: true, message: topic ? `Opened news for ${topic}.` : 'Opened latest news.' }
+    }
+
+    return { success: false, message: 'Unable to open news view.' }
+  }
+
+  private async openYouTube(command: string): Promise<{ success: boolean; message: string }> {
+    const queryMatch = command.match(/(?:youtube|play|search)\s+(?:for|on)?\s*(.+)/i)
+    const query = (queryMatch?.[1] || '').replace(/^youtube\s*/i, '').trim()
+    const target = query
+      ? `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`
+      : 'https://www.youtube.com/'
+
+    const opened = await this.openTargetNativeFirst(target)
+    if (opened) {
+      return { success: true, message: query ? `Opened YouTube results for ${query}.` : 'Opened YouTube.' }
+    }
+
+    return { success: false, message: 'Unable to open YouTube.' }
+  }
+
+  private async composeEmail(command: string): Promise<{ success: boolean; message: string }> {
+    const recipientMatch = command.match(/(?:to)\s+([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i)
+    const subjectMatch = command.match(/subject\s+(?:is\s+)?["']?([^"']+)["']?/i)
+    const recipient = (recipientMatch?.[1] || '').trim()
+    const subject = (subjectMatch?.[1] || '').trim()
+
+    const mailto = `mailto:${encodeURIComponent(recipient)}${subject ? `?subject=${encodeURIComponent(subject)}` : ''}`
+    const opened = await this.openTargetNativeFirst(mailto)
+    if (opened) {
+      return {
+        success: true,
+        message: recipient
+          ? `Opened email draft for ${recipient}${subject ? ` with subject ${subject}` : ''}.`
+          : 'Opened email composer.',
+      }
+    }
+
+    return { success: false, message: 'Unable to open email composer.' }
+  }
+
+  private async analyzeScreenContext(command: string): Promise<{ success: boolean; message: string }> {
+    const hintMatch = command.match(/(?:screen|ocr)\s+(?:for|about)\s+(.+)/i)
+    const hint = (hintMatch?.[1] || '').trim()
+    const analysis = await multimodalVision.analyzeCurrentScreen(hint || 'Summarize what is visible and what action is likely needed.')
+    const ui = await uiDetector.detect()
+    const uiSummary = ui.slice(0, 8).map((item) => `${item.kind}:${item.label}`).join(', ') || 'none'
+
+    return {
+      success: true,
+      message: [
+        `Vision summary: ${analysis.summary}`,
+        `OCR preview: ${(analysis.ocrText || 'none').slice(0, 280)}`,
+        `Detected UI elements: ${uiSummary}`,
+      ].join('\n'),
+    }
   }
 
   private async executeSystemControl(command: string): Promise<{ success: boolean; message: string }> {

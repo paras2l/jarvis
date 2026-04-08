@@ -39,6 +39,16 @@ import type {
   PerceptionConfidenceLowPayload,
   PerceptionVerifiedPayload,
   ActionFeedbackLoggedPayload,
+  CommandMatchedPayload,
+  VoicePersonalityDecidedPayload,
+  VoicePersonalityAnomalyPayload,
+  VoicePersonalityTuningUpdatedPayload,
+  ConsciousnessMetricPayload,
+  ConsciousnessEmotionShiftPayload,
+  ConsciousnessLearningRecordedPayload,
+  HotwordDetectedPayload,
+  SentimentAnalyzedPayload,
+  CustomCommandAddedPayload,
 } from './event_types'
 
 class EventPublisher {
@@ -208,6 +218,46 @@ class EventPublisher {
 
   actionFeedbackLogged(payload: ActionFeedbackLoggedPayload, source = 'perception-layer') {
     return this.publish('action_feedback_logged', payload, source)
+  }
+
+  voicePersonalityDecided(payload: VoicePersonalityDecidedPayload, source = 'voice-orchestrator') {
+    return this.publish('voice_personality_decided', payload, source)
+  }
+
+  voicePersonalityAnomaly(payload: VoicePersonalityAnomalyPayload, source = 'voice-orchestrator') {
+    return this.publish('voice_personality_anomaly', payload, source)
+  }
+
+  voicePersonalityTuningUpdated(payload: VoicePersonalityTuningUpdatedPayload, source = 'voice-orchestrator') {
+    return this.publish('voice_personality_tuning_updated', payload, source)
+  }
+
+  consciousnessMetric(payload: ConsciousnessMetricPayload, source = 'consciousness-engine') {
+    return this.publish('consciousness_metric', payload, source)
+  }
+
+  consciousnessEmotionShift(payload: ConsciousnessEmotionShiftPayload, source = 'consciousness-engine') {
+    return this.publish('consciousness_emotion_shift', payload, source)
+  }
+
+  consciousnessLearningRecorded(payload: ConsciousnessLearningRecordedPayload, source = 'consciousness-engine') {
+    return this.publish('consciousness_learning_recorded', payload, source)
+  }
+
+  hotwordDetected(payload: HotwordDetectedPayload, source = 'voice-orchestrator') {
+    return this.publish('hotword_detected', payload, source)
+  }
+
+  sentimentAnalyzed(payload: SentimentAnalyzedPayload, source = 'voice-orchestrator') {
+    return this.publish('sentiment_analyzed', payload, source)
+  }
+
+  commandMatched(payload: CommandMatchedPayload, source = 'voice-orchestrator') {
+    return this.publish('command_matched', payload, source)
+  }
+
+  customCommandAdded(payload: CustomCommandAddedPayload, source = 'voice-orchestrator') {
+    return this.publish('custom_command_added', payload, source)
   }
 }
 

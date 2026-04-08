@@ -3,6 +3,8 @@ import { eventPublisher } from '@/event_system/event_publisher'
 import type { EventEnvelope, EventPayloadMap, SystemEventName } from '@/event_system/event_types'
 import { globalWorkspaceLayer } from '@/layers/global_workspace/global_workspace_layer'
 import { selfModelLayer } from '@/layers/self_model/self_model_layer'
+import type { SelfAwarenessReport } from '@/layers/self_model/self_awareness_report'
+import { selfGoalCompass } from '@/layers/self_model/self_goal_compass'
 import { metacognitionLayer } from '@/layers/metacognition/metacognition_layer'
 import { contextManager } from '@/layers/identity_continuity/context_manager'
 import { intentionalAgencyLayer } from '@/layers/intentional_agency/agency_core'
@@ -18,6 +20,7 @@ interface IntegrationHealth {
   voiceCommandsProcessed: number
   blockedByAlignment: number
   actionsSentToAgency: number
+  selfAwarenessReport: SelfAwarenessReport
   lastError?: string
 }
 
@@ -32,6 +35,7 @@ class MainLayerController {
     voiceCommandsProcessed: 0,
     blockedByAlignment: 0,
     actionsSentToAgency: 0,
+    selfAwarenessReport: selfModelLayer.getSelfAwarenessReport(),
   }
 
   async start(): Promise<void> {
@@ -70,6 +74,7 @@ class MainLayerController {
     this.startedAt = Date.now()
     this.health.started = true
     this.health.startedAt = this.startedAt
+    this.health.selfAwarenessReport = selfModelLayer.getSelfAwarenessReport()
   }
 
   async stop(): Promise<void> {
@@ -102,7 +107,10 @@ class MainLayerController {
   }
 
   getHealth(): IntegrationHealth {
-    return { ...this.health }
+    return {
+      ...this.health,
+      selfAwarenessReport: selfModelLayer.getSelfAwarenessReport(),
+    }
   }
 
   private async onVoiceCommand<TName extends SystemEventName>(
@@ -133,6 +141,13 @@ class MainLayerController {
     const workspace = globalWorkspaceLayer.getState()
     const selfState = selfModelLayer.getSelfState()
     const continuity = await contextManager.buildContinuityContext(payload.normalizedText)
+    const goalAssessment = selfGoalCompass.assessExecution({
+      description: payload.normalizedText,
+      action: payload.intent,
+      confidence: payload.confidence,
+      riskScore: Math.max(0, 1 - payload.confidence),
+      contextTags: [payload.intent, 'perception-layer', selfState.runtimeMode],
+    })
 
     const proposedAction = {
       id: payload.commandId,
@@ -149,6 +164,8 @@ class MainLayerController {
           moodLabel: selfState.moodLabel,
           confidenceCurrent: selfState.confidenceCurrent,
           runtimeMode: selfState.runtimeMode,
+          goalAlignment: goalAssessment.alignmentScore,
+          goalDrift: goalAssessment.driftScore,
         },
         continuity: {
           openPromises: continuity.openPromises,
@@ -173,8 +190,8 @@ class MainLayerController {
       type: simulation.proposedAction.type,
       source: simulation.proposedAction.source,
       predictedOutcomes,
-      riskScore: simulation.overallRisk,
-      utilityScore: simulation.overallUtility,
+      riskScore: Math.min(1, simulation.overallRisk + goalAssessment.driftScore * 0.25),
+      utilityScore: Math.min(1, simulation.overallUtility + goalAssessment.alignmentScore * 0.15),
     })
 
     if (!alignment.approved) {

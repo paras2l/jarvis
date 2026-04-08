@@ -14,6 +14,10 @@
 import { db } from '../lib/db'
 import { eventPublisher } from '@/event_system/event_publisher'
 import { MediaRuntimePolicy, MediaQuality } from './media-ml/types'
+import {
+  getMemoryRankingEngine,
+  type RankedMemory,
+} from '@/core/cognitive-workspace'
 
 // ─── Mood Keywords ────────────────────────────────────────────────────────────
 
@@ -94,6 +98,7 @@ class MemoryEngine {
     timestamp: number
   }> = []
   private readonly MAX_CONTEXT_ITEMS = 40
+  private memoryRanker = getMemoryRankingEngine()
 
   // ── Load all memories from Supabase ──────────────────────────────────────
 
@@ -292,34 +297,79 @@ class MemoryEngine {
   }
 
   listMemories(limit = 10): Array<{ key: string; value: string }> {
-    return Array.from(this.sessionMemory.entries())
-      .slice(-Math.max(1, limit))
-      .reverse()
-      .map(([key, value]) => ({ key, value }))
+    const entries = Array.from(this.sessionMemory.entries())
+    if (!entries.length) return []
+
+    const ranked = this.rankEntries(entries, 'recent memory context')
+    return ranked
+      .slice(0, Math.max(1, limit))
+      .map((item) => ({ key: item.id, value: item.content }))
   }
 
   searchMemories(query: string, limit = 5): Array<{ key: string; value: string }> {
     const normalized = query.toLowerCase().trim()
     if (!normalized) return []
 
-    const scored = Array.from(this.sessionMemory.entries())
-      .map(([key, value]) => {
-        const k = key.toLowerCase()
-        const v = value.toLowerCase()
-        let score = 0
-        if (k.includes(normalized)) score += 2
-        if (v.includes(normalized)) score += 2
-        for (const token of normalized.split(/\s+/).filter(Boolean)) {
-          if (k.includes(token)) score += 1
-          if (v.includes(token)) score += 1
-        }
-        return { key, value, score }
-      })
-      .filter((item) => item.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, Math.max(1, limit))
+    const entries = Array.from(this.sessionMemory.entries())
+    if (!entries.length) return []
 
-    return scored.map(({ key, value }) => ({ key, value }))
+    const ranked = this.rankEntries(entries, normalized)
+      .filter((item) => item.content.toLowerCase().includes(normalized) || item.id.toLowerCase().includes(normalized))
+
+    return ranked
+      .slice(0, Math.max(1, limit))
+      .map((item) => ({ key: item.id, value: item.content }))
+  }
+
+  private rankEntries(entries: Array<[string, string]>, query: string): RankedMemory[] {
+    const now = Date.now()
+    const rankedInput: RankedMemory[] = entries.map(([key, value], index) => {
+      const fallbackTimestamp = now - (entries.length - index) * 60_000
+      const timestamp = this.inferMemoryTimestamp(key, value, fallbackTimestamp)
+
+      return {
+        id: key,
+        content: value,
+        timestamp,
+        relevanceScore: 0,
+        recencyScore: 0,
+        confidenceScore: this.inferMemoryConfidence(key),
+        overallScore: 0,
+        tags: key.split('_').filter(Boolean),
+        context: {
+          mood: this.currentMood,
+          source: 'memory-engine',
+        },
+      }
+    })
+
+    return this.memoryRanker.rankMemories(rankedInput, query, {
+      mood: this.currentMood,
+      energy: this.currentEnergy,
+    })
+  }
+
+  private inferMemoryTimestamp(key: string, value: string, fallbackTimestamp: number): number {
+    const keyTimestamp = key.match(/(\d{13})$/)?.[1]
+    if (keyTimestamp) {
+      const parsed = Number(keyTimestamp)
+      if (!Number.isNaN(parsed)) return parsed
+    }
+
+    const dateLike = Date.parse(value)
+    if (!Number.isNaN(dateLike)) {
+      return dateLike
+    }
+
+    return fallbackTimestamp
+  }
+
+  private inferMemoryConfidence(key: string): number {
+    if (key.startsWith('pref_')) return 0.9
+    if (key.startsWith('user_')) return 0.85
+    if (key.startsWith('note_')) return 0.7
+    if (key.startsWith('is_')) return 0.8
+    return 0.75
   }
 
   // ── Build a "friend context" string for the AI ────────────────────────────

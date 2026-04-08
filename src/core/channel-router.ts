@@ -35,9 +35,10 @@
  */
 
 import { intelligenceRouter } from './intelligence-router'
-import { soulEngine } from './soul-engine'
 import { daemonManager } from './daemon-manager'
 import { a2a } from './a2a-protocol'
+import { brainDirector } from './brain/brain-director'
+import { emotionCore } from './emotion/emotion-core'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -609,6 +610,47 @@ class ChannelRouter {
   }
 
   /**
+   * Build a compact triage summary for the most recent inbox messages.
+   */
+  async triageInbox(limit = 25): Promise<string> {
+    const recentMessages = this.messageHistory
+      .slice(-Math.max(1, limit))
+      .map((message) => `${message.channelId}:${message.fromName ?? message.from}: ${message.content}`)
+      .join('\n')
+    const emotionSnapshot = emotionCore.analyzeText(recentMessages || 'Inbox triage')
+
+    const brainPrompt = await brainDirector.buildAdaptivePromptEnvelope({
+      text: recentMessages || 'Inbox triage',
+      intent: 'message_reply',
+      mode: 'triage',
+      mood: emotionCore.toMoodLabel(emotionSnapshot.emotion),
+      emotionSnapshot,
+      userName: 'Paras',
+      recentTurns: this.messageHistory.slice(-Math.max(1, limit)).map((message) => ({
+        role: message.role === 'agent' ? 'assistant' : 'user',
+        content: message.content,
+        timestamp: message.timestamp,
+      })),
+    })
+
+    const result = await intelligenceRouter.query(
+      [
+        'Summarize this inbox into an actionable triage brief.',
+        'Call out urgent human messages first, then items that need a reply, then low-priority noise.',
+        'If possible, suggest the next best action for each important item.',
+      ].join('\n'),
+      {
+        urgency: 'background',
+        taskType: 'chat',
+        systemPrompt: brainPrompt,
+        isPrivate: true,
+      }
+    )
+
+    return result.content.trim()
+  }
+
+  /**
    * Disconnect a channel.
    */
   async disconnect(channelId: ChannelId): Promise<void> {
@@ -654,15 +696,44 @@ class ChannelRouter {
   }
 
   private async directProcess(msg: UnifiedMessage): Promise<void> {
-    // Apply SOUL identity to the prompt
-    const soulPrompt = await soulEngine.applyToPrompt(msg.content)
-
-    const r = await intelligenceRouter.query(soulPrompt, {
-      urgency: 'normal',
-      taskType: 'chat',
+    const recentTurns = this.getRecentChannelTurns(msg)
+    const emotionSnapshot = emotionCore.analyzeText(msg.content)
+    const brainPrompt = await brainDirector.buildAdaptivePromptEnvelope({
+      text: msg.content,
+      intent: 'message_reply',
+      mode: 'triage',
+      mood: emotionCore.toMoodLabel(emotionSnapshot.emotion),
+      emotionSnapshot,
+      userName: msg.fromName || msg.from,
+      recentTurns,
     })
 
-    await this.send(msg.channelId, msg.from, r.content)
+    const response = await intelligenceRouter.query(
+      [
+        'Reply to the incoming channel message in a useful, concise way.',
+        'If the message is a request, answer or ask the smallest clarifying question needed.',
+        'If it is noise or FYI, acknowledge briefly and avoid over-explaining.',
+      ].join('\n'),
+      {
+        urgency: 'normal',
+        taskType: 'chat',
+        systemPrompt: brainPrompt,
+        isPrivate: true,
+      }
+    )
+
+    await this.send(msg.channelId, msg.from, response.content)
+  }
+
+  private getRecentChannelTurns(msg: UnifiedMessage): Array<{ role: 'user' | 'assistant'; content: string; timestamp: number }> {
+    return this.messageHistory
+      .filter((item) => item.channelId === msg.channelId)
+      .slice(-8)
+      .map((item) => ({
+        role: item.role === 'agent' ? 'assistant' : 'user',
+        content: item.content,
+        timestamp: item.timestamp,
+      }))
   }
 
   private logMessage(msg: UnifiedMessage): void {

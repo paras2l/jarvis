@@ -1,4 +1,6 @@
 import { naturalCommandLayer } from '@/core/natural-command-layer'
+import { brainDirector } from '@/core/brain/brain-director'
+import { emotionCore, type EmotionSnapshot } from '@/core/emotion/emotion-core'
 import { intelligenceRouter } from '@/core/intelligence-router'
 import { memoryEngine } from '@/core/memory-engine'
 import voiceHandler from '@/core/voice-handler'
@@ -40,9 +42,19 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
 }
 
-function pickResponseStyle(mood: string, intent: string): string {
+function pickResponseStyle(mood: string, intent: string, emotion: EmotionSnapshot): string {
   if (intent === 'open_app' || intent === 'multi_task') {
     return 'brief-actionable'
+  }
+
+  if ((emotion.emotion === 'angry' || emotion.emotion === 'fear') && emotion.intensity > 0.55) {
+    return 'calm-deescalating'
+  }
+  if (emotion.emotion === 'sad' && emotion.intensity > 0.5) {
+    return 'gentle-reassuring'
+  }
+  if (emotion.emotion === 'happy' && emotion.intensity > 0.55) {
+    return 'warm-energetic'
   }
 
   const normalizedMood = mood.toLowerCase()
@@ -100,7 +112,17 @@ class ChatResponseEngine {
     return clamp(intentConfidence + sourceBoost, 0, 0.99)
   }
 
-  private buildPrompt(input: ChatResponseInput, intent: string, style: string, contextDigest: string): string {
+  private async buildPrompt(input: ChatResponseInput, intent: string, style: string, contextDigest: string, emotionSnapshot: EmotionSnapshot): Promise<string> {
+    const brainEnvelope = await brainDirector.buildAdaptivePromptEnvelope({
+      text: input.text,
+      intent,
+      silentMode: input.silentMode,
+      mood: input.mood,
+      emotionSnapshot,
+      userName: memoryEngine.get('user_name') || 'Paras',
+      recentTurns: memoryEngine.getConversationContext(12),
+    })
+
     return [
       'You are Patrich, a context-aware personal AI companion.',
       'Generate one high-quality response for the user message.',
@@ -113,6 +135,9 @@ class ChatResponseEngine {
       '',
       'Recent context:',
       contextDigest,
+      '',
+      'Brain guidance:',
+      brainEnvelope,
       '',
       `User message: ${input.text}`,
     ].join('\n')
@@ -133,11 +158,14 @@ class ChatResponseEngine {
 
     const turns = this.buildContextTurns(12)
     const priorAssistant = turns.filter((item) => item.role === 'assistant').map((item) => item.content)
-    const mood = input.mood || memoryEngine.getCurrentMood().mood
-    const style = pickResponseStyle(mood, parsed.intent)
+    const baseEmotion = emotionCore.analyzeText(input.text)
+    const resolvedEmotion = emotionCore.resolveWithDecay(baseEmotion, turns)
+    const emotionSnapshot = resolvedEmotion.snapshot
+    const mood = input.mood || emotionCore.toMoodLabel(emotionSnapshot.emotion) || memoryEngine.getCurrentMood().mood
+    const style = pickResponseStyle(mood, parsed.intent, emotionSnapshot)
     const contextDigest = this.buildContextDigest(turns)
 
-    const prompt = this.buildPrompt(input, parsed.intent, style, contextDigest)
+    const prompt = await this.buildPrompt(input, parsed.intent, style, contextDigest, emotionSnapshot)
 
     const routed = await intelligenceRouter.query(prompt, {
       taskType: 'chat',
@@ -162,6 +190,16 @@ class ChatResponseEngine {
 
     await memoryEngine.appendConversationContext('user', input.text)
     await memoryEngine.appendConversationContext('assistant', finalContent)
+
+    await brainDirector.storeResponseMemory({
+      text: input.text,
+      intent: parsed.intent,
+      silentMode: input.silentMode,
+      mood,
+      emotionSnapshot,
+      userName: memoryEngine.get('user_name') || 'Paras',
+      recentTurns: turns,
+    }, finalContent)
 
     return {
       content: finalContent,

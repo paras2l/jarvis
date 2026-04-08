@@ -1,4 +1,5 @@
 import { eventPublisher } from '@/event_system/event_publisher'
+import { getCognitiveWorkspace } from '@/core/cognitive-workspace'
 import { memoryEngine } from '@/core/memory-engine'
 import { detectPlatform } from '@/core/platform/platform-detection'
 import {
@@ -8,6 +9,15 @@ import {
   type SelfStateTransition,
   validateSelfStatePatch,
 } from './self_state_schema'
+import { selfBeliefGraph } from './self_belief_graph'
+import { selfGoalCompass } from './self_goal_compass'
+import { selfExecutionAdvisor } from './self_execution_advisor'
+import { selfReflectionEngine } from './self_reflection_engine'
+import { calculateSelfAwarenessReport } from './self_awareness_report'
+import { detectSelfContradictions } from './self_contradiction_detector'
+import { calculateNeedsScoreboard } from './self_needs_scoreboard'
+import { selfNarrationStream } from './self_narration_stream'
+import { composeSelfUnifiedState } from './self_unified_state'
 import { selfTaskManager } from './task_manager'
 import { selfModelLogger } from './logging_handler'
 
@@ -16,20 +26,113 @@ class SelfModelLayer {
   private transitionClock = 0
   private lastPriority = 0
   private updateQueue: Promise<void> = Promise.resolve()
+  private lastNarrationReason = 'boot'
+  private lastNarrationSource: 'bootstrap' | 'input' | 'outcome' | 'transition' | 'goal' | 'system' | 'reflection' | 'network' = 'bootstrap'
+
+  constructor() {
+    this.seedBeliefGraph()
+    this.seedGoalCompass()
+    this.refreshDerivedState()
+    void this.syncWorkspaceSnapshot('boot')
+  }
 
   getSelfState(): SelfModelState {
+    this.refreshDerivedState()
     return {
       ...this.state,
       goals: [...this.state.goals],
       tasks: [...this.state.tasks],
       constraints: [...this.state.constraints],
       confidenceHistory: [...this.state.confidenceHistory],
+      beliefHighlights: [...this.state.beliefHighlights],
+      beliefSnapshot: {
+        ...this.state.beliefSnapshot,
+        beliefHighlights: [...this.state.beliefSnapshot.beliefHighlights],
+        dominantDomains: [...this.state.beliefSnapshot.dominantDomains],
+        recentBeliefs: [...this.state.beliefSnapshot.recentBeliefs],
+        openContradictionSubjects: [...this.state.beliefSnapshot.openContradictionSubjects],
+      },
+      goalCompass: {
+        ...this.state.goalCompass,
+        goals: [...this.state.goalCompass.goals],
+        valueAxes: [...this.state.goalCompass.valueAxes],
+        activeGoalIds: [...this.state.goalCompass.activeGoalIds],
+        pausedGoalIds: [...this.state.goalCompass.pausedGoalIds],
+        archivedGoalIds: [...this.state.goalCompass.archivedGoalIds],
+        recentAssessments: [...this.state.goalCompass.recentAssessments],
+        goalRelationships: [...this.state.goalCompass.goalRelationships],
+      },
+      executionAdvisor: {
+        ...this.state.executionAdvisor,
+        patterns: [...this.state.executionAdvisor.patterns],
+        recentOutcomes: [...this.state.executionAdvisor.recentOutcomes],
+        failureHotspots: [...this.state.executionAdvisor.failureHotspots],
+      },
+      reflection: {
+        ...this.state.reflection,
+        insights: [...this.state.reflection.insights],
+        pendingPolicyUpdates: [...this.state.reflection.pendingPolicyUpdates],
+        appliedPolicyUpdates: [...this.state.reflection.appliedPolicyUpdates],
+        executionGuardrails: { ...this.state.reflection.executionGuardrails },
+        simulation: { ...this.state.reflection.simulation },
+        policyController: { ...this.state.reflection.policyController },
+        governance: {
+          ...this.state.reflection.governance,
+          recentRollbacks: [...this.state.reflection.governance.recentRollbacks],
+          deployment: {
+            ...this.state.reflection.governance.deployment,
+            history: {
+              ...this.state.reflection.governance.deployment.history,
+              recentEvents: [...this.state.reflection.governance.deployment.history.recentEvents],
+            },
+          },
+        },
+      },
+      contradictionDetector: {
+        ...this.state.contradictionDetector,
+        subjects: [...this.state.contradictionDetector.subjects],
+        findings: this.state.contradictionDetector.findings.map((finding) => ({
+          ...finding,
+          evidence: [...finding.evidence],
+        })),
+      },
+      needsScoreboard: {
+        ...this.state.needsScoreboard,
+        needs: this.state.needsScoreboard.needs.map((need) => ({ ...need })),
+        priorityOrder: [...this.state.needsScoreboard.priorityOrder],
+      },
+      narrationStream: {
+        ...this.state.narrationStream,
+        entries: this.state.narrationStream.entries.map((entry) => ({
+          ...entry,
+          tags: [...entry.tags],
+        })),
+      },
+      unifiedState: {
+        ...this.state.unifiedState,
+        components: { ...this.state.unifiedState.components },
+      },
     }
+  }
+
+  getSelfAwarenessReport() {
+    return calculateSelfAwarenessReport(this.getSelfState())
   }
 
   async warmup(): Promise<void> {
     await memoryEngine.loadMemories()
     const preferredMode = memoryEngine.getUserPreference('silent_mode') === 'on' ? 'observe' : 'active'
+    selfBeliefGraph.observe({
+      sourceLayer: 'warmup',
+      reason: 'runtime_mode_refresh',
+      domain: 'runtime',
+      subject: 'runtime_mode',
+      statement: `The runtime is currently in ${preferredMode} mode.`,
+      confidence: 0.9,
+      polarity: 'affirmed',
+      tags: ['runtime', 'warmup'],
+    })
+    this.seedGoalCompass()
     await this.applyTransition({
       sourceLayer: 'self-model',
       reason: 'warmup',
@@ -59,6 +162,48 @@ class SelfModelLayer {
       })
 
       selfModelLogger.info('task_created_from_input', { taskId: task.id, intent: resolved.intent })
+    }
+
+    selfBeliefGraph.observe({
+      sourceLayer: 'input',
+      reason: 'user_intent_detected',
+      domain: 'task',
+      subject: 'current_user_intent',
+      statement: `The active request maps to ${resolved.canonicalAction}.`,
+      confidence: resolved.confidence,
+      polarity: resolved.confidence >= 0.5 ? 'affirmed' : 'neutral',
+      evidence: [input],
+      tags: ['user_input', resolved.intent],
+    })
+
+    selfGoalCompass.observe({
+      sourceLayer: 'input',
+      tier: 'objective',
+      title: `Respond to ${resolved.intent}`,
+      description: `Handle the current request by mapping it to ${resolved.canonicalAction}.`,
+      priority: Math.max(5, Math.round(resolved.confidence * 10)),
+      status: 'active',
+      progress: 0.1,
+      alignedValues: ['user-intent', 'truthfulness', 'respect-user-choice'],
+      conflictValues: resolved.confidence < 0.5 ? ['informed-consent'] : [],
+      confidence: resolved.confidence,
+    })
+
+    const inputAssessment = selfGoalCompass.assessExecution({
+      description: input,
+      action: resolved.canonicalAction,
+      confidence: resolved.confidence,
+      riskScore: 1 - resolved.confidence,
+      contextTags: [resolved.intent, platform, 'user-input'],
+    })
+
+    if (inputAssessment.focusGoalId) {
+      selfGoalCompass.updateGoalProgress(
+        inputAssessment.focusGoalId,
+        Math.min(1, 0.15 + resolved.confidence * 0.2),
+        `User input reinforces ${inputAssessment.summary}`,
+        'input',
+      )
     }
 
     const mood = this.inferMood(input)
@@ -113,6 +258,47 @@ class SelfModelLayer {
     const base = input.confidenceHint ?? this.state.confidenceCurrent
     const confidence = this.recomputeConfidence(base, input.success ? 0.2 : -0.25, 'outcome')
 
+    selfBeliefGraph.observe({
+      sourceLayer: 'task-executor',
+      reason: input.success ? 'action_outcome_success' : 'action_outcome_failure',
+      domain: 'capability',
+      subject: 'task_execution_reliability',
+      statement: input.success
+        ? 'Task execution is currently reliable enough to continue.'
+        : 'Task execution is currently degraded and needs caution.',
+      confidence,
+      polarity: input.success ? 'affirmed' : 'negative',
+      evidence: [input.summary, input.taskId || 'unknown_task'],
+      tags: ['task_execution', input.success ? 'success' : 'failure'],
+    })
+
+    selfGoalCompass.observe({
+      sourceLayer: 'task-executor',
+      tier: 'commitment',
+      title: input.success ? 'Fulfill current task reliably' : 'Recover from task failure',
+      description: input.success
+        ? 'Carry current tasks through to completion without sacrificing safety.'
+        : 'Restore trust and reduce errors after a failure.',
+      priority: input.success ? 8 : 9,
+      status: input.success ? 'achieved' : 'blocked',
+      progress: input.success ? 1 : 0.35,
+      alignedValues: input.success
+        ? ['stability', 'truthfulness', 'user_trust']
+        : ['safety', 'transparency', 'user_trust'],
+      conflictValues: input.success ? [] : ['efficiency'],
+      confidence,
+    })
+
+    const relatedTask = input.taskId ? selfTaskManager.listTasks().find((task) => task.id === input.taskId) : undefined
+    if (relatedTask?.goalId) {
+      selfGoalCompass.recordGoalOutcome(relatedTask.goalId, {
+        progressDelta: input.success ? 0.12 : -0.08,
+        status: input.success ? 'active' : 'blocked',
+        reason: input.summary,
+        sourceLayer: 'task-executor',
+      })
+    }
+
     await this.applyTransition({
       sourceLayer: 'task-executor',
       reason: input.success ? 'task_success' : 'task_failure',
@@ -136,6 +322,28 @@ class SelfModelLayer {
     progress: number
   }): Promise<void> {
     selfTaskManager.upsertGoal(goal)
+    selfGoalCompass.observe({
+      sourceLayer: 'planner',
+      tier: 'objective',
+      title: goal.description,
+      description: goal.description,
+      priority: goal.priority,
+      status: goal.status === 'completed' ? 'achieved' : goal.status === 'blocked' ? 'blocked' : 'active',
+      progress: clamp01(goal.progress),
+      alignedValues: ['user-intent', 'continuity', 'helpfulness'],
+      conflictValues: goal.status === 'blocked' ? ['efficiency'] : [],
+      confidence: clamp01(Math.max(0.4, goal.priority / 10)),
+    })
+    selfBeliefGraph.observe({
+      sourceLayer: 'planner',
+      reason: 'goal_upsert',
+      domain: 'goal',
+      subject: `goal_${goal.id}`,
+      statement: `${goal.description} is currently ${goal.status} with priority ${goal.priority}.`,
+      confidence: clamp01(Math.max(0.35, goal.priority / 10)),
+      polarity: goal.status === 'completed' ? 'affirmed' : 'neutral',
+      tags: ['goal', goal.status],
+    })
     await this.applyTransition({
       sourceLayer: 'planner',
       reason: 'goal_upsert',
@@ -163,6 +371,10 @@ class SelfModelLayer {
       lastUpdateTs: now,
       stateVersion: this.state.stateVersion + 1,
     }
+    this.lastNarrationReason = 'confidence_decay'
+    this.lastNarrationSource = 'transition'
+    this.refreshDerivedState()
+    void this.syncWorkspaceSnapshot('confidence_decay')
   }
 
   private inferMood(input: string): { label: SelfModelState['moodLabel']; intensity: number; stress: number } {
@@ -185,6 +397,135 @@ class SelfModelLayer {
   private recomputeConfidence(current: number, signal: number, mode: 'input' | 'outcome'): number {
     const next = mode === 'input' ? current * 0.75 + signal * 0.25 : current + signal
     return clamp01(next)
+  }
+
+  private seedBeliefGraph(): void {
+    selfBeliefGraph.seedBaseline(this.state.agentId, this.state.runtimeMode, ['chat', 'voice', 'task_execution', 'app_launch'])
+  }
+
+  private seedGoalCompass(): void {
+    selfGoalCompass.seedBaselineGoals({
+      agentName: this.state.agentId,
+      userTrust: this.state.beliefSnapshot.trustScore,
+      currentMood: this.state.moodLabel,
+      runtimeMode: this.state.runtimeMode,
+    })
+    selfGoalCompass.alignWithIdentity()
+  }
+
+  private refreshDerivedState(): void {
+    selfBeliefGraph.stabilize()
+    const beliefSnapshot = selfBeliefGraph.getWorkspaceSnapshot()
+    const goalSnapshot = selfGoalCompass.getSnapshot()
+    const goalDiagnostics = selfGoalCompass.getDiagnostics()
+    const executionSnapshot = selfExecutionAdvisor.getSnapshot()
+    const reflectionSnapshot = selfReflectionEngine.getSnapshot()
+    const baseState: SelfModelState = {
+      ...this.state,
+      beliefSnapshot: {
+        ...beliefSnapshot,
+        dominantDomains: [...beliefSnapshot.dominantDomains],
+        recentBeliefs: [...beliefSnapshot.recentBeliefs],
+        openContradictionSubjects: [...beliefSnapshot.openContradictionSubjects],
+        beliefHighlights: [...beliefSnapshot.beliefHighlights],
+      },
+      beliefHighlights: [...beliefSnapshot.beliefHighlights],
+      goalCompass: {
+        goals: goalSnapshot.goals,
+        valueAxes: goalSnapshot.valueAxes,
+        activeGoalIds: goalSnapshot.activeGoalIds,
+        pausedGoalIds: goalSnapshot.pausedGoalIds,
+        archivedGoalIds: goalSnapshot.archivedGoalIds,
+        alignmentScore: goalDiagnostics.alignmentScore,
+        driftScore: goalDiagnostics.driftScore,
+        priorityNarrative: goalSnapshot.priorityNarrative,
+        valueNarrative: goalSnapshot.valueNarrative,
+        lastAssessmentSummary: goalSnapshot.lastAssessmentSummary,
+        recentAssessments: goalSnapshot.recentAssessments,
+        goalRelationships: goalSnapshot.goalRelationships,
+        updatedAt: goalSnapshot.updatedAt,
+        version: goalSnapshot.version,
+      },
+      executionAdvisor: {
+        patterns: executionSnapshot.patterns,
+        recentOutcomes: executionSnapshot.recentOutcomes,
+        failureHotspots: executionSnapshot.failureHotspots,
+        adaptiveThreshold: executionSnapshot.adaptiveThreshold,
+        adaptiveRiskCap: executionSnapshot.adaptiveRiskCap,
+        adaptiveClarifyBias: executionSnapshot.adaptiveClarifyBias,
+        healthScore: executionSnapshot.healthScore,
+        narrative: executionSnapshot.narrative,
+        updatedAt: executionSnapshot.updatedAt,
+        version: executionSnapshot.version,
+      },
+      reflection: {
+        cycleCount: reflectionSnapshot.cycleCount,
+        successTrend: reflectionSnapshot.successTrend,
+        riskTrend: reflectionSnapshot.riskTrend,
+        confidenceTrend: reflectionSnapshot.confidenceTrend,
+        alignmentTrend: reflectionSnapshot.alignmentTrend,
+        insights: reflectionSnapshot.insights,
+        pendingPolicyUpdates: reflectionSnapshot.pendingPolicyUpdates,
+        appliedPolicyUpdates: reflectionSnapshot.appliedPolicyUpdates,
+        executionGuardrails: reflectionSnapshot.executionGuardrails,
+        simulation: reflectionSnapshot.simulation,
+        policyController: reflectionSnapshot.policyController,
+        governance: reflectionSnapshot.governance,
+        lastReflectionSummary: reflectionSnapshot.lastReflectionSummary,
+        updatedAt: reflectionSnapshot.updatedAt,
+        version: reflectionSnapshot.version,
+      },
+    }
+
+    const contradictionDetector = detectSelfContradictions({
+      beliefSnapshot: baseState.beliefSnapshot,
+      goalCompass: baseState.goalCompass,
+      executionAdvisor: baseState.executionAdvisor,
+      reflection: baseState.reflection,
+      narrationThread: baseState.narrationStream.narrative,
+    })
+
+    const needsScoreboard = calculateNeedsScoreboard(baseState)
+    const narrationStream = selfNarrationStream.composeFromState(baseState, this.lastNarrationReason, this.lastNarrationSource)
+    const awarenessReport = calculateSelfAwarenessReport({
+      ...baseState,
+      contradictionDetector,
+      needsScoreboard,
+      narrationStream,
+      unifiedState: baseState.unifiedState,
+    })
+    const unifiedState = composeSelfUnifiedState({
+      state: {
+        ...baseState,
+        contradictionDetector,
+        needsScoreboard,
+        narrationStream,
+        unifiedState: baseState.unifiedState,
+      },
+      awareness: awarenessReport,
+      needs: needsScoreboard,
+      contradictions: contradictionDetector,
+      narration: narrationStream,
+    })
+
+    this.state = {
+      ...baseState,
+      contradictionDetector,
+      needsScoreboard,
+      narrationStream,
+      unifiedState,
+    }
+  }
+
+  private async syncWorkspaceSnapshot(reason: string): Promise<void> {
+    const workspace = getCognitiveWorkspace()
+    await workspace.updateState({
+      source: 'self-model',
+      reason,
+      updates: {
+        selfModel: this.state.beliefSnapshot,
+      },
+    })
   }
 
   private async applyTransition(transition: SelfStateTransition): Promise<void> {
@@ -214,6 +555,18 @@ class SelfModelLayer {
       }
 
       const now = Date.now()
+      this.lastNarrationReason = transition.reason
+      this.lastNarrationSource = transition.sourceLayer === 'task-executor'
+        ? 'outcome'
+        : transition.sourceLayer === 'planner'
+          ? 'goal'
+          : transition.sourceLayer === 'system'
+            ? 'system'
+            : transition.sourceLayer === 'warmup' || transition.sourceLayer === 'self-model'
+              ? 'bootstrap'
+              : transition.sourceLayer === 'ncul'
+                ? 'input'
+                : 'transition'
       const updatedConfidence =
         transition.patch.confidenceCurrent !== undefined
           ? clamp01(transition.patch.confidenceCurrent)
@@ -234,6 +587,8 @@ class SelfModelLayer {
         stateVersion: this.state.stateVersion + 1,
       }
 
+      this.refreshDerivedState()
+
       this.transitionClock = transition.timestamp
       this.lastPriority = transitionPriority
       selfModelLogger.info('transition_applied', {
@@ -241,6 +596,8 @@ class SelfModelLayer {
         reason: transition.reason,
         stateVersion: this.state.stateVersion,
       })
+
+      await this.syncWorkspaceSnapshot(transition.reason)
     })
 
     return this.updateQueue
@@ -248,6 +605,7 @@ class SelfModelLayer {
 
   private async publishState(reason: string): Promise<void> {
     const snapshot = this.getSelfState()
+    const selfAwarenessReport = calculateSelfAwarenessReport(snapshot)
     await eventPublisher.contextUpdated(
       {
         snapshot: {
@@ -263,6 +621,7 @@ class SelfModelLayer {
           pendingNotifications: [],
           calendarSignals: [],
           lastUserCommand: snapshot.currentFocus,
+          selfAwarenessReport,
         },
       },
       'self-model',

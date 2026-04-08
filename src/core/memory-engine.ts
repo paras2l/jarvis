@@ -12,6 +12,7 @@
  */
 
 import { db } from '../lib/db'
+import { eventPublisher } from '@/event_system/event_publisher'
 import { MediaRuntimePolicy, MediaQuality } from './media-ml/types'
 
 // ─── Mood Keywords ────────────────────────────────────────────────────────────
@@ -98,6 +99,7 @@ class MemoryEngine {
       }
       this.isLoaded = true
       console.log(`[MemoryEngine] Loaded ${memories.length} memories from Supabase.`)
+      void eventPublisher.publish('memory_synced', { count: memories.length, source: 'supabase' }, 'memory')
     } catch (e) {
       console.warn('[MemoryEngine] Could not load memories:', e)
     }
@@ -195,12 +197,46 @@ class MemoryEngine {
   ) {
     this.sessionMemory.set(key, value)
     await db.memory.upsert({ memory_type: type, key, value })
+    void eventPublisher.memoryRecorded({ key, scope: 'long_term', source: 'memory-engine', tags: [type] }, 'memory')
   }
 
   // ── Get a memory value ────────────────────────────────────────────────────
 
   get(key: string): string | undefined {
-    return this.sessionMemory.get(key)
+    const value = this.sessionMemory.get(key)
+    void eventPublisher.memoryRecalled({ key, hit: value !== undefined, scope: 'long_term' }, 'memory')
+    return value
+  }
+
+  listMemories(limit = 10): Array<{ key: string; value: string }> {
+    return Array.from(this.sessionMemory.entries())
+      .slice(-Math.max(1, limit))
+      .reverse()
+      .map(([key, value]) => ({ key, value }))
+  }
+
+  searchMemories(query: string, limit = 5): Array<{ key: string; value: string }> {
+    const normalized = query.toLowerCase().trim()
+    if (!normalized) return []
+
+    const scored = Array.from(this.sessionMemory.entries())
+      .map(([key, value]) => {
+        const k = key.toLowerCase()
+        const v = value.toLowerCase()
+        let score = 0
+        if (k.includes(normalized)) score += 2
+        if (v.includes(normalized)) score += 2
+        for (const token of normalized.split(/\s+/).filter(Boolean)) {
+          if (k.includes(token)) score += 1
+          if (v.includes(token)) score += 1
+        }
+        return { key, value, score }
+      })
+      .filter((item) => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, Math.max(1, limit))
+
+    return scored.map(({ key, value }) => ({ key, value }))
   }
 
   // ── Build a "friend context" string for the AI ────────────────────────────

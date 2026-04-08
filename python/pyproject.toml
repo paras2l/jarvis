@@ -1,0 +1,23 @@
+[project]
+name = "jarvis-os"
+version = "0.1.0"
+description = "Jarvis AI operating system runtime scaffold"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  { name = "Jarvis Team" }
+]
+dependencies = []
+
+[project.scripts]
+jarvis = "jarvis.main:main"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["jarvis"]
+
+[tool.setuptools.package-dir]
+jarvis = "jarvis"

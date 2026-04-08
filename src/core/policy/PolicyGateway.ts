@@ -6,6 +6,31 @@ import { PolicyContext, PolicyPack, PolicyResult, PolicyRiskClass, PolicyRule } 
 class PolicyGateway {
   private readonly rules: Map<string, PolicyRule> = new Map()
   private activePolicyPack: PolicyPack = 'normal'
+  private readonly sensitiveAppKeywords = [
+    'bank',
+    'payment',
+    'upi',
+    'wallet',
+    'paytm',
+    'phonepe',
+    'gpay',
+    'google pay',
+    'bhim',
+    'netbanking',
+  ]
+
+  private readonly sensitiveDataKeywords = [
+    'otp',
+    'password',
+    'passcode',
+    'pin',
+    'cvv',
+    'card number',
+    'account number',
+    'ifsc',
+    'personal data',
+    'sensitive data',
+  ]
 
   constructor() {
     this.bootstrapDefaultPolicy()
@@ -166,10 +191,7 @@ class PolicyGateway {
       )
     }
 
-    if (
-      this.rules.get('rule-2')?.enabled &&
-      (actionLower.includes('sensitive') || cmdLower.includes('sensitive') || cmdLower.includes('personal data'))
-    ) {
+    if (this.rules.get('rule-2')?.enabled && this.isSensitiveDataOperation(ctx, actionLower, cmdLower)) {
       matchedRules.push('rule-2')
       if (!ctx.emergency || !hardcodeProtocol.isMasterCodeword(ctx.codeword)) {
         return this.finalizeDecision(
@@ -402,6 +424,15 @@ class PolicyGateway {
       'vfx',
       'code',
     ].some((k) => lowerAction.includes(k))
+  }
+
+  private isSensitiveDataOperation(ctx: PolicyContext, actionLower: string, cmdLower: string): boolean {
+    const app = (ctx.targetApp || '').toLowerCase()
+    const appIsSensitive = this.sensitiveAppKeywords.some((keyword) => app.includes(keyword))
+    const commandMentionsSensitiveData = this.sensitiveDataKeywords.some((keyword) => cmdLower.includes(keyword))
+    const actionExplicitlySensitive = actionLower.includes('sensitive') && !actionLower.includes('insensitive')
+
+    return appIsSensitive || commandMentionsSensitiveData || actionExplicitlySensitive
   }
 
   private getTokenTtlMs(riskClass: PolicyRiskClass): number {

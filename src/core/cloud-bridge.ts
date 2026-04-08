@@ -40,12 +40,19 @@ class CloudBridge {
     if (policy.mode === 'local-only') return 'local'
     if (policy.mode === 'cloud-only') return 'cloud'
 
-    // Auto: heavy stages prefer cloud (when online), light stages stay local
-    const cloudPreferredStages: MediaStageType[] = ['video', 'avatar']
+    // Auto: heavy stages prefer cloud (when online), light stages stay local.
+    // Image and video are the primary GPU-offload targets.
+    const cloudPreferredStages: MediaStageType[] = ['image', 'video', 'avatar']
     const alwaysLocalStages: MediaStageType[] = ['script', 'camera']
 
     if (alwaysLocalStages.includes(stageType)) return 'local'
-    if (cloudPreferredStages.includes(stageType) && this.isOnline) return 'cloud'
+    if (!this.isOnline) return 'local'
+
+    if (stageType === 'image') {
+      return policy.quality === 'draft' ? 'local' : 'cloud'
+    }
+
+    if (cloudPreferredStages.includes(stageType)) return 'cloud'
 
     return 'local' // Default to local
   }

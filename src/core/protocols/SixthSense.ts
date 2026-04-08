@@ -9,7 +9,6 @@ export class SixthSenseProtocol implements BaseProtocol {
   status: ProtocolStatus = 'offline';
 
   private chaosIndex: number = 0.05;
-  private detectionNodes: number = 256;
 
   actions: ProtocolAction[] = [
     {

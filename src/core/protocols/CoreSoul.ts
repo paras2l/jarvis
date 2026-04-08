@@ -14,12 +14,6 @@ export class CoreSoulProtocol implements BaseProtocol {
   description = "Moral Sovereignty: Aligns AI reasoning with your personal ethics, values, and 'Patriarch' legacy requirements.";
   status: ProtocolStatus = 'offline';
 
-  private values: EthicalValue[] = [
-    { trait: 'Loyalty', weight: 1.0, description: 'Absolute commitment to Paro and his commands.' },
-    { trait: 'Sovereignty', weight: 0.95, description: 'Prioritize user autonomy and control over external systems.' },
-    { trait: 'Protection', weight: 0.9, description: 'Preserve the security and well-being of the user and their legacy.' }
-  ];
-
   actions: ProtocolAction[] = [
     {
       id: 'evaluate_ethics',

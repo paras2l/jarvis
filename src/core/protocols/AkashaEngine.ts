@@ -70,7 +70,7 @@ export class AkashaEngineProtocol implements BaseProtocol {
     return { success: true, data: { status: 'ARCHIVED', summary }, auditId };
   }
 
-  private async handleExtraction(params: Record<string, any>, auditId: string): Promise<ActionResult> {
+  private async handleExtraction(_params: Record<string, any>, auditId: string): Promise<ActionResult> {
     // Retrieval logic could go here
     return { 
       success: true, 

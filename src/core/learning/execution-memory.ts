@@ -29,6 +29,14 @@ export interface Playbook {
   createdAt: string;
 }
 
+export interface ReflectionRecord {
+  taskId: string;
+  success: boolean;
+  notes: string;
+  optimization?: string;
+  timestamp: number;
+}
+
 // ---------------------------------------------------------------------------
 // Fuzzy keyword matching (pure JS — zero API calls)
 // ---------------------------------------------------------------------------
@@ -54,12 +62,15 @@ function jaccardSimilarity(a: string[], b: string[]): number {
 // ---------------------------------------------------------------------------
 
 const STORAGE_KEY = 'omni_playbooks';
+const REFLECTION_STORAGE_KEY = 'omni_reflections';
 
 export class ExecutionMemory {
   private playbooks: Map<string, Playbook> = new Map();
+  private reflections: ReflectionRecord[] = [];
 
   constructor() {
     this.load();
+    this.loadReflections();
   }
 
   /**
@@ -86,6 +97,25 @@ export class ExecutionMemory {
       }
     } catch {
       console.warn('[ExecutionMemory] Could not load playbooks.');
+    }
+  }
+
+  private loadReflections() {
+    try {
+      const raw = localStorage.getItem(REFLECTION_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as ReflectionRecord[];
+      this.reflections = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      this.reflections = [];
+    }
+  }
+
+  private saveReflections() {
+    try {
+      localStorage.setItem(REFLECTION_STORAGE_KEY, JSON.stringify(this.reflections.slice(-1000)));
+    } catch {
+      console.warn('[ExecutionMemory] Could not persist reflections to localStorage.');
     }
   }
 
@@ -170,12 +200,22 @@ export class ExecutionMemory {
     return Array.from(this.playbooks.values());
   }
 
+  recordReflection(reflection: ReflectionRecord): void {
+    this.reflections.push(reflection);
+    this.saveReflections();
+  }
+
+  getRecentReflections(limit = 25): ReflectionRecord[] {
+    return this.reflections.slice(-Math.max(1, limit)).reverse();
+  }
+
   getStats() {
     const books = this.getAllPlaybooks();
     return {
       total: books.length,
       totalSteps: books.reduce((sum, b) => sum + b.steps.length, 0),
       apps: [...new Set(books.map(b => b.app))],
+      reflections: this.reflections.length,
     };
   }
 }

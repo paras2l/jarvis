@@ -655,7 +655,7 @@ class ChannelRouter {
 
   private async directProcess(msg: UnifiedMessage): Promise<void> {
     // Apply SOUL identity to the prompt
-    const soulPrompt = soulEngine.applyToPrompt(msg.content)
+    const soulPrompt = await soulEngine.applyToPrompt(msg.content)
 
     const r = await intelligenceRouter.query(soulPrompt, {
       urgency: 'normal',

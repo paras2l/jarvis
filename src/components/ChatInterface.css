@@ -11,7 +11,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-width: 400px;
+  min-width: 0;
   border-right: 1px solid var(--border-color);
   transition: flex 0.3s ease;
 }
@@ -72,7 +72,7 @@
   transition: opacity 2s ease;
 }
 
-.mood-excited::before { opacity: 0.15; animation: pulse Aura 4s infinite alternate; }
+.mood-excited::before { opacity: 0.15; animation: pulseAura 4s infinite alternate; }
 .mood-tired::before { opacity: 0.08; }
 
 @keyframes pulseAura {
@@ -143,6 +143,53 @@
   max-height: 90vh;
   overflow-y: auto;
   animation: slideUp 0.3s ease;
+}
+
+.chat-app-layout.device-mobile .chat-container {
+  border-right: none;
+}
+
+.chat-app-layout.device-mobile .chat-header,
+.chat-app-layout.device-tablet .chat-header {
+  padding: 0.7rem;
+}
+
+.chat-app-layout.device-mobile .chat-header-controls {
+  gap: 0.35rem;
+}
+
+.chat-header-controls .voice-button {
+  width: 2.4rem;
+  height: 2.4rem;
+  padding: 0;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
+
+.chat-app-layout.device-mobile .messages-container {
+  padding: 0.65rem;
+}
+
+.chat-app-layout.device-mobile .input-container {
+  padding: 0.6rem;
+}
+
+.chat-app-layout.device-mobile .input-stack {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.chat-app-layout.device-mobile .error-banner {
+  grid-column: 1 / -1;
+}
+
+.chat-app-layout.device-mobile .input-field {
+  min-width: 0;
 }
 
 @keyframes fadeIn {

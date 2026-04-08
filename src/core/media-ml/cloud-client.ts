@@ -97,10 +97,10 @@ class MediaCloudClient {
       }
 
       return {
-        accepted: true,
-        remoteJobId: `sim-${payload.jobId}-${payload.stage.stageId}`,
-        status: 'queued',
-        message: 'Supabase worker queue unavailable. Using no-GPU cinematic fallback.',
+        accepted: false,
+        remoteJobId: '',
+        status: 'failed',
+        message: 'Supabase worker queue unavailable. GPU stage could not be queued.',
       }
     } catch (error) {
       return {

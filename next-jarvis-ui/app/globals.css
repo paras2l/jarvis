@@ -1,0 +1,45 @@
+/* stylelint-disable at-rule-no-unknown */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #f6f7f9;
+  --fg: #0f172a;
+  --panel: rgba(255, 255, 255, 0.9);
+  --muted: #667085;
+  --ring: #0ea5a4;
+}
+
+.dark {
+  --bg: #0b1220;
+  --fg: #e7eaf0;
+  --panel: rgba(16, 21, 31, 0.86);
+  --muted: #a4afc1;
+  --ring: #2dd4bf;
+}
+
+* {
+  border-color: rgba(100, 116, 139, 0.2);
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  background: radial-gradient(1200px 800px at 85% -20%, rgba(14, 165, 164, 0.2), transparent 60%),
+    radial-gradient(1000px 700px at -10% 120%, rgba(59, 130, 246, 0.18), transparent 60%),
+    var(--bg);
+  color: var(--fg);
+}
+
+.panel {
+  @apply border border-white/20 dark:border-white/10 backdrop-blur-xl shadow-panel;
+  background: var(--panel);
+}
+
+.mono {
+  font-family: var(--font-jetbrains-mono), monospace;
+}

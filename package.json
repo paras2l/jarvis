@@ -2,15 +2,21 @@
   "name": "patrich",
   "version": "1.0.0",
   "description": "Patrich - Personal AI Agent with voice control and task automation",
+  "author": "Patrich",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
+    "dev:next-ui": "npm --prefix next-jarvis-ui run dev",
     "build": "tsc && vite build",
+    "build:next-ui": "npm --prefix next-jarvis-ui run build",
     "preview": "vite preview",
     "electron-run": "electron electron/main.cjs",
     "electron-dev": "electron electron/main.cjs",
-    "electron-build": "npm run build && electron-builder",
+    "clean:electron-dist": "node scripts/clean-electron-dist.cjs",
+    "electron-build": "npm run build && npm run clean:electron-dist && electron-builder --win nsis --x64",
+    "electron-build:installer": "npm run build && npm run clean:electron-dist && electron-builder --win nsis --x64",
+    "electron-build:portable": "npm run build && npm run clean:electron-dist && electron-builder --win portable --x64",
     "type-check": "tsc --noEmit",
     "lint": "eslint src --ext .ts,.tsx",
     "release-gate": "node scripts/release-gate.cjs",
@@ -21,6 +27,7 @@
     "pdf-parse": "^2.4.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "tesseract.js": "^7.0.0",
     "typescript": "^5.3.0",
     "youtube-transcript": "^1.3.0"
   },
@@ -41,6 +48,7 @@
   "build": {
     "appId": "com.patrich.app",
     "productName": "Patrich",
+    "icon": "icon",
     "files": [
       "dist/**/*",
       "electron/**/*",
@@ -52,14 +60,12 @@
     "win": {
       "target": [
         {
-          "target": "portable",
+          "target": "nsis",
           "arch": [
             "x64"
           ]
         }
       ],
-      "certificateFile": null,
-      "certificatePassword": null,
       "artifactName": "${productName}-${version}.${ext}"
     },
     "nsis": {

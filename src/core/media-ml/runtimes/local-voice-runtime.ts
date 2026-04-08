@@ -143,8 +143,8 @@ class LocalVoiceRuntime implements MediaRuntimeAdapter {
         }
 
         const utterance = new SpeechSynthesisUtterance(text)
-        utterance.rate = 1.0
-        utterance.pitch = 1.0
+        utterance.rate = 1.45
+        utterance.pitch = 1.6
         utterance.volume = 1.0
 
         // Pick the best available English voice

@@ -3,21 +3,256 @@
  * Handles inter-device communication and cross-device task relay
  */
 
-import { DeviceMessage, RemoteTask, Task } from '@/types';
+import { DeviceMessage, Task } from '@/types';
 import { getDeviceMesh } from '@/core/device-mesh';
+import taskExecutor from '@/core/task-executor';
+import { runtimeStatusStore } from '@/core/runtime-status';
+import { supabase } from '@/lib/supabase';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 const DEVICE_MESSAGE_LOG_KEY = 'paxion_device_messages';
+const DEVICE_QUEUE_KEY = 'paxion_device_outbox';
 const MAX_MESSAGE_LOG = 500;
 const MESSAGE_TIMEOUT = 30000; // 30 second response timeout
+
+type QueuedEnvelope = {
+  id: string
+  encryptedPayload: string
+  createdAt: number
+  retries: number
+}
 
 export class DeviceBridge {
   private mesh = getDeviceMesh();
   private messageLog: DeviceMessage[] = [];
   private pendingMessages: Map<string, { resolve: any; reject: any; timeout: NodeJS.Timeout }> = new Map();
   private messageListeners: Set<(message: DeviceMessage) => void> = new Set();
+  private transportChannel: RealtimeChannel | null = null;
+  private transportReady = false;
+  private transportTopic = 'device_mesh_transport';
+  private taskExecutor: ((task: Task) => Promise<unknown>) | null = null;
+  private outbox: QueuedEnvelope[] = [];
+  private drainTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     this.loadMessageLog();
+    this.loadOutbox();
+    this.initializeTransport().catch((error) => {
+      console.error('[DeviceBridge] Failed to initialize realtime transport:', error);
+    });
+    this.startOutboxDrainLoop();
+  }
+
+  private async initializeTransport(): Promise<void> {
+    if (this.transportChannel) return;
+
+    this.transportChannel = supabase
+      .channel(this.transportTopic)
+      .on('broadcast', { event: 'device-message' }, ({ payload }) => {
+        this.handleTransportPayload(payload).catch((error) => {
+          console.error('[DeviceBridge] Transport payload error:', error);
+        });
+      });
+
+    await this.transportChannel.subscribe((status) => {
+      this.transportReady = status === 'SUBSCRIBED';
+      if (this.transportReady) {
+        console.log('[DeviceBridge] Realtime transport online');
+        this.announceLocalPresence().catch((error) => {
+          console.error('[DeviceBridge] Presence announce failed:', error);
+        });
+        this.flushOutbox().catch(() => {});
+      }
+    });
+  }
+
+  private async announceLocalPresence(): Promise<void> {
+    const local = this.mesh.getLocalDevice();
+
+    const handshake: DeviceMessage = {
+      id: 'msg_' + Math.random().toString(36).substr(2, 9),
+      fromDeviceId: local.id,
+      toDeviceId: '*',
+      type: 'status-query',
+      payload: {
+        status: 'capability_handshake',
+      },
+      timestamp: new Date(),
+      priority: 'normal',
+      confirmed: false,
+    };
+
+    this.messageLog.push(handshake);
+    this.saveMessageLog();
+    this.notifyListeners(handshake);
+    await this.publishMessage(handshake);
+  }
+
+  private async publishMessage(message: DeviceMessage): Promise<boolean> {
+    await this.initializeTransport();
+    if (!this.transportChannel || !this.transportReady) {
+      await this.enqueueMessage(message);
+      return false;
+    }
+
+    const encryptedPayload = await this.encryptPayload({
+      ...message,
+      timestamp: message.timestamp.toISOString(),
+    });
+
+    const result = await this.transportChannel.send({
+      type: 'broadcast',
+      event: 'device-message',
+      payload: {
+        id: message.id,
+        encryptedPayload,
+      },
+    });
+
+    if (result !== 'ok') {
+      await this.enqueueMessage(message);
+    }
+
+    return result === 'ok';
+  }
+
+  private async handleTransportPayload(payload: unknown): Promise<void> {
+    if (!payload || typeof payload !== 'object') return;
+    const raw = payload as Record<string, unknown>;
+    const decrypted = await this.decryptIncomingPayload(raw);
+    if (!decrypted) return;
+
+    const localDevice = this.mesh.getLocalDevice();
+
+    const incoming: DeviceMessage = {
+      id: String(decrypted.id || ''),
+      fromDeviceId: String(decrypted.fromDeviceId || ''),
+      toDeviceId: String(decrypted.toDeviceId || ''),
+      type: (decrypted.type as DeviceMessage['type']) || 'status-query',
+      payload: (decrypted.payload as DeviceMessage['payload']) || {},
+      timestamp: new Date(String(decrypted.timestamp || Date.now())),
+      priority: (decrypted.priority as DeviceMessage['priority']) || 'normal',
+      confirmed: Boolean(decrypted.confirmed),
+    };
+
+    const isBroadcast = incoming.toDeviceId === '*';
+    if (!incoming.toDeviceId || (!isBroadcast && incoming.toDeviceId !== localDevice.id)) {
+      return;
+    }
+
+    if (incoming.fromDeviceId === localDevice.id) {
+      return;
+    }
+
+    this.messageLog.push(incoming);
+    this.saveMessageLog();
+    this.notifyListeners(incoming);
+
+    if (incoming.type === 'response') {
+      const responseTaskId = String(incoming.payload.taskId || '');
+
+      if (responseTaskId === 'capability_handshake') {
+        const profile = incoming.payload.result as {
+          id?: string
+          name?: string
+          type?: 'desktop' | 'mobile' | 'tablet' | 'wearable' | 'smart-home'
+          platform?: 'windows' | 'macos' | 'linux' | 'android' | 'ios'
+          status?: 'online' | 'offline' | 'sleep'
+          capabilities?: string[]
+        } | undefined;
+
+        if (profile?.id && profile.name && profile.platform && profile.type && profile.status) {
+          this.mesh.upsertRemotePresence({
+            id: profile.id,
+            name: profile.name,
+            type: profile.type,
+            platform: profile.platform,
+            status: profile.status,
+            capabilities: Array.isArray(profile.capabilities) ? profile.capabilities : [],
+          });
+        }
+        return;
+      }
+
+      if (!responseTaskId || !this.pendingMessages.has(responseTaskId)) return;
+
+      const pending = this.pendingMessages.get(responseTaskId)!;
+      clearTimeout(pending.timeout);
+      if (incoming.payload.error) {
+        pending.reject(new Error(String(incoming.payload.error)));
+      } else {
+        pending.resolve(incoming.payload.result);
+      }
+      this.pendingMessages.delete(responseTaskId);
+      return;
+    }
+
+    if (incoming.type === 'status-query' && incoming.payload.status === 'capability_handshake') {
+      const local = this.mesh.getLocalDevice();
+      await this.sendResponse(incoming.fromDeviceId, 'capability_handshake', {
+        id: local.id,
+        name: local.name,
+        type: local.type,
+        platform: local.platform,
+        status: local.status,
+        capabilities: local.capabilities,
+      });
+      return;
+    }
+
+    if (incoming.type === 'task') {
+      const taskId = String(incoming.payload.taskId || '');
+      const command = String(incoming.payload.command || '');
+      const taskType = String((incoming.payload as any).taskType || 'custom') as Task['type'];
+
+      if (!taskId || !command) {
+        await this.sendResponse(incoming.fromDeviceId, taskId || 'unknown-task', null, 'Malformed remote task payload');
+        return;
+      }
+
+      try {
+        const task: Task = {
+          id: taskId,
+          command,
+          type: taskType,
+          status: 'pending',
+          createdAt: new Date(),
+        };
+
+        const execute = this.taskExecutor || (await this.getDefaultTaskExecutor());
+        if (!execute) {
+          await this.sendResponse(incoming.fromDeviceId, taskId, null, 'No task executor registered on target device');
+          return;
+        }
+
+        const result = await execute(task);
+        await this.sendResponse(incoming.fromDeviceId, taskId, result);
+      } catch (error) {
+        await this.sendResponse(
+          incoming.fromDeviceId,
+          taskId,
+          null,
+          error instanceof Error ? error.message : 'Remote execution failed'
+        );
+      }
+    }
+  }
+
+  private async getDefaultTaskExecutor(): Promise<((task: Task) => Promise<unknown>) | null> {
+    return async (task: Task) => {
+      const localDevice = this.mesh.getLocalDevice();
+      return taskExecutor.executeTask(task, {
+        userId: 'remote-user',
+        agentId: 'remote-agent',
+        taskId: task.id,
+        device: localDevice.type === 'mobile' ? 'mobile' : 'desktop',
+        platform: localDevice.platform,
+      });
+    };
+  }
+
+  registerTaskExecutor(executor: (task: Task) => Promise<unknown>): void {
+    this.taskExecutor = executor;
   }
 
   /**
@@ -82,15 +317,6 @@ export class DeviceBridge {
 
     const preparedTask = await this.enrichTaskForTargetDevice(task, targetDevice.platform);
 
-    // Create remote task wrapper
-    const remoteTask: RemoteTask = {
-      ...preparedTask,
-      targetDeviceId,
-      sourceDeviceId: localDevice.id,
-      relayedAt: new Date(),
-      responseReceived: false,
-    };
-
     // Create message envelope
     const message: DeviceMessage = {
       id: 'msg_' + Math.random().toString(36).substr(2, 9),
@@ -100,6 +326,7 @@ export class DeviceBridge {
       payload: {
         command: preparedTask.command,
         taskId: preparedTask.id,
+        ...( { taskType: preparedTask.type } as Record<string, unknown> ),
       },
       timestamp: new Date(),
       priority: 'normal',
@@ -110,13 +337,20 @@ export class DeviceBridge {
     this.saveMessageLog();
     this.notifyListeners(message);
 
-    // In a real implementation, send via WebSocket/WebRTC to target device
-    console.log(
-      `[DeviceBridge] Sending task ${preparedTask.id} to ${targetDevice.name}: "${preparedTask.command}"`
-    );
+    const delivered = await this.publishMessage(message);
+    if (!delivered) {
+      throw new Error('Realtime transport unavailable. Check Supabase connection on both devices.');
+    }
 
-    // For MVP: simulate local execution
-    return this.simulateRemoteExecution(remoteTask, targetDevice.name);
+    return await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        this.pendingMessages.delete(preparedTask.id);
+        reject(new Error(`Task timeout on ${targetDevice.name}`));
+      }, MESSAGE_TIMEOUT);
+
+      this.pendingMessages.set(preparedTask.id, { resolve, reject, timeout });
+      console.log(`[DeviceBridge] Task ${preparedTask.id} sent to ${targetDevice.name} via realtime transport`);
+    });
   }
 
   private async enrichTaskForTargetDevice(
@@ -197,7 +431,7 @@ export class DeviceBridge {
     this.saveMessageLog();
     this.notifyListeners(message);
 
-    // In a real implementation, send via WebSocket/WebRTC
+    await this.publishMessage(message);
     console.log(`[DeviceBridge] Sending response for task ${taskId}`);
 
     // Resolve any pending promises
@@ -308,52 +542,137 @@ export class DeviceBridge {
   }
 
   /**
-   * Simulate remote task execution (MVP implementation)
-   * In production, this would connect to actual remote device
-   */
-  private async simulateRemoteExecution(
-    task: RemoteTask,
-    deviceName: string
-  ): Promise<unknown> {
-    return new Promise((resolve, reject) => {
-      // Register timeout
-      const timeout = setTimeout(() => {
-        this.pendingMessages.delete(task.id);
-        reject(new Error(`Task timeout on ${deviceName}`));
-      }, MESSAGE_TIMEOUT);
-
-      this.pendingMessages.set(task.id, { resolve, reject, timeout });
-
-      // Simulate execution delay
-      setTimeout(() => {
-        const success = Math.random() > 0.1; // 90% success rate for simulation
-
-        if (success) {
-          resolve({
-            success: true,
-            message: `Task executed on ${deviceName}: ${task.command}`,
-            timestamp: new Date(),
-          });
-          this.sendResponse(task.sourceDeviceId, task.id, {
-            success: true,
-            output: `Task completed: ${task.command}`,
-          });
-        } else {
-          reject(new Error(`Task failed on ${deviceName}`));
-          this.sendResponse(task.sourceDeviceId, task.id, null, 'Execution failed');
-        }
-
-        this.pendingMessages.delete(task.id);
-      }, 500);
-    });
-  }
-
-  /**
    * Clear message log
    */
   clearMessageLog(): void {
     this.messageLog = [];
     localStorage.removeItem(DEVICE_MESSAGE_LOG_KEY);
+  }
+
+  private loadOutbox(): void {
+    try {
+      const raw = localStorage.getItem(DEVICE_QUEUE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as QueuedEnvelope[];
+      this.outbox = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      this.outbox = [];
+    }
+  }
+
+  private saveOutbox(): void {
+    localStorage.setItem(DEVICE_QUEUE_KEY, JSON.stringify(this.outbox.slice(-500)));
+    runtimeStatusStore.setQueuedMessages(this.outbox.length);
+  }
+
+  private startOutboxDrainLoop(): void {
+    if (this.drainTimer) return;
+    this.drainTimer = setInterval(() => {
+      void this.flushOutbox();
+    }, 5000);
+  }
+
+  private async flushOutbox(): Promise<void> {
+    if (!this.transportChannel || !this.transportReady || !this.outbox.length) return;
+
+    const copy = [...this.outbox];
+    for (const queued of copy) {
+      const result = await this.transportChannel.send({
+        type: 'broadcast',
+        event: 'device-message',
+        payload: {
+          id: queued.id,
+          encryptedPayload: queued.encryptedPayload,
+        },
+      });
+
+      if (result === 'ok') {
+        this.outbox = this.outbox.filter((item) => item.id !== queued.id);
+      } else {
+        const current = this.outbox.find((item) => item.id === queued.id);
+        if (current) current.retries += 1;
+      }
+    }
+
+    this.saveOutbox();
+  }
+
+  private async enqueueMessage(message: DeviceMessage): Promise<void> {
+    const encryptedPayload = await this.encryptPayload({
+      ...message,
+      timestamp: message.timestamp.toISOString(),
+    });
+
+    this.outbox.push({
+      id: message.id,
+      encryptedPayload,
+      createdAt: Date.now(),
+      retries: 0,
+    });
+    this.saveOutbox();
+  }
+
+  private getTransportSecret(): string {
+    const key = 'paxion_device_transport_secret';
+    const existing = localStorage.getItem(key);
+    if (existing) return existing;
+    const generated = `${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
+    localStorage.setItem(key, generated);
+    return generated;
+  }
+
+  private async encryptPayload(payload: Record<string, unknown>): Promise<string> {
+    try {
+      const encoder = new TextEncoder();
+      const secret = this.getTransportSecret();
+      const keyMaterial = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(secret.padEnd(32, '_').slice(0, 32)),
+        { name: 'AES-GCM' },
+        false,
+        ['encrypt'],
+      );
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const data = encoder.encode(JSON.stringify(payload));
+      const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, keyMaterial, data);
+      const binary = new Uint8Array(encrypted);
+      const packed = new Uint8Array(iv.length + binary.length);
+      packed.set(iv, 0);
+      packed.set(binary, iv.length);
+      return btoa(String.fromCharCode(...packed));
+    } catch {
+      return btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+    }
+  }
+
+  private async decryptIncomingPayload(raw: Record<string, unknown>): Promise<Record<string, unknown> | null> {
+    if (raw.encryptedPayload && typeof raw.encryptedPayload === 'string') {
+      try {
+        const bytes = Uint8Array.from(atob(raw.encryptedPayload), (c) => c.charCodeAt(0));
+        const iv = bytes.slice(0, 12);
+        const data = bytes.slice(12);
+        const encoder = new TextEncoder();
+        const keyMaterial = await crypto.subtle.importKey(
+          'raw',
+          encoder.encode(this.getTransportSecret().padEnd(32, '_').slice(0, 32)),
+          { name: 'AES-GCM' },
+          false,
+          ['decrypt'],
+        );
+        const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, keyMaterial, data);
+        const text = new TextDecoder().decode(decrypted);
+        return JSON.parse(text) as Record<string, unknown>;
+      } catch {
+        try {
+          const legacy = decodeURIComponent(escape(atob(raw.encryptedPayload)));
+          return JSON.parse(legacy) as Record<string, unknown>;
+        } catch {
+          return null;
+        }
+      }
+    }
+
+    return raw;
   }
 }
 

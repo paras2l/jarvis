@@ -48,6 +48,24 @@ type InstalledAppMetadata = {
 declare global {
   interface Window {
     nativeBridge?: {
+      assistantService?: {
+        getStatus: () => Promise<{ enabled: boolean; listening: boolean; wakeWord: string }>
+        start: (config?: {
+          provider?: 'local_whisper' | 'native'
+          whisperModel?: 'tiny' | 'base' | 'small'
+          whisperDevice?: 'cpu' | 'gpu'
+        }) => Promise<{ success: boolean }>
+        stop: () => Promise<{ success: boolean }>
+        onEvent: (callback: (payload: {
+          timestamp: number
+          type: 'status' | 'transcript' | 'command'
+          listening?: boolean
+          enabled?: boolean
+          transcript?: string
+          confidence?: number
+          command?: string
+        }) => void) => (() => void)
+      }
       launchApp: (appName: string) => Promise<{ success: boolean; message: string }>
       openExternal: (target: string) => Promise<{ success: boolean; message: string }>
       openAppAssistive: (appName: string) => Promise<{ success: boolean; message: string }>

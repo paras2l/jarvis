@@ -43,6 +43,17 @@ import { runRedTeamPass } from './security/red-team-harness'
 import { episodicMemoryGraph } from './memory/EpisodicMemoryGraph'
 import { continuityEngine } from './ops/ContinuityEngine'
 import { getAuthenticatedContext } from './security/auth-context'
+import { jarvisOS } from './jarvis3'
+import { eventPublisher } from '@/event_system/event_publisher'
+
+type HierarchicalAgentRole =
+  | 'ManagerAgent'
+  | 'AutomationAgent'
+  | 'ResearchAgent'
+  | 'ScreenAnalysisAgent'
+  | 'LearningAgent'
+  | 'PredictionAgent'
+  | 'MonitoringAgent'
 
 type CanvasPayload = {
   type: string
@@ -63,6 +74,7 @@ class AgentEngine {
   private mainAgent: Agent | null = null
   private mesh = getDeviceMesh()
   private bridge = getDeviceBridge()
+  private roleAgents: Map<HierarchicalAgentRole, Agent> = new Map()
 
   /**
    * Initialize the main agent
@@ -144,7 +156,31 @@ class AgentEngine {
     console.log('✅ Custodian Protocol activated - governance & boundaries enforced')
 
     this.agents.set(this.mainAgent.id, this.mainAgent)
+    this.ensureHierarchicalAgents(this.mainAgent.id)
     return this.mainAgent
+  }
+
+  private ensureHierarchicalAgents(parentAgentId: string): void {
+    const defaults: Array<{ role: HierarchicalAgentRole; capabilities: string[] }> = [
+      { role: 'ManagerAgent', capabilities: ['task_execution', 'device_orchestration', 'cross_device_tasks'] },
+      { role: 'AutomationAgent', capabilities: ['screen_control', 'app_execution', 'browser_automation'] },
+      { role: 'ResearchAgent', capabilities: ['api_integration', 'web_research', 'analysis'] },
+      { role: 'ScreenAnalysisAgent', capabilities: ['screen_control', 'ocr', 'vision_analysis'] },
+      { role: 'LearningAgent', capabilities: ['learning', 'memory_update', 'skill_synthesis'] },
+      { role: 'PredictionAgent', capabilities: ['prediction', 'behavior_modeling', 'proactive_assist'] },
+      { role: 'MonitoringAgent', capabilities: ['notification_watch', 'system_monitoring', 'context_awareness'] },
+    ]
+
+    for (const spec of defaults) {
+      if (this.roleAgents.has(spec.role)) continue
+      const agent = this.createSubAgent(parentAgentId, spec.role, spec.capabilities)
+      agent.name = spec.role
+      this.roleAgents.set(spec.role, agent)
+    }
+  }
+
+  getHierarchyAgents(): Array<{ role: HierarchicalAgentRole; agent: Agent }> {
+    return Array.from(this.roleAgents.entries()).map(([role, agent]) => ({ role, agent }))
   }
 
   /**
@@ -245,6 +281,7 @@ class AgentEngine {
   private async buildPolicyContext(agentId: string, action: string, command: string, source: 'local' | 'remote', explicitPermission = false): Promise<PolicyContext> {
     const lower = (command || '').toLowerCase()
     const auth = await getAuthenticatedContext()
+    const authority = this.extractAuthorityHints(command)
     return {
       requestId: `policy_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       agentId,
@@ -258,9 +295,22 @@ class AgentEngine {
       deviceState: 'unknown',
       occurredAt: Date.now(),
       policyPack: policyGateway.getPolicyPack(),
-      emergency: lower.includes('emergency'),
-      commander: auth.commander,
-      codeword: auth.codeword,
+      emergency: lower.includes('emergency') || authority.emergency,
+      commander: auth.commander || authority.commander,
+      codeword: auth.codeword || authority.codeword,
+    }
+  }
+
+  private extractAuthorityHints(command: string): {
+    commander?: string
+    codeword?: string
+    emergency: boolean
+  } {
+    const lower = (command || '').toLowerCase()
+    return {
+      commander: /\bparas\b|\bparo\b/.test(lower) ? 'paras' : undefined,
+      codeword: lower.includes('paro the master') ? 'paro the master' : undefined,
+      emergency: /\bemergency\b|\burgent\b/.test(lower),
     }
   }
 
@@ -330,11 +380,50 @@ class AgentEngine {
     )
     this.requireDecisionToken(`remote_${task.type}`, remoteDecision)
 
+    // Auto-route to a compatible device if the requested target can't execute this task.
+    let routedTargetDeviceId = targetDeviceId
+    if (!this.mesh.supportsTaskOnDevice(targetDeviceId, task)) {
+      const fallback = this.mesh.findBestDeviceForTask(task, { excludeDeviceIds: [targetDeviceId] })
+      if (!fallback) {
+        throw new Error(`No compatible online device can execute ${task.type} right now.`)
+      }
+      routedTargetDeviceId = fallback.id
+      console.warn(`[AgentEngine] Auto-routed remote task ${task.id} from ${targetDeviceId} to ${fallback.id} (${fallback.name})`)
+    }
+
     // Delegate to device bridge for execution
     try {
-      const result = await this.bridge.sendRemoteTask(targetDeviceId, task)
+      const result = await this.bridge.sendRemoteTask(routedTargetDeviceId, task)
+      void eventPublisher.taskCompleted(
+        {
+          taskId: task.id,
+          success: true,
+          result,
+          summary: `Remote task executed on ${routedTargetDeviceId}`,
+          agentId,
+        },
+        'agent-engine',
+      )
+      if (routedTargetDeviceId !== targetDeviceId && result && typeof result === 'object') {
+        return {
+          ...(result as Record<string, unknown>),
+          autoRouted: true,
+          requestedTargetDeviceId: targetDeviceId,
+          actualTargetDeviceId: routedTargetDeviceId,
+        }
+      }
       return result
     } catch (error) {
+      void eventPublisher.taskFailed(
+        {
+          taskId: task.id,
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+          summary: `Remote task execution failed for ${routedTargetDeviceId}`,
+          agentId,
+        },
+        'agent-engine',
+      )
       throw new Error(`Remote task execution failed: ${error}`)
     }
   }
@@ -467,6 +556,16 @@ class AgentEngine {
       task.status = 'completed'
       task.result = { success: true, output }
       task.completedAt = new Date()
+      void eventPublisher.taskCompleted(
+        {
+          taskId: task.id,
+          success: true,
+          result: task.result,
+          summary: output.slice(0, 200),
+          agentId,
+        },
+        'agent-engine',
+      )
 
       // ── BACKGROUND PARTNERSHIP NOTIFICATION ───────────────────────────
       // If the task was stealth or media, tap the user on the shoulder
@@ -487,6 +586,16 @@ class AgentEngine {
       task.status = 'failed'
       task.error = String(error)
       task.completedAt = new Date()
+      void eventPublisher.taskFailed(
+        {
+          taskId: task.id,
+          success: false,
+          error: task.error,
+          summary: `Local task failed: ${task.error}`,
+          agentId,
+        },
+        'agent-engine',
+      )
       throw error
     }
   }
@@ -510,6 +619,16 @@ class AgentEngine {
     task: Task,
     targetDeviceId?: string
   ): Promise<unknown> {
+    void eventPublisher.agentAssigned(
+      {
+        taskId: task.id,
+        agentId,
+        agentName: this.agents.get(agentId)?.name || 'Unknown Agent',
+        agentRole: this.agents.get(agentId)?.type,
+      },
+      'agent-engine',
+    )
+
     if (!targetDeviceId) {
       // No target specified, execute locally
       return this.executeLocalTask(agentId, task)
@@ -586,6 +705,15 @@ class AgentEngine {
    */
   getAllAgents(): Agent[] {
     return Array.from(this.agents.values())
+  }
+
+  async executeGoalWithJarvisOS(goal: string): Promise<{ status: string; summary: string; planId: string }> {
+    const report = await jarvisOS.executeGoal(goal)
+    return {
+      status: report.status,
+      summary: report.summary,
+      planId: report.plan.id,
+    }
   }
 
   /**

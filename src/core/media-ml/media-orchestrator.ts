@@ -1,6 +1,6 @@
 import { cloudBridge } from '../cloud-bridge'
-import { mediaCloudClient } from './cloud-client'
 import { cloudMediaRuntime, localMediaRuntime } from './runtimes/mock-runtimes'
+import { cloudImageRuntime } from './runtimes/cloud-image-runtime'
 import { pythonLocalImageRuntime } from './runtimes/python-local-image-runtime'
 import { localVoiceRuntime } from './runtimes/local-voice-runtime'
 import { localVideoRuntime } from './runtimes/local-video-runtime'
@@ -72,6 +72,7 @@ function forwardAssets(
 class MediaOrchestrator {
   private readonly runtimes: MediaRuntimeAdapter[] = [
     pythonLocalImageRuntime,
+    cloudImageRuntime,
     localVoiceRuntime,
     localVideoRuntime,
     cloudVideoRuntime,
@@ -186,9 +187,7 @@ class MediaOrchestrator {
         updatedAt: new Date().toISOString(),
       })
 
-      const result = runtime === 'cloud' && stage.type !== 'video'
-        ? await this.runCloudStage(jobId, stage, policy)
-        : await selectedRuntime.run(stage, jobId)
+      const result = await selectedRuntime.run(stage, jobId)
       stageResults.push(result)
 
       // Forward this stage's output as input to all subsequent stages
@@ -251,102 +250,6 @@ class MediaOrchestrator {
 
   private findRuntime(runtimeTarget: 'local' | 'cloud', stageType: MediaStageType): MediaRuntimeAdapter | undefined {
     return this.runtimes.find((adapter) => adapter.target === runtimeTarget && adapter.supportedStages.includes(stageType))
-  }
-
-  private async runCloudStage(
-    jobId: string,
-    stage: MediaStageRequest,
-    policy: MediaRuntimePolicy,
-  ): Promise<MediaStageResult> {
-    const startedAt = Date.now()
-
-    const createResponse = await mediaCloudClient.createStageJob({
-      jobId,
-      policy,
-      stage: {
-        stageId: stage.id,
-        stageType: stage.type,
-        prompt: stage.prompt,
-        inputAssetUris: stage.inputAssetUris,
-      },
-    })
-
-    if (!createResponse.accepted) {
-      return {
-        stageId: stage.id,
-        stageType: stage.type,
-        runtime: 'cloud',
-        success: false,
-        warnings: [createResponse.message ?? 'Cloud job rejected.'],
-        durationMs: Date.now() - startedAt,
-        modelVersion: 'cloud-unavailable',
-      }
-    }
-
-    let attempts = 0
-    const maxAttempts = 6
-    let latestMessage = createResponse.message ?? 'Cloud job queued.'
-    let artifactUri: string | undefined
-    let previewUri: string | undefined
-    let modelVersion = 'golden-cloud-v1'
-
-    while (attempts < maxAttempts) {
-      attempts += 1
-      const status = await mediaCloudClient.pollStageJob(createResponse.remoteJobId, stage)
-      latestMessage = status.message
-      artifactUri = status.artifactUri ?? artifactUri
-      previewUri = status.previewUri ?? previewUri
-      modelVersion = status.modelVersion ?? modelVersion
-
-      this.emitProgress({
-        jobId,
-        stageId: stage.id,
-        stageType: stage.type,
-        runtime: 'cloud',
-        status: status.status === 'queued' ? 'running' : status.status,
-        progress: Math.max(10, Math.min(100, status.progress)),
-        message: status.message,
-        updatedAt: new Date().toISOString(),
-      })
-
-      if (status.status === 'completed') {
-        return {
-          stageId: stage.id,
-          stageType: stage.type,
-          runtime: 'cloud',
-          success: true,
-          artifactUri,
-          previewUri,
-          durationMs: Date.now() - startedAt,
-          modelVersion,
-        }
-      }
-
-      if (status.status === 'failed') {
-        return {
-          stageId: stage.id,
-          stageType: stage.type,
-          runtime: 'cloud',
-          success: false,
-          warnings: [status.message],
-          durationMs: Date.now() - startedAt,
-          modelVersion,
-        }
-      }
-
-      const backoffMs = Math.min(3000, 400 * attempts)
-      await new Promise((resolve) => setTimeout(resolve, backoffMs))
-    }
-
-    return {
-      stageId: stage.id,
-      stageType: stage.type,
-      runtime: 'cloud',
-      success: false,
-      warnings: [latestMessage, 'Cloud stage timed out while polling.'],
-      durationMs: Date.now() - startedAt,
-      modelVersion,
-    }
   }
 
   private emitProgress(payload: MediaStageProgress): void {

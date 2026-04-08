@@ -136,7 +136,7 @@ class CodeExecutionEngine {
 
     for (const cmd of commands) {
       console.log(`[CodeEngine] Running: ${cmd} (fix-loop: ${retryCount})`);
-      const result = await platformAdapter.runCommand(cmd, cwd);
+      const result = await platformAdapter.runCommand(cmd, { cwd });
       
       if (!result.success) {
         console.log(`[CodeEngine] ⚠️ Command failed. Analyzing error...`);

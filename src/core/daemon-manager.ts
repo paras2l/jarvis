@@ -23,6 +23,7 @@
 import { agentScheduler } from './scheduler'
 import { soulEngine } from './soul-engine'
 import { localLLM } from './local-llm'
+import { autonomousRuntime } from './autonomous-runtime'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -83,6 +84,9 @@ class DaemonManager {
       this.tasksCompleted++
     })
 
+    // Start autonomous cognitive runtime under daemon supervision.
+    await autonomousRuntime.start()
+
     console.log('[Daemon] 🟢 Started — agent is now always-on')
     this.logEvent({ type: 'wake', timestamp: Date.now() })
   }
@@ -112,6 +116,7 @@ class DaemonManager {
   async stop(): Promise<void> {
     if (this.heartbeatInterval) clearInterval(this.heartbeatInterval)
     this.status = 'stopped'
+    await autonomousRuntime.stop()
     await window.nativeBridge?.daemon?.stop?.()
     this.logEvent({ type: 'sleep', timestamp: Date.now() })
     console.log('[Daemon] 🔴 Stopped')

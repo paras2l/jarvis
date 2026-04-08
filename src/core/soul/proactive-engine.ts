@@ -2,7 +2,6 @@ import { moodEngine } from './mood-engine'
 import { notificationEngine } from '../notification-engine'
 import { localVoiceRuntime } from '../media-ml/runtimes/local-voice-runtime'
 import { intelligenceRouter } from '../intelligence-router'
-import { curiosityEngine } from './curiosity-engine'
 import { db } from '../../lib/db'
 import { protocolRegistry } from '../protocols/ProtocolRegistry'
 
@@ -168,21 +167,6 @@ class ProactiveEngine {
       }
     } catch (err) {
       console.error('[ProactiveEngine] Akasha consolidation failed:', err)
-    }
-  }
-
-  /**
-   * JARVIS researches something he knows you like
-   */
-  private async triggerCuriosityUpdate() {
-    const thought = await curiosityEngine.runDailyPulse()
-    if (!thought) return
-
-    this.lastSelfTalkAt = Date.now()
-    
-    // JARVIS doesn't always speak. Sometimes he just "notes" it for later.
-    if (thought.shouldAnnounce) {
-      this.announceAutonomousThought(thought.insight)
     }
   }
 

@@ -9,7 +9,6 @@ export class QuantProtocol implements BaseProtocol {
   status: ProtocolStatus = 'offline';
 
   private marketConfidence: number = 0.92;
-  private activeStreams: number = 24;
 
   actions: ProtocolAction[] = [
     {
@@ -64,7 +63,7 @@ export class QuantProtocol implements BaseProtocol {
     }
   }
 
-  private handleAudit(params: Record<string, any>, auditId: string): ActionResult {
+  private handleAudit(_params: Record<string, any>, auditId: string): ActionResult {
     console.log('[QUANT] Performing resource audit...');
     
     return { 

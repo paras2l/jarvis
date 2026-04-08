@@ -64,7 +64,7 @@ export class PersonaEngineProtocol implements BaseProtocol {
     }
   }
 
-  private handleGreeting(params: Record<string, any>, auditId: string): ActionResult {
+  private handleGreeting(_params: Record<string, any>, auditId: string): ActionResult {
     const hour = new Date().getHours();
     let timeOfDay = 'evening';
     if (hour >= 5 && hour < 12) timeOfDay = 'morning';

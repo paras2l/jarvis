@@ -643,14 +643,27 @@ class AppIndexer {
       }
     }
 
+    const foregroundName = String(result.app.appName || '').trim()
+    const normalizedForeground = normalizeAppKey(foregroundName)
+    const normalizedAlias = normalizeAppKey(String(alias || ''))
+
+    // Avoid poisoning aliases when foreground app does not match the requested alias.
+    const shouldAttachAlias =
+      !!normalizedAlias &&
+      (normalizedForeground.includes(normalizedAlias) ||
+        normalizedAlias.includes(normalizedForeground) ||
+        normalizeAppKey(String(result.app.executableName || '')).includes(normalizedAlias))
+
     const learned = this.upsertLearnedProfile(platform, {
       ...result.app,
-      aliases: alias ? [alias] : undefined,
+      aliases: shouldAttachAlias ? [String(alias)] : undefined,
     })
 
     return {
       success: true,
-      message: `Learned app profile for ${result.app.appName}.`,
+      message: shouldAttachAlias
+        ? `Learned app profile for ${result.app.appName}.`
+        : `Learned foreground profile for ${result.app.appName} without alias mapping (mismatch guard).`,
       learnedAppName: learned.names[0],
     }
   }

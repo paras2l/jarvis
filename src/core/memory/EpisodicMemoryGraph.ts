@@ -21,7 +21,6 @@ export interface EpisodeNode {
 
 export class EpisodicMemoryGraph {
   private nodes: Map<string, EpisodeNode> = new Map()
-  private graphVersion: string = 'v4.0'
 
   /**
    * Promotes a raw memory to a Wisdom Node
@@ -45,7 +44,7 @@ export class EpisodicMemoryGraph {
     this.nodes.set(id, node)
     
     // Persist to long-term tier
-    await memoryTierService.remember(id, JSON.stringify(node), 'wisdom')
+    await memoryTierService.remember(id, JSON.stringify(node), 'feedback')
     
     console.log(`[WISDOM] New episode anchored: ${id} (${category}) with ${links.length} links.`)
     return id

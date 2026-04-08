@@ -205,7 +205,15 @@ export function installNativeBridgeShim(): void {
     return
   }
 
-  const bridge = (window.nativeBridge || {}) as NonNullable<typeof window.nativeBridge>
+  const existingBridge = window.nativeBridge
+
+  // In Electron, contextBridge objects are often non-extensible proxies.
+  // Attempting to add shim methods to them can crash the renderer.
+  if (existingBridge && !Object.isExtensible(existingBridge)) {
+    return
+  }
+
+  const bridge = (existingBridge || {}) as NonNullable<typeof window.nativeBridge>
 
   if (!bridge.launchApp) {
     bridge.launchApp = async (appName: string) => {
@@ -312,5 +320,7 @@ export function installNativeBridgeShim(): void {
     }
   }
 
-  window.nativeBridge = bridge
+  if (!existingBridge) {
+    window.nativeBridge = bridge
+  }
 }

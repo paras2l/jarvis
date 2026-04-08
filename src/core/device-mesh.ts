@@ -3,9 +3,10 @@
  * Manages device discovery, registration, and local network mesh
  */
 
-import { Device, DevicePermission } from '@/types';
+import { Device, DevicePermission, Task } from '@/types';
 
 const DEVICE_REGISTRY_KEY = 'paxion_device_registry';
+const LOCAL_DEVICE_ID_KEY = 'paxion_local_device_id';
 const DEVICE_MESH_HEARTBEAT_INTERVAL = 30000; // 30 seconds
 const DEVICE_DISCOVERY_TIMEOUT = 5000; // 5 second scan
 
@@ -26,7 +27,12 @@ export class DeviceMesh {
    * Generate unique device ID (UUID-like)
    */
   private generateDeviceId(): string {
-    return 'device_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+    const stored = localStorage.getItem(LOCAL_DEVICE_ID_KEY);
+    if (stored) return stored;
+
+    const created = 'device_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+    localStorage.setItem(LOCAL_DEVICE_ID_KEY, created);
+    return created;
   }
 
   /**
@@ -70,22 +76,56 @@ export class DeviceMesh {
    * Get local device info
    */
   getLocalDevice(): Device {
+    const platform = this.detectPlatform();
+    const type = platform === 'android' || platform === 'ios' ? 'mobile' : 'desktop';
     return {
       id: this.localDeviceId,
       name: this.localDeviceName,
-      type: 'desktop',
-      platform: this.detectPlatform(),
+      type,
+      platform,
       status: 'online',
-      capabilities: [
-        'wake-via-http-request',
-        'open-apps',
-        'send-messages',
-        'screen-control',
-      ],
+      capabilities: this.getDefaultCapabilities(platform, type),
       lastSeen: new Date(),
       permissions: [],
       registeredAt: new Date(),
     };
+  }
+
+  private getDefaultCapabilities(
+    platform: 'windows' | 'macos' | 'linux' | 'android' | 'ios',
+    type: Device['type']
+  ): string[] {
+    const common = [
+      'open-apps',
+      'send-messages',
+      'voice-control',
+      'chat',
+      'file-basic',
+    ];
+
+    if (type === 'mobile') {
+      return [
+        ...common,
+        'wake-via-push',
+        'mobile-deeplink-launch',
+        'call',
+      ];
+    }
+
+    if (platform === 'windows' || platform === 'macos' || platform === 'linux') {
+      return [
+        ...common,
+        'wake-via-http-request',
+        'screen-control',
+        'ocr',
+        'browser-automation',
+        'shell-command',
+        'system-control',
+        'media-control',
+      ];
+    }
+
+    return common;
   }
 
   /**
@@ -105,9 +145,114 @@ export class DeviceMesh {
    * Register a new device on the mesh
    */
   registerDevice(device: Device): void {
-    this.registeredDevices.set(device.id, device);
+    const existing = this.registeredDevices.get(device.id);
+    const merged: Device = {
+      ...(existing || {} as Device),
+      ...device,
+      capabilities: Array.from(new Set([...(existing?.capabilities || []), ...(device.capabilities || [])])),
+      permissions: device.permissions || existing?.permissions || [],
+      lastSeen: device.lastSeen || new Date(),
+      registeredAt: existing?.registeredAt || device.registeredAt || new Date(),
+    };
+
+    this.registeredDevices.set(device.id, merged);
     this.saveDeviceRegistry();
     this.notifyListeners();
+  }
+
+  upsertRemotePresence(profile: {
+    id: string
+    name: string
+    type: Device['type']
+    platform: Device['platform']
+    status: Device['status']
+    capabilities: string[]
+  }): void {
+    const current = this.registeredDevices.get(profile.id);
+    this.registerDevice({
+      id: profile.id,
+      name: profile.name,
+      type: profile.type,
+      platform: profile.platform,
+      status: profile.status,
+      capabilities: profile.capabilities,
+      lastSeen: new Date(),
+      permissions: current?.permissions || [],
+      registeredAt: current?.registeredAt || new Date(),
+      networkAddress: current?.networkAddress,
+      location: current?.location,
+    });
+  }
+
+  supportsTaskOnDevice(deviceId: string, task: Task): boolean {
+    const device = this.registeredDevices.get(deviceId);
+    if (!device || device.status === 'offline') return false;
+
+    const caps = new Set(device.capabilities || []);
+    const parsed = this.safeParseCommand(task.command);
+    const action = String(parsed.action || '').toLowerCase();
+
+    if (task.type === 'app_launch') {
+      return caps.has('open-apps') || caps.has('mobile-deeplink-launch');
+    }
+
+    if (task.type === 'message_send' || task.type === 'call') {
+      return caps.has('send-messages') || caps.has('call');
+    }
+
+    if (task.type === 'screen_control') {
+      return caps.has('screen-control') || caps.has('browser-automation');
+    }
+
+    if (action.includes('snapshot') || action.includes('ocr') || action.includes('ref_')) {
+      return caps.has('ocr') || caps.has('screen-control') || caps.has('browser-automation');
+    }
+
+    if (action.includes('system_control')) {
+      return caps.has('system-control');
+    }
+
+    if (action.includes('media_control')) {
+      return caps.has('media-control');
+    }
+
+    if (action.includes('file_operation')) {
+      return caps.has('file-basic') || caps.has('shell-command');
+    }
+
+    return caps.has('chat') || caps.has('open-apps');
+  }
+
+  findBestDeviceForTask(task: Task, options?: { excludeDeviceIds?: string[] }): Device | null {
+    const excluded = new Set(options?.excludeDeviceIds || []);
+
+    const candidates = this.getAllDevices()
+      .filter((device) => !excluded.has(device.id) && device.status === 'online')
+      .filter((device) => this.supportsTaskOnDevice(device.id, task));
+
+    if (!candidates.length) return null;
+
+    const score = (device: Device): number => {
+      let s = 0;
+      const caps = new Set(device.capabilities || []);
+      if (caps.has('screen-control')) s += 4;
+      if (caps.has('ocr')) s += 3;
+      if (caps.has('browser-automation')) s += 2;
+      if (caps.has('shell-command')) s += 2;
+      if (device.type === 'desktop') s += 2;
+      return s;
+    };
+
+    candidates.sort((a, b) => score(b) - score(a));
+    return candidates[0] || null;
+  }
+
+  private safeParseCommand(command: string): Record<string, unknown> {
+    try {
+      return JSON.parse(command) as Record<string, unknown>;
+    } catch {
+      return {};
+    }
   }
 
   /**

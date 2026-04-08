@@ -272,3 +272,4 @@ Answer:`
 }
 
 export const semanticSearch = new SemanticSearchEngine()
+export const semanticSearchEngine = semanticSearch
